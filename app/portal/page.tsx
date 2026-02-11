@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { useRouter } from "next/navigation";
+import { Calendar as MonthCalendar } from "@/components/ui/calendar";
 import { Card, CardContent } from "@/components/ui/card";
+import { CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -12,7 +14,19 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from "@/components/ui/dialog";
 import {
-  Calendar, Trophy, MapPin, Clock, LogOut, User, Loader2, Search, UserPlus, Medal, TrendingUp, X
+  Calendar as CalendarIcon,
+  CalendarDays,
+  Trophy,
+  MapPin,
+  Clock,
+  LogOut,
+  User,
+  Loader2,
+  Search,
+  UserPlus,
+  Medal,
+  TrendingUp,
+  X,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -22,10 +36,12 @@ export default function PortalPage() {
   const router = useRouter();
   const { data: me } = useSWR("/api/auth/me", fetcher);
   const { data: torneos } = useSWR("/api/portal/torneos", fetcher);
+  const { data: calendarioFechas } = useSWR("/api/portal/calendario", fetcher);
   const { data: misInscripciones, mutate: mutateInscripciones } = useSWR("/api/portal/mis-inscripciones", fetcher);
   const { data: rankingData } = useSWR("/api/portal/ranking", fetcher);
   
-  const [activeTab, setActiveTab] = useState<"torneos" | "inscripciones" | "ranking">("torneos");
+  const [activeTab, setActiveTab] = useState<"torneos" | "calendario" | "inscripciones" | "ranking">("torneos");
+  const [selectedCalendarDay, setSelectedCalendarDay] = useState<Date | undefined>(undefined);
   const [enrollDialog, setEnrollDialog] = useState<any>(null);
   const [zonasDialog, setZonasDialog] = useState<string | null>(null);
   const { data: zonasData } = useSWR(zonasDialog ? `/api/portal/zonas/${zonasDialog}` : null, fetcher);
@@ -38,6 +54,52 @@ export default function PortalPage() {
   const [enrollError, setEnrollError] = useState("");
   const [searching, setSearching] = useState(false);
   const [canceling, setCanceling] = useState<number | null>(null);
+
+  const calendarioFechasList = useMemo(() => {
+    return Array.isArray(calendarioFechas) ? calendarioFechas : [];
+  }, [calendarioFechas]);
+
+  const calendarioFechasInvalid = useMemo(() => {
+    return Boolean(calendarioFechas) && !Array.isArray(calendarioFechas);
+  }, [calendarioFechas]);
+
+  const calendarioMarkedDays = useMemo(() => {
+    if (calendarioFechasList.length === 0) {
+      return {
+        programada: [] as Date[],
+        en_juego: [] as Date[],
+        finalizada: [] as Date[],
+      };
+    }
+
+    const priority: Record<string, number> = { finalizada: 1, en_juego: 2, programada: 3 };
+    const perDay = new Map<string, { date: Date; estado: string }>();
+
+    for (const f of calendarioFechasList as any[]) {
+      if (!f?.fecha_calendario) continue;
+      const d = new Date(f.fecha_calendario);
+      d.setHours(12, 0, 0, 0);
+      const key = d.toDateString();
+
+      const estado = String(f.estado || "programada");
+      const current = perDay.get(key);
+      if (!current || (priority[estado] ?? 0) > (priority[current.estado] ?? 0)) {
+        perDay.set(key, { date: d, estado });
+      }
+    }
+
+    const programada: Date[] = [];
+    const en_juego: Date[] = [];
+    const finalizada: Date[] = [];
+
+    for (const { date, estado } of perDay.values()) {
+      if (estado === "programada") programada.push(date);
+      else if (estado === "en_juego") en_juego.push(date);
+      else finalizada.push(date);
+    }
+
+    return { programada, en_juego, finalizada };
+  }, [calendarioFechasList]);
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -173,7 +235,7 @@ export default function PortalPage() {
       {/* Tabs */}
       <div className="border-b border-border/40 bg-card/60 backdrop-blur-sm">
         <div className="mx-auto max-w-7xl px-4">
-          <div className="flex gap-2">
+          <div className="flex gap-2 overflow-x-auto">
             <button
               onClick={() => setActiveTab("torneos")}
               className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
@@ -182,8 +244,19 @@ export default function PortalPage() {
                   : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
             >
-              <Calendar className="mr-2 inline-block h-4 w-4" />
+              <CalendarIcon className="mr-2 inline-block h-4 w-4" />
               Torneos
+            </button>
+            <button
+              onClick={() => setActiveTab("calendario")}
+              className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
+                activeTab === "calendario"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <CalendarDays className="mr-2 inline-block h-4 w-4" />
+              Calendario
             </button>
             <button
               onClick={() => setActiveTab("inscripciones")}
@@ -249,7 +322,7 @@ export default function PortalPage() {
                         <div className="space-y-2 text-sm">
                           {t.fecha_calendario && (
                             <div className="flex items-center gap-2 text-muted-foreground">
-                              <Calendar className="h-4 w-4" />
+                              <CalendarIcon className="h-4 w-4" />
                               {new Date(t.fecha_calendario).toLocaleDateString()}
                             </div>
                           )}
@@ -288,6 +361,163 @@ export default function PortalPage() {
           </div>
         )}
 
+        {activeTab === "calendario" && (
+          <div>
+            <h2 className="mb-4 text-xl font-bold text-foreground">Calendario</h2>
+
+            {!calendarioFechas ? (
+              <Card>
+                <CardContent className="p-8 text-center text-muted-foreground">Cargando...</CardContent>
+              </Card>
+            ) : calendarioFechasInvalid ? (
+              <Card>
+                <CardContent className="p-8 text-center text-muted-foreground">
+                  No se pudo cargar el calendario
+                </CardContent>
+              </Card>
+            ) : calendarioFechasList.length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center text-muted-foreground">No hay fechas cargadas</CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-8">
+                <Card className="overflow-hidden border-border/50 bg-card/60 backdrop-blur">
+                  <CardHeader className="pb-3">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <CardTitle className="text-base">Calendario</CardTitle>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="inline-flex h-2 w-2 rounded-full bg-primary" />
+                        Hay torneo
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="mx-auto w-fit">
+                      <MonthCalendar
+                        mode="single"
+                        selected={selectedCalendarDay}
+                        onSelect={setSelectedCalendarDay}
+                        modifiers={{
+                          hasProgramada: calendarioMarkedDays.programada,
+                          hasEnJuego: calendarioMarkedDays.en_juego,
+                          hasFinalizada: calendarioMarkedDays.finalizada,
+                        }}
+                        modifiersClassNames={{
+                          hasProgramada:
+                            "relative rounded-full bg-primary/20 text-primary ring-2 ring-primary/40 hover:bg-primary/25 after:absolute after:bottom-1 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-primary",
+                          hasEnJuego:
+                            "relative rounded-full bg-blue-500/15 text-blue-600 ring-2 ring-blue-500/30 hover:bg-blue-500/20 dark:text-blue-400 after:absolute after:bottom-1 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-blue-500",
+                          hasFinalizada:
+                            "relative after:absolute after:bottom-1 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-muted-foreground/70",
+                        }}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <div>
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-foreground">Próximas</h3>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {calendarioFechasList
+                      .filter((f: any) => f.estado !== "finalizada")
+                      .slice()
+                      .sort((a: any, b: any) => new Date(a.fecha_calendario).getTime() - new Date(b.fecha_calendario).getTime())
+                      .map((f: any) => (
+                        <Card key={f.id} className="overflow-hidden border-border/50 bg-card/60 backdrop-blur transition-all hover:border-primary/30 hover:shadow-lg">
+                          <CardContent className="p-6">
+                            <div className="mb-4 flex items-start justify-between">
+                              <div>
+                                <div className="mb-2 flex items-center gap-2 flex-wrap">
+                                  <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary">
+                                    Fecha {f.numero_fecha}
+                                  </Badge>
+                                  <Badge className={f.estado === "en_juego" ? "bg-blue-500/20 text-blue-600" : "bg-green-500/20 text-green-600"}>
+                                    {f.estado}
+                                  </Badge>
+                                </div>
+                                <p className="text-sm text-muted-foreground">{f.temporada ? `Temporada ${f.temporada}` : me.categoria_nombre}</p>
+                              </div>
+                              <CalendarDays className="h-6 w-6 text-primary/60" />
+                            </div>
+
+                            <div className="space-y-2 text-sm">
+                              {f.fecha_calendario && (
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <CalendarIcon className="h-4 w-4" />
+                                  {new Date(f.fecha_calendario).toLocaleDateString("es-AR", {
+                                    weekday: "long",
+                                    year: "numeric",
+                                    month: "long",
+                                    day: "numeric",
+                                  })}
+                                </div>
+                              )}
+                              {f.sede && (
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <MapPin className="h-4 w-4" />
+                                  {f.sede}
+                                </div>
+                              )}
+                            </div>
+
+                            <Button
+                              variant="outline"
+                              className="mt-4 w-full bg-transparent"
+                              onClick={() => router.push(`/calendario/${f.id}`)}
+                            >
+                              Ver detalles
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      ))}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-foreground">Anteriores</h3>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {calendarioFechasList
+                      .filter((f: any) => f.estado === "finalizada")
+                      .slice()
+                      .sort((a: any, b: any) => new Date(b.fecha_calendario).getTime() - new Date(a.fecha_calendario).getTime())
+                      .map((f: any) => (
+                        <Card key={f.id} className="border-border/50 bg-card/60 backdrop-blur">
+                          <CardContent className="p-6">
+                            <div className="mb-3 flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Badge variant="outline" className="border-border bg-muted/40 text-muted-foreground">
+                                    Fecha {f.numero_fecha}
+                                  </Badge>
+                                  <Badge className="bg-muted text-muted-foreground">Finalizada</Badge>
+                                </div>
+                                <div className="mt-2 text-sm text-muted-foreground">
+                                  {new Date(f.fecha_calendario).toLocaleDateString("es-AR", {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric",
+                                  })}
+                                </div>
+                                {f.sede && <div className="mt-1 truncate text-sm text-muted-foreground">{f.sede}</div>}
+                              </div>
+                              <Button variant="secondary" onClick={() => router.push(`/calendario/${f.id}`)}>
+                                Resultados
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {activeTab === "inscripciones" && (
           <div>
             <h2 className="mb-4 text-xl font-bold text-foreground">Mis Inscripciones</h2>
@@ -319,7 +549,7 @@ export default function PortalPage() {
                         <div className="space-y-2 text-sm text-muted-foreground">
                           {i.fecha_calendario && (
                             <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4" />
+                              <CalendarIcon className="h-4 w-4" />
                               <span>{new Date(i.fecha_calendario).toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
                             </div>
                           )}

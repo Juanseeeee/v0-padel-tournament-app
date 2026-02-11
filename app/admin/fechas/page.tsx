@@ -2,9 +2,10 @@
 
 import React from "react"
 
-import { useState, useEffect } from "react"
+import { useMemo, useState, useEffect } from "react"
 import Link from "next/link"
-import { ArrowLeft, Plus, Edit2, Trash2, Calendar, MapPin, Users } from "lucide-react"
+import { Calendar as MonthCalendar } from "@/components/ui/calendar"
+import { ArrowLeft, Plus, Edit2, Trash2, Calendar as CalendarIcon, MapPin, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -69,6 +70,7 @@ export default function FechasAdminPage() {
   const [sedes, setSedes] = useState<Sede[]>([])
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedCalendarDay, setSelectedCalendarDay] = useState<Date | undefined>(undefined)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [editingFecha, setEditingFecha] = useState<FechaExtendida | null>(null)
@@ -94,6 +96,49 @@ export default function FechasAdminPage() {
   useEffect(() => {
     fetchData()
   }, [])
+
+  const calendarioMarkedDays = useMemo(() => {
+    const priority: Record<string, number> = { finalizada: 1, en_juego: 2, programada: 3 }
+    const perDay = new Map<string, { date: Date; estado: string }>()
+
+    for (const f of fechas) {
+      if (!f?.fecha_calendario) continue
+      const d = new Date(f.fecha_calendario)
+      d.setHours(12, 0, 0, 0)
+      const key = d.toDateString()
+      const estado = String(f.estado || "programada")
+      const current = perDay.get(key)
+      if (!current || (priority[estado] ?? 0) > (priority[current.estado] ?? 0)) {
+        perDay.set(key, { date: d, estado })
+      }
+    }
+
+    const programada: Date[] = []
+    const en_juego: Date[] = []
+    const finalizada: Date[] = []
+
+    for (const { date, estado } of perDay.values()) {
+      if (estado === "programada") programada.push(date)
+      else if (estado === "en_juego") en_juego.push(date)
+      else finalizada.push(date)
+    }
+
+    return { programada, en_juego, finalizada }
+  }, [fechas])
+
+  const proximasFechas = useMemo(() => {
+    return fechas
+      .filter((f) => f.estado !== "finalizada")
+      .slice()
+      .sort((a, b) => new Date(a.fecha_calendario).getTime() - new Date(b.fecha_calendario).getTime())
+  }, [fechas])
+
+  const fechasAnteriores = useMemo(() => {
+    return fechas
+      .filter((f) => f.estado === "finalizada")
+      .slice()
+      .sort((a, b) => new Date(b.fecha_calendario).getTime() - new Date(a.fecha_calendario).getTime())
+  }, [fechas])
 
   async function fetchData() {
     try {
@@ -268,7 +313,7 @@ export default function FechasAdminPage() {
         ) : fechas.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
-              <Calendar className="mb-4 h-12 w-12 text-muted-foreground" />
+              <CalendarIcon className="mb-4 h-12 w-12 text-muted-foreground" />
               <p className="mb-4 text-lg text-muted-foreground">No hay fechas registradas</p>
               <Button onClick={openCreateDialog} className="gap-2">
                 <Plus className="h-4 w-4" />
@@ -277,79 +322,189 @@ export default function FechasAdminPage() {
             </CardContent>
           </Card>
         ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Lista de Fechas</span>
-                <Badge variant="secondary">{fechas.length} fechas</Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {fechas.map((fecha) => {
-                const badgeInfo = getEstadoBadge(fecha.estado)
-                return (
-                  <div
-                    key={fecha.id}
-                    className="flex items-center gap-4 rounded-lg border border-border p-4 transition-colors hover:bg-muted/30"
-                  >
-                    <div className="flex h-14 w-14 flex-col items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <span className="text-xl font-bold leading-none">
-                        {fecha.fecha_calendario ? new Date(fecha.fecha_calendario).getDate() : "-"}
-                      </span>
-                      <span className="text-xs uppercase">
-                        {fecha.fecha_calendario ? new Date(fecha.fecha_calendario).toLocaleDateString('es-AR', { month: 'short' }) : ""}
-                      </span>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium text-foreground">
-                          Fecha {fecha.numero_fecha} - {fecha.categoria_nombre || "Sin categoría"}
-                        </span>
-                        <Badge variant="outline" className={badgeInfo.className}>
-                          {badgeInfo.label}
-                        </Badge>
-                      </div>
-                      <div className="mt-1 flex flex-wrap gap-4 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {fecha.sede || "Sin sede"}
-                        </span>
-                        <span>Zonas de {fecha.formato_zona || 3} parejas</span>
-                        <span>{fecha.dias_torneo || 3} días</span>
-                      </div>
-                    </div>
-                    <div className="flex gap-1">
-                      <Link href={`/admin/torneo/${fecha.id}`}>
-                        <Button variant="outline" size="sm" className="gap-1 bg-transparent">
-                          <Users className="h-4 w-4" />
-                          Gestionar
-                        </Button>
-                      </Link>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => openEditDialog(fecha)}
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => {
-                          setDeletingFecha(fecha)
-                          setDeleteDialogOpen(true)
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+          <div className="space-y-6">
+            <Card className="overflow-hidden border-border/50 bg-card">
+              <CardHeader className="pb-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <CardTitle className="text-base">Calendario</CardTitle>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="inline-flex h-2 w-2 rounded-full bg-primary" />
+                    Programada
                   </div>
-                )
-              })}
-            </CardContent>
-          </Card>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="mx-auto w-fit">
+                  <MonthCalendar
+                    mode="single"
+                    selected={selectedCalendarDay}
+                    onSelect={setSelectedCalendarDay}
+                    modifiers={{
+                      hasProgramada: calendarioMarkedDays.programada,
+                      hasEnJuego: calendarioMarkedDays.en_juego,
+                      hasFinalizada: calendarioMarkedDays.finalizada,
+                    }}
+                    modifiersClassNames={{
+                      hasProgramada:
+                        "relative rounded-full bg-primary/20 text-primary ring-2 ring-primary/40 hover:bg-primary/25 after:absolute after:bottom-1 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-primary",
+                      hasEnJuego:
+                        "relative rounded-full bg-blue-500/15 text-blue-600 ring-2 ring-blue-500/30 hover:bg-blue-500/20 dark:text-blue-400 after:absolute after:bottom-1 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-blue-500",
+                      hasFinalizada:
+                        "relative after:absolute after:bottom-1 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-muted-foreground/70",
+                    }}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Próximas</span>
+                  <Badge variant="secondary">{proximasFechas.length} fechas</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {proximasFechas.map((fecha) => {
+                  const badgeInfo = getEstadoBadge(fecha.estado)
+                  return (
+                    <div
+                      key={fecha.id}
+                      className="flex items-center gap-4 rounded-lg border border-border p-4 transition-colors hover:bg-muted/30"
+                    >
+                      <div className="flex h-14 w-14 flex-col items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <span className="text-xl font-bold leading-none">
+                          {fecha.fecha_calendario ? new Date(fecha.fecha_calendario).getDate() : "-"}
+                        </span>
+                        <span className="text-xs uppercase">
+                          {fecha.fecha_calendario ? new Date(fecha.fecha_calendario).toLocaleDateString('es-AR', { month: 'short' }) : ""}
+                        </span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium text-foreground">
+                            Fecha {fecha.numero_fecha} - {fecha.categoria_nombre || "Sin categoría"}
+                          </span>
+                          <Badge variant="outline" className={badgeInfo.className}>
+                            {badgeInfo.label}
+                          </Badge>
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-4 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {fecha.sede || "Sin sede"}
+                          </span>
+                          <span>Zonas de {fecha.formato_zona || 3} parejas</span>
+                          <span>{fecha.dias_torneo || 3} días</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-1">
+                        <Link href={`/admin/torneo/${fecha.id}`}>
+                          <Button variant="outline" size="sm" className="gap-1 bg-transparent">
+                            <Users className="h-4 w-4" />
+                            Gestionar
+                          </Button>
+                        </Link>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => openEditDialog(fecha)}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => {
+                            setDeletingFecha(fecha)
+                            setDeleteDialogOpen(true)
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Anteriores</span>
+                  <Badge variant="secondary">{fechasAnteriores.length} fechas</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {fechasAnteriores.map((fecha) => {
+                  const badgeInfo = getEstadoBadge(fecha.estado)
+                  return (
+                    <div
+                      key={fecha.id}
+                      className="flex items-center gap-4 rounded-lg border border-border p-4 transition-colors hover:bg-muted/30"
+                    >
+                      <div className="flex h-14 w-14 flex-col items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
+                        <span className="text-xl font-bold leading-none">
+                          {fecha.fecha_calendario ? new Date(fecha.fecha_calendario).getDate() : "-"}
+                        </span>
+                        <span className="text-xs uppercase">
+                          {fecha.fecha_calendario ? new Date(fecha.fecha_calendario).toLocaleDateString('es-AR', { month: 'short' }) : ""}
+                        </span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium text-foreground">
+                            Fecha {fecha.numero_fecha} - {fecha.categoria_nombre || "Sin categoría"}
+                          </span>
+                          <Badge variant="outline" className={badgeInfo.className}>
+                            {badgeInfo.label}
+                          </Badge>
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-4 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {fecha.sede || "Sin sede"}
+                          </span>
+                          <span>Zonas de {fecha.formato_zona || 3} parejas</span>
+                          <span>{fecha.dias_torneo || 3} días</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-1">
+                        <Link href={`/admin/torneo/${fecha.id}`}>
+                          <Button variant="outline" size="sm" className="gap-1 bg-transparent">
+                            <Users className="h-4 w-4" />
+                            Gestionar
+                          </Button>
+                        </Link>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => openEditDialog(fecha)}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => {
+                            setDeletingFecha(fecha)
+                            setDeleteDialogOpen(true)
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </CardContent>
+            </Card>
+          </div>
         )}
 
         {/* Create/Edit Dialog */}
