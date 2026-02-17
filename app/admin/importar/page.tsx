@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AdminWrapper } from "@/components/admin/admin-wrapper";
+import { AdminWrapper } from "@/components/admin-wrapper";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";

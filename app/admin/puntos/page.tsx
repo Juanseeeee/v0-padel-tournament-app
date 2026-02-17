@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import useSWR from "swr"
-import { AdminWrapper } from "@/components/admin/admin-wrapper"
+import { AdminWrapper } from "@/components/admin-wrapper"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
