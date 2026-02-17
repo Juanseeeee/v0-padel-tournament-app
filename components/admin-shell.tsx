@@ -18,6 +18,7 @@ import {
   Newspaper,
   Settings,
   Users,
+  User,
 } from "lucide-react"
 
 type AdminNavItem = {
@@ -35,6 +36,7 @@ const adminNav: AdminNavItem[] = [
   { label: "Ranking", href: "/admin/ranking", icon: BarChart3 },
   { label: "Noticias", href: "/admin/noticias", icon: Newspaper },
   { label: "Puntos", href: "/admin/puntos", icon: Settings },
+  { label: "Usuarios", href: "/admin/usuarios", icon: Users },
 ]
 
 function isActive(pathname: string, href: string) {
