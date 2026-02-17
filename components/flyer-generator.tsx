@@ -20,8 +20,16 @@ export function FlyerGenerator({ data, open, onOpenChange }: { data: FlyerData; 
   const [rendered, setRendered] = useState(false)
 
   useEffect(() => {
-    if (open && canvasRef.current) {
+    if (open) {
+      // Try to render immediately
       renderFlyer()
+      
+      // Also try after a short delay to ensure fonts/layout are stable
+      const timer = setTimeout(() => {
+        renderFlyer()
+      }, 300)
+      
+      return () => clearTimeout(timer)
     }
   }, [open, data])
 
@@ -189,77 +197,40 @@ export function FlyerGenerator({ data, open, onOpenChange }: { data: FlyerData; 
     ctx.moveTo(cardX + 40, cardY + 240)
     ctx.lineTo(cardX + cardW - 40, cardY + 240)
     ctx.stroke()
-
-    // Schedule
-    ctx.fillStyle = "#f59e0b"
-    ctx.font = "bold 22px 'Arial', sans-serif"
-    ctx.fillText("HORARIOS", cardX + 40, cardY + 285)
-
-    if (data.horaViernes) {
-      ctx.fillStyle = "#ffffff"
-      ctx.font = "26px 'Arial', sans-serif"
-      ctx.fillText(`Viernes: ${data.horaViernes} hs`, cardX + 40, cardY + 325)
-    }
-    if (data.horaSabado) {
-      ctx.fillStyle = "#ffffff"
-      ctx.font = "26px 'Arial', sans-serif"
-      ctx.fillText(`Sabado: ${data.horaSabado} hs`, cardX + 40, cardY + 365)
-    }
-
-    // Bottom accent
-    const bottomGrad = ctx.createLinearGradient(0, H - 200, 0, H)
-    bottomGrad.addColorStop(0, "rgba(245, 158, 11, 0)")
-    bottomGrad.addColorStop(1, "rgba(245, 158, 11, 0.1)")
-    ctx.fillStyle = bottomGrad
-    ctx.fillRect(0, H - 200, W, 200)
-
-    // Bottom bar
-    ctx.fillStyle = accentGrad
-    ctx.fillRect(0, H - 8, W, 8)
-
-    // Footer text
-    ctx.textAlign = "center"
-    ctx.fillStyle = "rgba(255, 255, 255, 0.4)"
-    ctx.font = "18px 'Arial', sans-serif"
-    ctx.fillText("INSCRIPCIONES ABIERTAS", W / 2, H - 50)
-
-    setRendered(true)
   }
 
   function downloadFlyer() {
     const canvas = canvasRef.current
     if (!canvas) return
+
     const link = document.createElement("a")
-    link.download = `flyer-fecha-${data.numeroFecha}-${data.categoriaNombre.replace(/\s+/g, '-').toLowerCase()}.png`
+    link.download = `flyer-${data.nombreTorneo.replace(/\s+/g, "-").toLowerCase()}.png`
     link.href = canvas.toDataURL("image/png")
+    document.body.appendChild(link)
     link.click()
+    document.body.removeChild(link)
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ImageIcon className="h-5 w-5" />
-            Flyer del Torneo
-          </DialogTitle>
-        </DialogHeader>
-        <div className="flex justify-center overflow-hidden rounded-lg bg-muted/30">
+      <DialogContent className="max-w-[90vw] w-fit p-0 border-none bg-transparent shadow-none">
+        <DialogTitle className="sr-only">Vista previa del Flyer</DialogTitle>
+        <div className="relative flex flex-col items-center gap-4">
           <canvas
             ref={canvasRef}
-            className="w-full max-h-[500px] object-contain"
-            style={{ imageRendering: "auto" }}
+            className="w-full max-w-[400px] h-auto rounded-lg shadow-2xl border border-white/10"
+            style={{ maxHeight: "80vh", objectFit: "contain" }}
           />
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => onOpenChange(false)}>
+              Cerrar
+            </Button>
+            <Button onClick={downloadFlyer} className="gap-2 bg-amber-500 hover:bg-amber-600 text-black font-bold">
+              <Download className="h-4 w-4" />
+              Descargar Imagen
+            </Button>
+          </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cerrar
-          </Button>
-          <Button onClick={downloadFlyer} disabled={!rendered} className="gap-2">
-            <Download className="h-4 w-4" />
-            Descargar PNG
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

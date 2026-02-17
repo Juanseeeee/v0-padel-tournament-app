@@ -2,35 +2,43 @@
 
 import { useMemo, useState } from "react";
 import useSWR from "swr";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Calendar as MonthCalendar } from "@/components/ui/calendar";
-import { Card, CardContent } from "@/components/ui/card";
-import { CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from "@/components/ui/dialog";
 import {
   Calendar as CalendarIcon,
   CalendarDays,
-  Trophy,
   MapPin,
   Clock,
   LogOut,
-  User,
-  Loader2,
-  Search,
   UserPlus,
   Medal,
-  TrendingUp,
-  X,
+  Loader2,
+  ChevronRight,
+  Trophy,
+  Users
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-const fetcher = (url: string) => fetch(url).then(r => r.json());
+const fetcher = (url: string) => fetch(url).then((r) => r.json());
+
+type PortalTab = "torneos" | "calendario" | "inscripciones" | "ranking";
+
+type DayPill = { day: string; month: string };
+
+function dateToDayPill(dateString?: string | null): DayPill {
+  if (!dateString) return { day: "-", month: "" };
+  const date = new Date(dateString);
+  return {
+    day: String(date.getDate()),
+    month: date.toLocaleDateString("es-AR", { month: "short" }),
+  };
+}
 
 export default function PortalPage() {
   const router = useRouter();
@@ -40,66 +48,21 @@ export default function PortalPage() {
   const { data: misInscripciones, mutate: mutateInscripciones } = useSWR("/api/portal/mis-inscripciones", fetcher);
   const { data: rankingData } = useSWR("/api/portal/ranking", fetcher);
   
-  const [activeTab, setActiveTab] = useState<"torneos" | "calendario" | "inscripciones" | "ranking">("torneos");
-  const [selectedCalendarDay, setSelectedCalendarDay] = useState<Date | undefined>(undefined);
+  const [activeTab, setActiveTab] = useState<PortalTab>("torneos");
   const [enrollDialog, setEnrollDialog] = useState<any>(null);
-  const [zonasDialog, setZonasDialog] = useState<string | null>(null);
-  const { data: zonasData } = useSWR(zonasDialog ? `/api/portal/zonas/${zonasDialog}` : null, fetcher);
-  const [companeroSearch, setCompaneroSearch] = useState("");
-  const [companeros, setCompaneros] = useState<any[]>([]);
-  const [selectedCompanero, setSelectedCompanero] = useState<any>(null);
-  const [diaPreferido, setDiaPreferido] = useState("");
-  const [horaDisponible, setHoraDisponible] = useState("");
   const [enrolling, setEnrolling] = useState(false);
   const [enrollError, setEnrollError] = useState("");
+  const [selectedCompanero, setSelectedCompanero] = useState<any>(null);
+  const [companeroSearch, setCompaneroSearch] = useState("");
+  const [companeros, setCompaneros] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
-  const [canceling, setCanceling] = useState<number | null>(null);
+  const [diaPreferido, setDiaPreferido] = useState("");
+  const [horaDisponible, setHoraDisponible] = useState("");
 
-  const calendarioFechasList = useMemo(() => {
-    return Array.isArray(calendarioFechas) ? calendarioFechas : [];
-  }, [calendarioFechas]);
-
-  const calendarioFechasInvalid = useMemo(() => {
-    return Boolean(calendarioFechas) && !Array.isArray(calendarioFechas);
-  }, [calendarioFechas]);
-
-  const calendarioMarkedDays = useMemo(() => {
-    if (calendarioFechasList.length === 0) {
-      return {
-        programada: [] as Date[],
-        en_juego: [] as Date[],
-        finalizada: [] as Date[],
-      };
-    }
-
-    const priority: Record<string, number> = { finalizada: 1, en_juego: 2, programada: 3 };
-    const perDay = new Map<string, { date: Date; estado: string }>();
-
-    for (const f of calendarioFechasList as any[]) {
-      if (!f?.fecha_calendario) continue;
-      const d = new Date(f.fecha_calendario);
-      d.setHours(12, 0, 0, 0);
-      const key = d.toDateString();
-
-      const estado = String(f.estado || "programada");
-      const current = perDay.get(key);
-      if (!current || (priority[estado] ?? 0) > (priority[current.estado] ?? 0)) {
-        perDay.set(key, { date: d, estado });
-      }
-    }
-
-    const programada: Date[] = [];
-    const en_juego: Date[] = [];
-    const finalizada: Date[] = [];
-
-    for (const { date, estado } of perDay.values()) {
-      if (estado === "programada") programada.push(date);
-      else if (estado === "en_juego") en_juego.push(date);
-      else finalizada.push(date);
-    }
-
-    return { programada, en_juego, finalizada };
-  }, [calendarioFechasList]);
+  const torneosList = useMemo(() => Array.isArray(torneos) ? torneos : [], [torneos]);
+  const inscriptoFechaIds = useMemo(() => new Set<number>((Array.isArray(misInscripciones) ? misInscripciones : []).map((i: any) => Number(i.fecha_torneo_id))), [misInscripciones]);
+  const rankingList = useMemo(() => Array.isArray(rankingData) ? rankingData : [], [rankingData]);
+  const inscripcionesList = useMemo(() => Array.isArray(misInscripciones) ? misInscripciones : [], [misInscripciones]);
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -151,680 +114,369 @@ export default function PortalPage() {
     }
   }
 
-  async function handleCancelEnrollment(parejaId: number) {
-    if (!confirm("¿Estas seguro de que quieres darte de baja de este torneo?")) return;
-    setCanceling(parejaId);
+  async function handleUnsubscribe(inscId: number) {
+    if (!confirm("¿Estás seguro que deseas darte de baja?")) return;
+    
     try {
       const res = await fetch("/api/portal/cancelar-inscripcion", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ parejaId }),
+        body: JSON.stringify({ parejaId: inscId }),
       });
-      if (res.ok) {
-        mutateInscripciones();
-      } else {
+      if (!res.ok) {
         const data = await res.json();
-        alert(data.error || "Error al cancelar inscripcion");
+        alert(data.error || "Error al cancelar inscripción");
+      } else {
+        mutateInscripciones();
       }
     } catch {
-      alert("Error de conexion");
-    } finally {
-      setCanceling(null);
+      alert("Error de conexión");
     }
   }
 
-  if (!me) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  if (!me) return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      {/* Header */}
-      <div className="border-b border-border/40 bg-card/80 backdrop-blur-xl">
-        <div className="mx-auto max-w-7xl px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="relative h-16 w-16">
-                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary via-primary/80 to-primary/60" />
-                <div className="absolute inset-0 flex items-center justify-center rounded-full">
-                  <User className="h-8 w-8 text-primary-foreground" />
+    <div className="min-h-screen bg-background pb-20 font-sans relative overflow-x-hidden">
+      {/* Background Pattern - Subtle Gradient */}
+      <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/5 via-background to-background pointer-events-none" />
+      
+      {/* Curved Hero Section */}
+      <div className="relative z-10 w-full rounded-b-[3rem] bg-gradient-to-br from-secondary to-secondary/90 px-6 pt-8 pb-28 text-white shadow-2xl transition-all overflow-hidden">
+        {/* Decorative Background Elements */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary/10 rounded-full blur-2xl -ml-12 -mb-12 pointer-events-none" />
+        
+        {/* Top Bar */}
+        <div className="flex items-center justify-between mb-8">
+            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={() => {}}>
+                <div className="h-6 w-6 grid place-items-center">
+                   <span className="text-xl font-bold">=</span>
                 </div>
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">
-                  {me.nombre} {me.apellido}
-                </h1>
-                <p className="text-sm text-muted-foreground">{me.categoria_nombre || "Sin categoria"}</p>
-              </div>
-            </div>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <Button variant="ghost" size="sm" onClick={handleLogout}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Salir
             </Button>
-          </div>
-          </div>
+            <div className="flex items-center gap-2">
+                <ThemeToggle />
+                <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={handleLogout}>
+                    <LogOut className="h-5 w-5" />
+                </Button>
+            </div>
+        </div>
 
-          {/* Stats Cards */}
-          <div className="mt-6 grid grid-cols-2 gap-3">
-            <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Ranking</p>
-                    <p className="text-3xl font-bold text-primary">#{me.ranking || "-"}</p>
-                  </div>
-                  <Trophy className="h-10 w-10 text-primary/40" />
+        {/* User Profile */}
+        <div className="mb-8 flex flex-col justify-center animate-in fade-in zoom-in duration-500">
+            <h2 className="text-3xl font-bold tracking-tight mb-1">Hola, {me.nombre}</h2>
+            <p className="text-white/70 text-sm mb-6">¿Listo para tu próximo torneo?</p>
+            
+            <div className="flex items-center gap-4 bg-white/10 p-3 pr-6 rounded-2xl backdrop-blur-md w-fit border border-white/10 shadow-lg">
+                <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-lg shadow-inner ring-2 ring-white/20">
+                    {me.nombre.charAt(0)}{me.apellido.charAt(0)}
                 </div>
-              </CardContent>
-            </Card>
-            <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Puntos</p>
-                    <p className="text-3xl font-bold text-primary">{me.puntos_totales || 0}</p>
-                  </div>
-                  <TrendingUp className="h-10 w-10 text-primary/40" />
+                <div>
+                    <p className="text-sm font-bold text-white tracking-wide">{me.categoria_nombre?.toUpperCase() || "SIN CATEGORÍA"}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                        <Trophy className="h-3 w-3 text-primary" />
+                        <p className="text-xs text-primary font-bold">Ranking #{me.ranking || "-"}</p>
+                    </div>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+            </div>
+        </div>
+
+        {/* Floating Tabs */}
+        <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar pt-2 px-1">
+            {[
+                { id: "torneos", icon: CalendarIcon, label: "Torneos" },
+                { id: "calendario", icon: CalendarDays, label: "Calendario" },
+                { id: "inscripciones", icon: UserPlus, label: "Inscripciones" },
+                { id: "ranking", icon: Medal, label: "Ranking" },
+            ].map((tab) => (
+                <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as PortalTab)}
+                    className={`group flex flex-col items-center gap-2 min-w-[70px] transition-all duration-300 outline-none focus:outline-none ${
+                        activeTab === tab.id ? "scale-105 opacity-100" : "opacity-60 hover:opacity-80 scale-95"
+                    }`}
+                >
+                    <div className={`p-3.5 rounded-2xl transition-all duration-300 ${
+                        activeTab === tab.id 
+                        ? "bg-primary text-primary-foreground shadow-[0_0_20px_-5px_var(--primary)] ring-4 ring-primary/20 transform -translate-y-1" 
+                        : "bg-white/10 text-white group-hover:bg-white/20"
+                    }`}>
+                        <tab.icon className="h-5 w-5" />
+                    </div>
+                    <span className={`text-[10px] font-bold tracking-wide transition-colors ${
+                        activeTab === tab.id ? "text-primary" : "text-white/60"
+                    }`}>
+                        {tab.label}
+                    </span>
+                </button>
+            ))}
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-border/40 bg-card/60 backdrop-blur-sm">
-        <div className="mx-auto max-w-7xl px-4">
-          <div className="flex gap-2 overflow-x-auto">
-            <button
-              onClick={() => setActiveTab("torneos")}
-              className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
-                activeTab === "torneos"
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <CalendarIcon className="mr-2 inline-block h-4 w-4" />
-              Torneos
-            </button>
-            <button
-              onClick={() => setActiveTab("calendario")}
-              className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
-                activeTab === "calendario"
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <CalendarDays className="mr-2 inline-block h-4 w-4" />
-              Calendario
-            </button>
-            <button
-              onClick={() => setActiveTab("inscripciones")}
-              className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
-                activeTab === "inscripciones"
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <UserPlus className="mr-2 inline-block h-4 w-4" />
-              Mis Inscripciones
-            </button>
-            <button
-              onClick={() => setActiveTab("ranking")}
-              className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
-                activeTab === "ranking"
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Medal className="mr-2 inline-block h-4 w-4" />
-              Ranking
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="mx-auto max-w-7xl px-4 py-8">
+      {/* Main Content Area - Overlapping */}
+      <div className="relative z-20 -mt-16 px-5 space-y-6 pb-10">
+        
+        {/* Torneos View */}
         {activeTab === "torneos" && (
-          <div>
-            <h2 className="mb-4 text-xl font-bold text-foreground">Torneos Disponibles</h2>
-            {!torneos ? (
-              <Card><CardContent className="p-8 text-center text-muted-foreground">Cargando...</CardContent></Card>
-            ) : torneos.length === 0 ? (
-              <Card><CardContent className="p-8 text-center text-muted-foreground">No hay torneos disponibles</CardContent></Card>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2">
-                {torneos.map((t: any) => {
-                  const yaInscripto = misInscripciones?.some((i: any) => i.fecha_torneo_id === t.id);
-                  return (
-                    <Card key={t.id} className="overflow-hidden border-border/50 bg-card/60 backdrop-blur transition-all hover:border-primary/30 hover:shadow-lg">
-                      <CardContent className="p-6">
-                        <div className="mb-4 flex items-start justify-between">
-                          <div>
-                            <div className="mb-2 flex items-center gap-2">
-                              <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary">
-                                Fecha {t.numero_fecha}
-                              </Badge>
-                              <Badge className={t.estado === "programada" ? "bg-green-500/20 text-green-600" : "bg-muted"}>
-                                {t.estado}
-                              </Badge>
-                              {yaInscripto && (
-                                <Badge className="bg-blue-500/20 text-blue-600 border-blue-400/40">
-                                  ✓ Inscripto
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="text-sm text-muted-foreground">{t.categoria_nombre}</p>
-                          </div>
-                          <Trophy className="h-6 w-6 text-primary/60" />
-                        </div>
-                        <div className="space-y-2 text-sm">
-                          {t.fecha_calendario && (
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <CalendarIcon className="h-4 w-4" />
-                              {new Date(t.fecha_calendario).toLocaleDateString()}
-                            </div>
-                          )}
-                          {t.sede && (
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <MapPin className="h-4 w-4" />
-                              {t.sede}
-                            </div>
-                          )}
-                          {t.hora_inicio_viernes && (
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <Clock className="h-4 w-4" />
-                              VIE {t.hora_inicio_viernes}hs | SAB {t.hora_inicio_sabado}hs
-                            </div>
-                          )}
-                        </div>
-                        {!yaInscripto ? (
-                          <Button
-                            className="mt-4 w-full"
-                            onClick={() => setEnrollDialog(t)}
-                          >
-                            <UserPlus className="mr-2 h-4 w-4" />
-                            Inscribirme
-                          </Button>
-                        ) : (
-                          <div className="mt-4 p-3 rounded-md bg-primary/5 border border-primary/20 text-center text-sm text-muted-foreground">
-                            Ya estás inscripto en este torneo
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-700">
+                <div className="flex items-center justify-between px-2 pt-2">
+                    <h3 className="text-lg font-bold text-foreground drop-shadow-sm">Próximos Torneos</h3>
+                    <Button variant="link" className="text-xs text-muted-foreground font-medium h-auto p-0">Ver todos</Button>
+                </div>
+
+                {torneosList.length === 0 ? (
+                     <Card className="border-none shadow-lg bg-card/50 backdrop-blur-sm"><CardContent className="p-8 text-center text-muted-foreground">No hay torneos disponibles</CardContent></Card>
+                ) : (
+                    torneosList.map((t: any) => {
+                        const yaInscripto = inscriptoFechaIds.has(Number(t.id));
+                        const pill = dateToDayPill(t.fecha_calendario);
+                        return (
+                            <Card key={t.id} className="group overflow-hidden border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-card rounded-[1.5rem] transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] ring-1 ring-border/50">
+                                <CardContent className="p-0">
+                                    <div className="flex items-stretch min-h-[110px]">
+                                        {/* Left Side - Date */}
+                                        <div className="w-24 bg-primary/10 flex flex-col items-center justify-center p-4 border-r border-dashed border-primary/20 relative">
+                                            <span className="text-3xl font-black text-primary leading-none">{pill.day}</span>
+                                            <span className="text-[10px] font-bold uppercase text-primary/70 tracking-widest mt-1">{pill.month}</span>
+                                            {/* Decorative circles for ticket effect */}
+                                            <div className="absolute -top-2 -right-2 w-4 h-4 bg-background rounded-full shadow-inner" />
+                                            <div className="absolute -bottom-2 -right-2 w-4 h-4 bg-background rounded-full shadow-inner" />
+                                        </div>
+
+                                        {/* Right Side - Info */}
+                                        <div className="flex-1 p-4 flex flex-col justify-center gap-3 relative">
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <h4 className="font-bold text-foreground text-sm line-clamp-1">Fecha {t.numero_fecha}</h4>
+                                                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1 font-medium">
+                                                        <MapPin className="h-3 w-3 text-primary" /> {t.sede || "A confirmar"}
+                                                    </p>
+                                                </div>
+                                                {yaInscripto && (
+                                                    <Badge variant="secondary" className="bg-green-500/10 text-green-600 border-0 text-[10px] font-extrabold px-2 py-0.5 rounded-md">
+                                                        INSCRIPTO
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                            
+                                            <div className="flex items-center justify-between mt-auto">
+                                                <div className="text-[10px] text-muted-foreground font-semibold bg-muted px-2 py-1 rounded-md flex items-center gap-1.5">
+                                                    <Clock className="h-3 w-3" />
+                                                    {t.hora_inicio_viernes ? `${t.hora_inicio_viernes}hs` : "TBD"}
+                                                </div>
+                                                
+                                                {!yaInscripto ? (
+                                                    <Button 
+                                                        size="sm" 
+                                                        className="h-8 rounded-xl px-5 text-xs font-bold shadow-sm hover:shadow-md transition-all active:scale-95"
+                                                        onClick={() => setEnrollDialog(t)}
+                                                    >
+                                                        Inscribirse
+                                                    </Button>
+                                                ) : (
+                                                    <div className="h-8 w-8 rounded-full bg-green-500/20 grid place-items-center animate-in zoom-in">
+                                                        <span className="text-green-600 text-sm font-bold">✓</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        );
+                    })
+                )}
+            </div>
         )}
 
+        {/* Calendario View */}
         {activeTab === "calendario" && (
-          <div>
-            <h2 className="mb-4 text-xl font-bold text-foreground">Calendario</h2>
-
-            {!calendarioFechas ? (
-              <Card>
-                <CardContent className="p-8 text-center text-muted-foreground">Cargando...</CardContent>
-              </Card>
-            ) : calendarioFechasInvalid ? (
-              <Card>
-                <CardContent className="p-8 text-center text-muted-foreground">
-                  No se pudo cargar el calendario
-                </CardContent>
-              </Card>
-            ) : calendarioFechasList.length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center text-muted-foreground">No hay fechas cargadas</CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-8">
-                <Card className="overflow-hidden border-border/50 bg-card/60 backdrop-blur">
-                  <CardHeader className="pb-3">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <CardTitle className="text-base">Calendario</CardTitle>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="inline-flex h-2 w-2 rounded-full bg-primary" />
-                        Hay torneo
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="mx-auto w-fit">
-                      <MonthCalendar
-                        mode="single"
-                        selected={selectedCalendarDay}
-                        onSelect={setSelectedCalendarDay}
-                        modifiers={{
-                          hasProgramada: calendarioMarkedDays.programada,
-                          hasEnJuego: calendarioMarkedDays.en_juego,
-                          hasFinalizada: calendarioMarkedDays.finalizada,
-                        }}
-                        modifiersClassNames={{
-                          hasProgramada:
-                            "relative rounded-full bg-primary/20 text-primary ring-2 ring-primary/40 hover:bg-primary/25 after:absolute after:bottom-1 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-primary",
-                          hasEnJuego:
-                            "relative rounded-full bg-blue-500/15 text-blue-600 ring-2 ring-blue-500/30 hover:bg-blue-500/20 dark:text-blue-400 after:absolute after:bottom-1 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-blue-500",
-                          hasFinalizada:
-                            "relative after:absolute after:bottom-1 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-muted-foreground/70",
-                        }}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <div>
-                  <div className="mb-3 flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-foreground">Próximas</h3>
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {calendarioFechasList
-                      .filter((f: any) => f.estado !== "finalizada")
-                      .slice()
-                      .sort((a: any, b: any) => new Date(a.fecha_calendario).getTime() - new Date(b.fecha_calendario).getTime())
-                      .map((f: any) => (
-                        <Card key={f.id} className="overflow-hidden border-border/50 bg-card/60 backdrop-blur transition-all hover:border-primary/30 hover:shadow-lg">
-                          <CardContent className="p-6">
-                            <div className="mb-4 flex items-start justify-between">
-                              <div>
-                                <div className="mb-2 flex items-center gap-2 flex-wrap">
-                                  <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary">
-                                    Fecha {f.numero_fecha}
-                                  </Badge>
-                                  <Badge className={f.estado === "en_juego" ? "bg-blue-500/20 text-blue-600" : "bg-green-500/20 text-green-600"}>
-                                    {f.estado}
-                                  </Badge>
-                                </div>
-                                <p className="text-sm text-muted-foreground">{f.temporada ? `Temporada ${f.temporada}` : me.categoria_nombre}</p>
-                              </div>
-                              <CalendarDays className="h-6 w-6 text-primary/60" />
-                            </div>
-
-                            <div className="space-y-2 text-sm">
-                              {f.fecha_calendario && (
-                                <div className="flex items-center gap-2 text-muted-foreground">
-                                  <CalendarIcon className="h-4 w-4" />
-                                  {new Date(f.fecha_calendario).toLocaleDateString("es-AR", {
-                                    weekday: "long",
-                                    year: "numeric",
-                                    month: "long",
-                                    day: "numeric",
-                                  })}
-                                </div>
-                              )}
-                              {f.sede && (
-                                <div className="flex items-center gap-2 text-muted-foreground">
-                                  <MapPin className="h-4 w-4" />
-                                  {f.sede}
-                                </div>
-                              )}
-                            </div>
-
-                            <Button
-                              variant="outline"
-                              className="mt-4 w-full bg-transparent"
-                              onClick={() => router.push(`/calendario/${f.id}`)}
-                            >
-                              Ver detalles
-                            </Button>
-                          </CardContent>
-                        </Card>
-                      ))}
-                  </div>
+             <div className="space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-700">
+                <div className="flex items-center justify-between px-2 pt-2">
+                    <h3 className="text-lg font-bold text-foreground drop-shadow-sm">Calendario de Partidos</h3>
                 </div>
-
-                <div>
-                  <div className="mb-3 flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-foreground">Anteriores</h3>
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {calendarioFechasList
-                      .filter((f: any) => f.estado === "finalizada")
-                      .slice()
-                      .sort((a: any, b: any) => new Date(b.fecha_calendario).getTime() - new Date(a.fecha_calendario).getTime())
-                      .map((f: any) => (
-                        <Card key={f.id} className="border-border/50 bg-card/60 backdrop-blur">
-                          <CardContent className="p-6">
-                            <div className="mb-3 flex items-center justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <Badge variant="outline" className="border-border bg-muted/40 text-muted-foreground">
-                                    Fecha {f.numero_fecha}
-                                  </Badge>
-                                  <Badge className="bg-muted text-muted-foreground">Finalizada</Badge>
+                {(!calendarioFechas || calendarioFechas.length === 0) ? (
+                    <Card className="border-none shadow-sm bg-card rounded-2xl p-8 text-center text-muted-foreground">
+                        <CalendarDays className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                        <p>No hay fechas programadas</p>
+                    </Card>
+                ) : (
+                    calendarioFechas.map((fecha: any, i: number) => (
+                         <Card key={i} className="border-none shadow-sm bg-card rounded-2xl overflow-hidden hover:bg-accent/5 transition-colors">
+                            <div className="flex items-center p-4 gap-4">
+                                <div className="h-12 w-12 rounded-2xl bg-primary/10 flex flex-col items-center justify-center text-primary font-bold shrink-0">
+                                    <span className="text-lg leading-none">{new Date(fecha.fecha_calendario).getDate()}</span>
+                                    <span className="text-[10px] uppercase">{new Date(fecha.fecha_calendario).toLocaleDateString('es-AR', {month: 'short'})}</span>
                                 </div>
-                                <div className="mt-2 text-sm text-muted-foreground">
-                                  {new Date(f.fecha_calendario).toLocaleDateString("es-AR", {
-                                    year: "numeric",
-                                    month: "short",
-                                    day: "numeric",
-                                  })}
+                                <div className="flex-1">
+                                    <h4 className="font-bold text-sm">Fecha {fecha.numero_fecha}</h4>
+                                    <p className="text-xs text-muted-foreground">{fecha.sede || "Sede por definir"}</p>
                                 </div>
-                                {f.sede && <div className="mt-1 truncate text-sm text-muted-foreground">{f.sede}</div>}
-                              </div>
-                              <Button variant="secondary" onClick={() => router.push(`/calendario/${f.id}`)}>
-                                Resultados
-                              </Button>
+                                <ChevronRight className="h-5 w-5 text-muted-foreground/50" />
                             </div>
-                          </CardContent>
                         </Card>
-                      ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+                    ))
+                )}
+             </div>
         )}
 
-        {activeTab === "inscripciones" && (
-          <div>
-            <h2 className="mb-4 text-xl font-bold text-foreground">Mis Inscripciones</h2>
-            {!misInscripciones ? (
-              <Card><CardContent className="p-8 text-center text-muted-foreground">Cargando...</CardContent></Card>
-            ) : misInscripciones.length === 0 ? (
-              <Card><CardContent className="p-8 text-center text-muted-foreground">No tienes inscripciones activas</CardContent></Card>
-            ) : (
-              <div className="grid gap-4">
-                {misInscripciones.map((i: any) => (
-                  <Card key={i.id} className="border-border/50 bg-card/60 backdrop-blur">
-                    <CardContent className="p-6">
-                      <div className="mb-4">
-                        <div className="mb-3 flex items-center gap-2 flex-wrap">
-                          <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary">
-                            Fecha {i.numero_fecha}
-                          </Badge>
-                          <Badge className={
-                            i.zona_estado === "pendiente" ? "bg-yellow-500/20 text-yellow-600" :
-                            i.zona_estado === "en_juego" ? "bg-blue-500/20 text-blue-600" :
-                            "bg-green-500/20 text-green-600"
-                          }>
-                            {i.zona_estado || "Pendiente"}
-                          </Badge>
-                        </div>
-                        <p className="mb-3 text-lg font-semibold text-foreground">
-                          Pareja con: {i.companero_nombre} {i.companero_apellido}
-                        </p>
-                        <div className="space-y-2 text-sm text-muted-foreground">
-                          {i.fecha_calendario && (
-                            <div className="flex items-center gap-2">
-                              <CalendarIcon className="h-4 w-4" />
-                              <span>{new Date(i.fecha_calendario).toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
-                            </div>
-                          )}
-                          {i.sede && (
-                            <div className="flex items-center gap-2">
-                              <MapPin className="h-4 w-4" />
-                              <span>{i.sede}</span>
-                            </div>
-                          )}
-                          {i.hora_inicio_viernes && i.hora_inicio_sabado && (
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-4 w-4" />
-                              <span>Viernes {i.hora_inicio_viernes}hs | Sábado {i.hora_inicio_sabado}hs</span>
-                            </div>
-                          )}
-                          {i.dia_preferido && (
-                            <div className="flex items-center gap-2 text-xs">
-                              <span>Tu preferencia: {i.dia_preferido} {i.hora_disponible || ""}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex gap-2 flex-wrap">
-                        {i.zona_id && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setZonasDialog(i.fecha_torneo_id)}
-                          >
-                            <Trophy className="mr-1 h-4 w-4" />
-                            Ver Zonas
-                          </Button>
-                        )}
-                        {(!i.zona_estado || i.zona_estado === "pendiente") && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            onClick={() => handleCancelEnrollment(i.id)}
-                            disabled={canceling === i.id}
-                          >
-                            {canceling === i.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <>
-                                <X className="mr-1 h-4 w-4" />
-                                Darme de baja
-                              </>
-                            )}
-                          </Button>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === "ranking" && (
-          <div>
-            <h2 className="mb-4 text-xl font-bold text-foreground">Ranking - {me.categoria_nombre}</h2>
-            {!rankingData ? (
-              <Card><CardContent className="p-8 text-center text-muted-foreground">Cargando...</CardContent></Card>
-            ) : !rankingData.jugadores || rankingData.jugadores.length === 0 ? (
-              <Card><CardContent className="p-8 text-center text-muted-foreground">No hay ranking disponible</CardContent></Card>
-            ) : (
-              <Card className="overflow-hidden">
-                <CardContent className="p-0">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-border bg-muted/50">
-                          <th className="sticky left-0 z-10 bg-muted/90 backdrop-blur px-3 py-3 text-left font-semibold w-10">#</th>
-                          <th className="sticky left-10 z-10 bg-muted/90 backdrop-blur px-3 py-3 text-left font-semibold min-w-[180px]">Jugador</th>
-                          <th className="px-3 py-3 text-left font-semibold min-w-[100px]">Localidad</th>
-                          <th className="px-3 py-3 text-center font-semibold min-w-[70px] bg-primary/10">Total</th>
-                          {(rankingData.fechas || []).map((f: any) => (
-                            <th key={f.id} className="px-2 py-3 text-center font-semibold min-w-[55px]">
-                              <div className="flex flex-col items-center">
-                                <span className="text-xs text-muted-foreground">F{f.numero_fecha}</span>
-                              </div>
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {rankingData.jugadores.map((j: any, idx: number) => {
-                          const isMe = j.id === rankingData.mi_jugador_id;
-                          return (
-                            <tr
-                              key={j.id}
-                              className={`border-b border-border/50 transition-colors ${
-                                isMe ? "bg-primary/10 font-semibold" : "hover:bg-muted/30"
-                              } ${idx < 3 ? "bg-primary/5" : ""}`}
-                            >
-                              <td className="sticky left-0 z-10 bg-background px-3 py-2.5 font-bold text-muted-foreground">
-                                {idx === 0 ? <span className="text-yellow-500">1</span> :
-                                 idx === 1 ? <span className="text-slate-400">2</span> :
-                                 idx === 2 ? <span className="text-amber-600">3</span> :
-                                 idx + 1}
-                              </td>
-                              <td className="sticky left-10 z-10 bg-background px-3 py-2.5">
-                                {j.nombre} {j.apellido}
-                                {isMe && <Badge className="ml-2" variant="secondary">Tu</Badge>}
-                              </td>
-                              <td className="px-3 py-2.5 text-muted-foreground">
-                                {j.localidad || "-"}
-                              </td>
-                              <td className="px-3 py-2.5 text-center font-bold text-primary">
-                                {j.puntos_totales}
-                              </td>
-                              {(rankingData.fechas || []).map((f: any) => {
-                                const puntosInfo = rankingData.puntosMap?.[j.id]?.[f.id];
-                                return (
-                                  <td key={f.id} className="px-2 py-2.5 text-center text-xs">
-                                    {puntosInfo ? (
-                                      <span className="inline-block rounded px-1.5 py-0.5 font-medium bg-primary/10 text-primary">
-                                        {puntosInfo.puntos}
-                                      </span>
-                                    ) : (
-                                      <span className="text-muted-foreground">-</span>
+        {/* Inscripciones View */}
+         {activeTab === "inscripciones" && (
+             <div className="space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-700">
+                <div className="flex items-center justify-between px-2 pt-2">
+                    <h3 className="text-lg font-bold text-foreground drop-shadow-sm">Mis Inscripciones</h3>
+                </div>
+                {inscripcionesList.length === 0 ? (
+                     <Card className="border-none shadow-sm bg-card rounded-2xl p-8 text-center text-muted-foreground">
+                         <UserPlus className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                         <p>No estás inscripto en ningún torneo</p>
+                         <Button variant="link" onClick={() => setActiveTab("torneos")} className="mt-2 text-primary">Ir a Torneos</Button>
+                     </Card>
+                ) : (
+                    inscripcionesList.map((insc: any) => (
+                        <Card key={insc.id} className="border-none shadow-sm bg-card rounded-2xl overflow-hidden relative">
+                             <div className="absolute top-0 left-0 w-1 h-full bg-green-500" />
+                             <div className="p-4 pl-6">
+                                <div className="flex justify-between items-center mb-2">
+                                    <Badge variant="outline" className="text-[10px] border-green-500/30 text-green-600 bg-green-500/5">CONFIRMADO</Badge>
+                                    <span className="text-xs text-muted-foreground font-mono">{new Date(insc.created_at).toLocaleDateString()}</span>
+                                </div>
+                                <h4 className="font-bold text-foreground">Fecha {insc.numero_fecha}</h4>
+                                <div className="flex items-center gap-2 mt-3 p-2 rounded-lg bg-muted/50">
+                                    <div className="h-8 w-8 rounded-full bg-background border flex items-center justify-center text-xs font-bold text-primary">
+                                        {insc.companero_nombre?.charAt(0) || "?"}
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Compañero</p>
+                                        <p className="text-xs font-semibold">{insc.companero_nombre} {insc.companero_apellido}</p>
+                                    </div>
+                                </div>
+                                <div className="mt-4 flex gap-2">
+                                    <Link href={`/portal/torneo/${insc.fecha_torneo_id}`} className="flex-1">
+                                        <Button size="sm" variant="outline" className="w-full text-xs h-8">
+                                            <Trophy className="mr-1.5 h-3 w-3" />
+                                            Ver Torneo
+                                        </Button>
+                                    </Link>
+                                    {insc.estado === 'programada' && (
+                                        <Button 
+                                            size="sm" 
+                                            variant="destructive" 
+                                            className="flex-1 text-xs h-8"
+                                            onClick={() => handleUnsubscribe(insc.id)}
+                                        >
+                                            <LogOut className="mr-1.5 h-3 w-3" />
+                                            Darse de baja
+                                        </Button>
                                     )}
-                                  </td>
-                                );
-                              })}
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+                                </div>
+                             </div>
+                        </Card>
+                    ))
+                )}
+             </div>
         )}
+
+        {/* Ranking View */}
+         {activeTab === "ranking" && (
+             <div className="space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-700">
+                 <div className="flex items-center justify-between px-2 pt-2">
+                    <h3 className="text-lg font-bold text-foreground drop-shadow-sm">Ranking {me.categoria_nombre}</h3>
+                </div>
+                 <Card className="border-none shadow-sm bg-card rounded-3xl overflow-hidden">
+                    <div className="p-0">
+                        {rankingList.length === 0 ? (
+                            <div className="p-8 text-center text-muted-foreground">Ranking no disponible</div>
+                        ) : (
+                            <div className="divide-y divide-border/40">
+                                {rankingList.map((player: any, index: number) => (
+                                    <div key={player.id} className={`flex items-center p-4 ${player.id === me.id ? "bg-primary/5" : ""}`}>
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm mr-4 ${
+                                            index === 0 ? "bg-yellow-400 text-yellow-900 shadow-yellow-400/50 shadow-md" : 
+                                            index === 1 ? "bg-gray-300 text-gray-800" : 
+                                            index === 2 ? "bg-amber-700 text-amber-100" : "bg-muted text-muted-foreground"
+                                        }`}>
+                                            {index + 1}
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className={`text-sm font-bold ${player.id === me.id ? "text-primary" : "text-foreground"}`}>
+                                                {player.nombre} {player.apellido} {player.id === me.id && "(Tú)"}
+                                            </p>
+                                            <p className="text-[10px] text-muted-foreground">{player.partidos_jugados || 0} Partidos jugados</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="text-lg font-black text-primary">{player.puntos || 0}</span>
+                                            <p className="text-[9px] text-muted-foreground uppercase font-bold">Puntos</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                 </Card>
+             </div>
+        )}
+
       </div>
 
       {/* Enroll Dialog */}
-      <Dialog open={!!enrollDialog} onOpenChange={() => setEnrollDialog(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Inscribirse - Fecha {enrollDialog?.numero_fecha}</DialogTitle>
-            <DialogDescription>{enrollDialog?.categoria_nombre}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Buscar companero</Label>
-              <div className="relative mt-1">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  className="pl-10"
-                  placeholder="Nombre o apellido..."
-                  value={companeroSearch}
-                  onChange={(e) => searchCompanero(e.target.value)}
-                />
-                {searching && <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
-              </div>
-              {companeros.length > 0 && (
-                <div className="mt-2 max-h-48 space-y-1 overflow-y-auto rounded-md border border-border bg-card p-2">
-                  {companeros.map((c: any) => (
-                    <button
-                      key={c.jugador_id}
-                      onClick={() => { setSelectedCompanero(c); setCompaneros([]); setCompaneroSearch(c.nombre + " " + c.apellido); }}
-                      className="w-full rounded p-2 text-left text-sm hover:bg-muted"
-                    >
-                      <p className="font-medium">{c.nombre} {c.apellido}</p>
-                      <p className="text-xs text-muted-foreground">{c.localidad || "Sin localidad"}</p>
-                    </button>
-                  ))}
+      <Dialog open={!!enrollDialog} onOpenChange={(open) => !open && setEnrollDialog(null)}>
+        <DialogContent className="sm:max-w-[425px] rounded-3xl border-none shadow-2xl bg-card">
+          <DialogHeader className="space-y-3 pb-4 border-b border-border/40">
+            <DialogTitle className="text-xl font-bold text-center flex flex-col items-center gap-2">
+                <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                    <UserPlus className="h-6 w-6" />
                 </div>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Dia preferido</Label>
-                <select
-                  value={diaPreferido}
-                  onChange={(e) => setDiaPreferido(e.target.value)}
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                >
-                  <option value="">Sin preferencia</option>
-                  <option value="viernes">Viernes</option>
-                  <option value="sabado">Sabado</option>
-                </select>
-              </div>
-              <div>
-                <Label>Disponible desde</Label>
-                <Input type="time" value={horaDisponible} onChange={(e) => setHoraDisponible(e.target.value)} />
-              </div>
-            </div>
-            {enrollError && (
-              <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
-                {enrollError}
-              </div>
-            )}
+                Inscripción al Torneo
+            </DialogTitle>
+            <DialogDescription className="text-center font-medium text-foreground/80">
+              Fecha {enrollDialog?.numero_fecha} • {enrollDialog?.sede}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-5 py-4">
+             <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Buscar Compañero</label>
+                <div className="relative">
+                    <Users className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <input 
+                        className="flex h-11 w-full rounded-xl border border-input bg-background pl-10 pr-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all"
+                        placeholder="Nombre del jugador..."
+                        value={companeroSearch}
+                        onChange={(e) => searchCompanero(e.target.value)}
+                    />
+                </div>
+                {companeros.length > 0 && (
+                    <div className="border rounded-xl mt-2 p-2 max-h-40 overflow-y-auto bg-muted/30 shadow-inner custom-scrollbar">
+                        {companeros.map(c => (
+                            <div 
+                                key={c.id} 
+                                className="p-3 hover:bg-primary/10 cursor-pointer rounded-lg text-sm flex justify-between items-center transition-colors"
+                                onClick={() => { setSelectedCompanero(c); setCompaneros([]); setCompaneroSearch(`${c.nombre} ${c.apellido}`); }}
+                            >
+                                <span className="font-semibold">{c.nombre} {c.apellido}</span>
+                                <Badge variant="secondary" className="text-[10px] h-5">Select</Badge>
+                            </div>
+                        ))}
+                    </div>
+                )}
+             </div>
           </div>
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEnrollDialog(null)}>Cancelar</Button>
-            <Button onClick={handleEnroll} disabled={!selectedCompanero || enrolling}>
-              {enrolling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
-              Inscribirme
+            <Button className="w-full rounded-xl h-12 text-sm font-bold shadow-lg shadow-primary/20" onClick={handleEnroll} disabled={enrolling || !selectedCompanero}>
+                {enrolling ? (
+                    <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Procesando...
+                    </>
+                ) : (
+                    "Confirmar Inscripción"
+                )}
             </Button>
           </DialogFooter>
-      </DialogContent>
-      </Dialog>
-
-      {/* Zonas Dialog */}
-      <Dialog open={!!zonasDialog} onOpenChange={() => setZonasDialog(null)}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Zonas del Torneo</DialogTitle>
-            <DialogDescription>Información de zonas y partidos</DialogDescription>
-          </DialogHeader>
-          {!zonasData ? (
-            <div className="p-8 text-center text-muted-foreground">Cargando zonas...</div>
-          ) : zonasData.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">No hay zonas disponibles aún</div>
-          ) : (
-            <div className="grid gap-4">
-              {zonasData.map((zona: any) => (
-                <Card key={zona.id} className="border-border/50">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">{zona.nombre}</CardTitle>
-                      <div className="flex gap-2">
-                        <Badge variant="outline">{zona.dia}</Badge>
-                        <Badge className={
-                          zona.estado === "pendiente" ? "bg-yellow-500/20 text-yellow-600" :
-                          zona.estado === "en_juego" ? "bg-blue-500/20 text-blue-600" :
-                          "bg-green-500/20 text-green-600"
-                        }>
-                          {zona.estado}
-                        </Badge>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      {zona.partidos && zona.partidos.length > 0 ? (
-                        zona.partidos.map((p: any, idx: number) => (
-                          <div key={idx} className="flex items-center justify-between p-2 rounded bg-muted/30 text-sm">
-                            <span className="font-medium">Partido {p.orden}</span>
-                            <div className="flex-1 mx-4 text-center">
-                              <span>{p.jugador1}</span>
-                              <span className="mx-2 text-muted-foreground">vs</span>
-                              <span>{p.jugador2}</span>
-                            </div>
-                            {p.ganador ? (
-                              <div className="text-xs">
-                                <Badge variant="secondary" className="bg-green-500/20 text-green-600">
-                                  Ganó: {p.ganador}
-                                </Badge>
-                                <div className="mt-1 text-muted-foreground">
-                                  {p.set1_j1}-{p.set1_j2} | {p.set2_j1}-{p.set2_j2}
-                                </div>
-                              </div>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">Pendiente</span>
-                            )}
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-sm text-muted-foreground text-center">No hay partidos registrados</p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
         </DialogContent>
       </Dialog>
-      </div>
-    );
-  }
+    </div>
+  );
+}

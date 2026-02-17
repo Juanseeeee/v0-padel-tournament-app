@@ -14,7 +14,7 @@ export async function GET() {
   const jugadorId = user[0].jugador_id;
 
   const inscripciones = await sql`
-    SELECT pt.id, pt.fecha_torneo_id, pt.dia_preferido, pt.hora_disponible,
+    SELECT pt.id, pt.fecha_torneo_id, pt.dia_preferido, pt.hora_disponible, pt.created_at,
            f.numero_fecha, f.fecha_calendario, f.sede, f.estado, 
            f.hora_inicio_viernes, f.hora_inicio_sabado,
            CASE 

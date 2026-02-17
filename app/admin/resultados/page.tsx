@@ -17,8 +17,9 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { 
-  Trophy, ArrowLeft, Plus, Trash2, Save, Loader2, Users, Medal
+  Trophy, ArrowLeft, Plus, Trash2, Save, Loader2, Users, Medal, Calendar, CheckCircle2
 } from "lucide-react"
+import { AdminWrapper } from "@/components/admin-wrapper"
 import type { FechaTorneo, Jugador, Categoria, Participacion, PuntosConfiguracion } from "@/lib/db"
 
 const fetcher = (url: string) => fetch(url).then(res => res.json())
@@ -120,48 +121,34 @@ function ResultadosContent() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 lg:px-8">
-          <div className="flex items-center gap-3">
-            <Link href="/admin">
-              <Button variant="ghost" size="icon" className="mr-2">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10">
-              <Trophy className="h-5 w-5 text-accent" />
-            </div>
-            <div>
-              <h1 className="font-[var(--font-display)] text-xl tracking-wide text-foreground">
-                CARGAR RESULTADOS
-              </h1>
-              <p className="text-xs text-muted-foreground">Asignar posiciones y puntos</p>
-            </div>
-          </div>
+    <AdminWrapper
+        title="Cargar Resultados"
+        description="Asignar posiciones y puntos a los jugadores"
+        headerActions={
           <Link href="/admin/puntos">
-            <Button variant="outline" size="sm" className="gap-2 bg-transparent">
+            <Button variant="outline" size="sm" className="gap-2 bg-transparent shadow-sm hover:bg-background/80">
               <Medal className="h-4 w-4" />
               Config. Puntos
             </Button>
           </Link>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-4xl px-4 py-8 lg:px-8">
+        }
+    >
+      <div className="space-y-6 max-w-5xl mx-auto">
         {/* Selectors */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Seleccionar Fecha y Categoría</CardTitle>
+        <Card className="border-none shadow-md bg-card/95 backdrop-blur-sm ring-1 ring-border/50">
+          <CardHeader className="pb-4 border-b border-border/10 bg-muted/20">
+            <CardTitle className="flex items-center gap-2 text-lg">
+                <Calendar className="h-5 w-5 text-primary" />
+                Selección de Torneo
+            </CardTitle>
             <CardDescription>Elija la fecha del torneo y la categoría para cargar resultados</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 sm:grid-cols-2">
+          <CardContent className="pt-6">
+            <div className="grid gap-6 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>Fecha del Torneo</Label>
+                <Label className="text-sm font-medium">Fecha del Torneo</Label>
                 <Select value={selectedFecha} onValueChange={setSelectedFecha}>
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-background/50">
                     <SelectValue placeholder="Seleccionar fecha" />
                   </SelectTrigger>
                   <SelectContent>
@@ -174,9 +161,9 @@ function ResultadosContent() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Categoría</Label>
+                <Label className="text-sm font-medium">Categoría</Label>
                 <Select value={selectedCategoria} onValueChange={setSelectedCategoria}>
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-background/50">
                     <SelectValue placeholder="Seleccionar categoría" />
                   </SelectTrigger>
                   <SelectContent>
@@ -194,40 +181,54 @@ function ResultadosContent() {
 
         {/* Participaciones */}
         {selectedFecha && selectedCategoria && (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
+          <Card className="border-none shadow-lg bg-card/95 backdrop-blur-sm ring-1 ring-border/50 animate-in fade-in slide-in-from-bottom-4">
+            <CardHeader className="pb-4 border-b border-border/10 bg-muted/20">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <Users className="h-5 w-5 text-primary" />
-                    Participantes
+                    Participantes y Posiciones
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="mt-1">
                     Agregue los jugadores y sus posiciones. Los puntos se calculan automáticamente.
                   </CardDescription>
                 </div>
-                <Button onClick={addParticipacion} variant="outline" size="sm" className="gap-2 bg-transparent">
+                <Button onClick={addParticipacion} variant="default" size="sm" className="gap-2 shadow-md shadow-primary/20">
                   <Plus className="h-4 w-4" />
-                  Agregar
+                  Agregar Participante
                 </Button>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-6">
               {participaciones.length === 0 ? (
-                <div className="py-8 text-center text-muted-foreground">
-                  No hay participantes. Haga clic en {"'"}Agregar{"'"} para comenzar.
+                <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground bg-muted/10 rounded-xl border border-dashed border-border">
+                  <Users className="h-10 w-10 mb-3 opacity-20" />
+                  <p className="text-lg font-medium">No hay participantes cargados</p>
+                  <p className="text-sm opacity-70 mb-4">Haga clic en "Agregar Participante" para comenzar</p>
+                  <Button onClick={addParticipacion} variant="outline" size="sm" className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Agregar
+                  </Button>
                 </div>
               ) : (
                 <div className="space-y-4">
+                  <div className="hidden sm:grid sm:grid-cols-12 gap-4 px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    <div className="sm:col-span-4">Jugador</div>
+                    <div className="sm:col-span-4">Pareja (Opcional)</div>
+                    <div className="sm:col-span-2">Posición</div>
+                    <div className="sm:col-span-1 text-center">Puntos</div>
+                    <div className="sm:col-span-1 text-right">Acciones</div>
+                  </div>
+                  
                   {participaciones.map((p, index) => (
-                    <div key={index} className="flex items-end gap-3 rounded-lg border border-border p-4">
-                      <div className="flex-1 space-y-2">
-                        <Label>Jugador</Label>
+                    <div key={index} className="flex flex-col sm:grid sm:grid-cols-12 gap-3 sm:gap-4 items-start sm:items-center rounded-xl border border-border/60 bg-card/50 p-4 transition-all hover:bg-accent/5 hover:border-accent/20 hover:shadow-sm">
+                      <div className="w-full sm:col-span-4 space-y-1.5 sm:space-y-0">
+                        <Label className="sm:hidden text-xs text-muted-foreground">Jugador</Label>
                         <Select 
                           value={p.jugador_id} 
                           onValueChange={(v) => updateParticipacion(index, 'jugador_id', v)}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="bg-background/80 border-border/60">
                             <SelectValue placeholder="Seleccionar jugador" />
                           </SelectTrigger>
                           <SelectContent>
@@ -239,13 +240,14 @@ function ResultadosContent() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="flex-1 space-y-2">
-                        <Label>Pareja (opcional)</Label>
+                      
+                      <div className="w-full sm:col-span-4 space-y-1.5 sm:space-y-0">
+                        <Label className="sm:hidden text-xs text-muted-foreground">Pareja</Label>
                         <Select 
                           value={p.pareja_id || "0"} 
                           onValueChange={(v) => updateParticipacion(index, 'pareja_id', v)}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="bg-background/80 border-border/60">
                             <SelectValue placeholder="Sin pareja" />
                           </SelectTrigger>
                           <SelectContent>
@@ -260,42 +262,48 @@ function ResultadosContent() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="w-24 space-y-2">
-                        <Label>Posición</Label>
+                      
+                      <div className="w-full sm:col-span-2 space-y-1.5 sm:space-y-0">
+                        <Label className="sm:hidden text-xs text-muted-foreground">Posición</Label>
                         <Input
                           type="number"
                           min="1"
                           value={p.posicion}
                           onChange={(e) => updateParticipacion(index, 'posicion', e.target.value)}
-                          placeholder="1"
+                          placeholder="Ej: 1"
+                          className="bg-background/80 border-border/60"
                         />
                       </div>
-                      <div className="w-20 space-y-2">
-                        <Label>Puntos</Label>
-                        <div className="flex h-9 items-center justify-center rounded-md bg-primary/10 font-[var(--font-display)] text-lg text-primary">
+                      
+                      <div className="w-full sm:col-span-1 space-y-1.5 sm:space-y-0 flex sm:block items-center justify-between">
+                        <Label className="sm:hidden text-xs text-muted-foreground">Puntos</Label>
+                        <div className="flex h-10 w-full sm:w-auto items-center justify-center rounded-md bg-primary/10 font-black text-lg text-primary border border-primary/20">
                           {p.posicion ? getPuntosForPosicion(Number(p.posicion)) : 0}
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:bg-destructive/10"
-                        onClick={() => removeParticipacion(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      
+                      <div className="w-full sm:col-span-1 flex justify-end">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-10 w-10 rounded-lg"
+                          onClick={() => removeParticipacion(index)}
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
 
               {participaciones.length > 0 && (
-                <div className="mt-6 flex justify-end gap-4">
-                  <Button onClick={handleSave} disabled={loading} className="gap-2">
+                <div className="mt-8 flex justify-end pt-4 border-t border-border/10">
+                  <Button onClick={handleSave} disabled={loading} size="lg" className="gap-2 shadow-lg shadow-primary/20 w-full sm:w-auto">
                     {loading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="h-5 w-5 animate-spin" />
                     ) : (
-                      <Save className="h-4 w-4" />
+                      <Save className="h-5 w-5" />
                     )}
                     Guardar Resultados
                   </Button>
@@ -306,23 +314,27 @@ function ResultadosContent() {
         )}
 
         {/* Tabla de puntos */}
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle className="text-base">Tabla de Puntos por Posición</CardTitle>
+        <Card className="border-none shadow-md bg-card/95 backdrop-blur-sm ring-1 ring-border/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2 text-muted-foreground">
+                <CheckCircle2 className="h-4 w-4" />
+                Referencia: Tabla de Puntos
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
               {puntosConfig.map((p) => (
-                <Badge key={p.id} variant="outline" className="gap-2">
-                  <span className="text-muted-foreground">#{p.posicion}</span>
+                <Badge key={p.id} variant="secondary" className="gap-2 px-3 py-1.5 text-sm bg-muted/50 hover:bg-muted border border-border/50">
+                  <span className="text-muted-foreground font-medium">Pos. #{p.posicion}</span>
+                  <span className="h-4 w-[1px] bg-border" />
                   <span className="font-bold text-primary">{p.puntos} pts</span>
                 </Badge>
               ))}
             </div>
           </CardContent>
         </Card>
-      </main>
-    </div>
+      </div>
+    </AdminWrapper>
   )
 }
 

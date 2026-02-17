@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
+import { AdminWrapper } from "@/components/admin-wrapper"
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
@@ -241,28 +242,18 @@ export default function JugadoresAdminPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/admin">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">Gestion de Jugadores</h1>
-              <p className="text-muted-foreground">Administra los jugadores de la liga</p>
-            </div>
-          </div>
-          <Button onClick={openCreateDialog} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Nuevo Jugador
-          </Button>
-        </div>
-
+    <AdminWrapper
+        title="Gestión de Jugadores"
+        description="Administra los jugadores de la liga"
+        headerActions={
+            <Button onClick={openCreateDialog} className="gap-2 shadow-lg shadow-primary/20">
+                <Plus className="h-4 w-4" />
+                Nuevo Jugador
+            </Button>
+        }
+    >
         {/* Filters */}
-        <Card className="mb-6">
+        <Card className="mb-6 border-none shadow-lg bg-card/95 backdrop-blur-sm ring-1 ring-border/50">
           <CardContent className="flex flex-col gap-4 p-4 sm:flex-row">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -270,11 +261,11 @@ export default function JugadoresAdminPage() {
                 placeholder="Buscar por nombre..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 h-10 rounded-xl border-input/50 bg-background/50"
               />
             </div>
             <Select value={filterCategoria} onValueChange={setFilterCategoria}>
-              <SelectTrigger className="w-full sm:w-48">
+              <SelectTrigger className="w-full sm:w-48 h-10 rounded-xl border-input/50 bg-background/50">
                 <SelectValue placeholder="Todas las categorias" />
               </SelectTrigger>
               <SelectContent>
@@ -292,23 +283,23 @@ export default function JugadoresAdminPage() {
         {loading ? (
           <div className="space-y-2">
             {[1, 2, 3, 4, 5].map((i) => (
-              <Card key={i} className="animate-pulse">
+              <Card key={i} className="animate-pulse border-none shadow-sm bg-card/50">
                 <CardContent className="h-20" />
               </Card>
             ))}
           </div>
         ) : filteredJugadores.length === 0 ? (
-          <Card>
+          <Card className="border-none shadow-lg bg-card/95 backdrop-blur-sm rounded-2xl">
             <CardContent className="flex flex-col items-center justify-center py-12">
-              <Users className="mb-4 h-12 w-12 text-muted-foreground" />
-              <p className="mb-4 text-lg text-muted-foreground">
+              <Users className="mb-4 h-12 w-12 text-muted-foreground opacity-50" />
+              <p className="mb-4 text-lg text-muted-foreground font-medium">
                 {searchTerm || filterCategoria !== "all" 
                   ? "No se encontraron jugadores" 
                   : "No hay jugadores registrados"
                 }
               </p>
               {!searchTerm && filterCategoria === "all" && (
-                <Button onClick={openCreateDialog} className="gap-2">
+                <Button onClick={openCreateDialog} className="gap-2 rounded-xl">
                   <Plus className="h-4 w-4" />
                   Agregar primer jugador
                 </Button>
@@ -316,83 +307,84 @@ export default function JugadoresAdminPage() {
             </CardContent>
           </Card>
         ) : (
-          <Card>
-            <CardHeader>
+          <Card className="border-none shadow-lg bg-card/95 backdrop-blur-sm rounded-2xl overflow-hidden ring-1 ring-border/50">
+            <CardHeader className="bg-muted/30 pb-4">
               <CardTitle className="flex items-center justify-between">
-                <span>Lista de Jugadores</span>
-                <Badge variant="secondary">{filteredJugadores.length} jugadores</Badge>
+                <span className="text-lg font-bold">Lista de Jugadores</span>
+                <Badge variant="secondary" className="rounded-lg">{filteredJugadores.length} jugadores</Badge>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              {filteredJugadores.map((jugador) => (
-                <div
-                  key={jugador.id}
-                  className="flex items-center gap-4 rounded-lg border border-border p-4 transition-colors hover:bg-muted/30"
-                >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                    <User className="h-6 w-6 text-primary" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-medium text-foreground">
-                        {jugador.nombre} {jugador.apellido}
-                      </span>
-                      {jugador.categorias_nombres && jugador.categorias_nombres.split(', ').map((catName: string) => (
-                        <Badge key={catName} variant="outline" className="text-xs">{catName}</Badge>
-                      ))}
-                      {jugador.estado === "inactivo" && (
-                        <Badge variant="secondary" className="bg-destructive/20 text-destructive">
-                          Inactivo
-                        </Badge>
-                      )}
+            <CardContent className="p-0">
+                <div className="divide-y divide-border/40">
+                {filteredJugadores.map((jugador) => (
+                    <div
+                    key={jugador.id}
+                    className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 transition-colors hover:bg-muted/30"
+                    >
+                    <div className="flex items-center gap-4 w-full sm:w-auto">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary font-bold">
+                            {jugador.nombre.charAt(0)}{jugador.apellido.charAt(0)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-bold text-foreground text-base">
+                                {jugador.nombre} {jugador.apellido}
+                            </span>
+                            {jugador.estado === "inactivo" && (
+                                <Badge variant="secondary" className="bg-destructive/10 text-destructive border-0 text-[10px] h-5">
+                                Inactivo
+                                </Badge>
+                            )}
+                            </div>
+                            <div className="flex flex-wrap gap-2 mt-1">
+                                {jugador.categorias_nombres && jugador.categorias_nombres.split(', ').map((catName: string) => (
+                                    <Badge key={catName} variant="outline" className="text-[10px] h-5 border-primary/20 text-primary/80 bg-primary/5">{catName}</Badge>
+                                ))}
+                            </div>
+                        </div>
                     </div>
-                    <div className="mt-1 flex flex-wrap gap-4 text-sm text-muted-foreground">
-                      {jugador.localidad && (
-                        <span className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {jugador.localidad}
-                        </span>
-                      )}
-                      <span className="capitalize">{jugador.genero}</span>
+                    
+                    <div className="flex-1 w-full sm:w-auto flex justify-between sm:justify-end items-center gap-4 sm:gap-8">
+                        <div className="flex flex-col items-end">
+                            <span className="text-[10px] uppercase font-bold text-muted-foreground">Puntos</span>
+                            <div className="flex items-center gap-1 text-lg font-black text-primary">
+                                <Trophy className="h-3 w-3" />
+                                {jugador.puntos_totales || 0}
+                            </div>
+                        </div>
+
+                        <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => openEditDialog(jugador)} title="Editar">
+                            <Edit2 className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-amber-600 hover:text-amber-700 hover:bg-amber-50" onClick={() => openRecatDialog(jugador)} title="Recategorizar">
+                            <ArrowUpDown className="h-4 w-4" />
+                            </Button>
+                            {/* <Link href={`/jugador/${jugador.id}`}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" title="Ver perfil">
+                                <User className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                            </Link> */}
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => openDeleteDialog(jugador)} title="Eliminar">
+                            <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </div>
                     </div>
-                  </div>
-                  <div className="mr-4 text-right">
-                    <div className="flex items-center gap-1 text-xl font-bold text-primary">
-                      <Trophy className="h-4 w-4" />
-                      {jugador.puntos_totales || 0}
                     </div>
-                    <div className="text-xs text-muted-foreground">puntos</div>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(jugador)} title="Editar">
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-600 hover:text-amber-700" onClick={() => openRecatDialog(jugador)} title="Recategorizar">
-                      <ArrowUpDown className="h-4 w-4" />
-                    </Button>
-                    <Link href={`/jugador/${jugador.id}`}>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" title="Ver perfil">
-                        <User className="h-4 w-4" />
-                      </Button>
-                    </Link>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => openDeleteDialog(jugador)} title="Eliminar">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                ))}
                 </div>
-              ))}
             </CardContent>
           </Card>
         )}
 
         {/* Create/Edit Dialog */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md rounded-3xl border-none shadow-2xl bg-card">
             <DialogHeader>
-              <DialogTitle>
+              <DialogTitle className="text-center text-xl font-bold">
                 {editingJugador ? "Editar Jugador" : "Nuevo Jugador"}
               </DialogTitle>
-              <DialogDescription>
+              <DialogDescription className="text-center">
                 {editingJugador 
                   ? "Modifica los datos del jugador" 
                   : "Ingresa los datos del nuevo jugador"
@@ -409,6 +401,7 @@ export default function JugadoresAdminPage() {
                       value={formData.nombre}
                       onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                       required
+                      className="rounded-xl"
                     />
                   </div>
                   <div className="grid gap-2">
@@ -418,6 +411,7 @@ export default function JugadoresAdminPage() {
                       value={formData.apellido}
                       onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
                       required
+                      className="rounded-xl"
                     />
                   </div>
                 </div>
@@ -428,6 +422,7 @@ export default function JugadoresAdminPage() {
                     value={formData.localidad}
                     onChange={(e) => setFormData({ ...formData, localidad: e.target.value })}
                     placeholder="Ej: Buenos Aires"
+                    className="rounded-xl"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -437,7 +432,7 @@ export default function JugadoresAdminPage() {
                       value={formData.genero}
                       onValueChange={handleGeneroChange}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="rounded-xl">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -452,7 +447,7 @@ export default function JugadoresAdminPage() {
                       value={formData.estado}
                       onValueChange={(value: "activo" | "inactivo") => setFormData({ ...formData, estado: value })}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="rounded-xl">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -464,12 +459,12 @@ export default function JugadoresAdminPage() {
                 </div>
                 <div className="grid gap-2">
                   <Label>Categorias * <span className="text-xs text-muted-foreground">(min 1, max 3)</span></Label>
-                  <div className="rounded-lg border border-border p-3 space-y-2">
+                  <div className="rounded-xl border border-border p-3 space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
                     {categoriasForGenero.length === 0 ? (
                       <p className="text-sm text-muted-foreground">No hay categorias disponibles para este genero</p>
                     ) : (
                       categoriasForGenero.map(cat => (
-                        <label key={cat.id} className="flex items-center gap-3 cursor-pointer rounded-md px-2 py-1.5 hover:bg-muted/50 transition-colors">
+                        <label key={cat.id} className="flex items-center gap-3 cursor-pointer rounded-lg px-2 py-1.5 hover:bg-muted/50 transition-colors">
                           <Checkbox
                             checked={formData.categoria_ids.includes(cat.id)}
                             onCheckedChange={() => toggleCategoria(cat.id)}
@@ -486,10 +481,10 @@ export default function JugadoresAdminPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                <Button type="button" variant="ghost" onClick={() => setDialogOpen(false)} className="rounded-xl">
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={saving || formData.categoria_ids.length === 0}>
+                <Button type="submit" disabled={saving || formData.categoria_ids.length === 0} className="rounded-xl shadow-lg shadow-primary/20">
                   {saving ? "Guardando..." : editingJugador ? "Guardar cambios" : "Crear jugador"}
                 </Button>
               </DialogFooter>
@@ -497,119 +492,99 @@ export default function JugadoresAdminPage() {
           </DialogContent>
         </Dialog>
 
+        {/* Recategorizar Dialog */}
+        <Dialog open={recatDialogOpen} onOpenChange={setRecatDialogOpen}>
+            <DialogContent className="max-w-sm rounded-3xl border-none shadow-2xl bg-card">
+                <DialogHeader>
+                    <DialogTitle className="text-center">Recategorizar Jugador</DialogTitle>
+                    <DialogDescription className="text-center">
+                        {recatJugador?.nombre} {recatJugador?.apellido}
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                        <Label>Categoría Anterior (a remover)</Label>
+                        <Select value={recatCatAnteriorId} onValueChange={setRecatCatAnteriorId}>
+                            <SelectTrigger className="rounded-xl">
+                                <SelectValue placeholder="Ninguna" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="">Ninguna</SelectItem>
+                                {recatJugador?.categorias_ids && Array.isArray(recatJugador.categorias_ids) && 
+                                    recatJugador.categorias_ids.map((id: number) => {
+                                        const cat = categorias.find(c => c.id === id);
+                                        return cat ? <SelectItem key={id} value={String(id)}>{cat.nombre}</SelectItem> : null
+                                    })
+                                }
+                                {/* Fallback if using string representation or other prop */}
+                                {(!recatJugador?.categorias_ids) && categorias.map(c => (
+                                    <SelectItem key={c.id} value={String(c.id)}>{c.nombre}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="grid gap-2">
+                        <Label>Tipo de Movimiento</Label>
+                        <div className="grid grid-cols-2 gap-2">
+                            <Button 
+                                type="button" 
+                                variant={recatTipo === 'ascenso' ? 'default' : 'outline'}
+                                onClick={() => setRecatTipo('ascenso')}
+                                className="rounded-xl"
+                            >
+                                <ArrowUp className="mr-2 h-4 w-4" /> Ascenso
+                            </Button>
+                            <Button 
+                                type="button" 
+                                variant={recatTipo === 'descenso' ? 'default' : 'outline'}
+                                onClick={() => setRecatTipo('descenso')}
+                                className="rounded-xl"
+                            >
+                                <ArrowDown className="mr-2 h-4 w-4" /> Descenso
+                            </Button>
+                        </div>
+                    </div>
+                    <div className="grid gap-2">
+                        <Label>Nueva Categoría (a agregar)</Label>
+                        <Select value={recatCatNuevaId} onValueChange={setRecatCatNuevaId}>
+                            <SelectTrigger className="rounded-xl">
+                                <SelectValue placeholder="Seleccionar" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {categoriasForGenero.map(c => (
+                                    <SelectItem key={c.id} value={String(c.id)}>{c.nombre}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button type="button" variant="ghost" onClick={() => setRecatDialogOpen(false)} className="rounded-xl">Cancelar</Button>
+                    <Button onClick={handleRecategorizar} disabled={recatSaving || !recatCatNuevaId} className="rounded-xl">
+                        {recatSaving ? 'Guardando...' : 'Confirmar'}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <AlertDialogContent>
+          <AlertDialogContent className="rounded-3xl border-none shadow-2xl bg-card">
             <AlertDialogHeader>
-              <AlertDialogTitle>Eliminar jugador?</AlertDialogTitle>
+              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
               <AlertDialogDescription>
-                Esta accion no se puede deshacer. Se eliminara permanentemente al jugador 
-                <span className="font-semibold"> {deletingJugador?.nombre} {deletingJugador?.apellido}</span>.
+                Esta acción no se puede deshacer. Se eliminará permanentemente al jugador
+                <strong> {deletingJugador?.nombre} {deletingJugador?.apellido}</strong>.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              <AlertDialogCancel className="rounded-xl">Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl">
                 Eliminar
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-        {/* Recategorizar Dialog */}
-        <Dialog open={recatDialogOpen} onOpenChange={setRecatDialogOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <ArrowUpDown className="h-5 w-5 text-amber-600" />
-                Recategorizar Jugador
-              </DialogTitle>
-              <DialogDescription>
-                {recatJugador && `${recatJugador.nombre} ${recatJugador.apellido}`}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label>Tipo de recategorizacion</Label>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant={recatTipo === "ascenso" ? "default" : "outline"}
-                    className={recatTipo === "ascenso" ? "flex-1 gap-2 bg-green-600 hover:bg-green-700" : "flex-1 gap-2"}
-                    onClick={() => setRecatTipo("ascenso")}
-                  >
-                    <ArrowUp className="h-4 w-4" />
-                    Ascenso
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={recatTipo === "descenso" ? "default" : "outline"}
-                    className={recatTipo === "descenso" ? "flex-1 gap-2 bg-red-600 hover:bg-red-700" : "flex-1 gap-2"}
-                    onClick={() => setRecatTipo("descenso")}
-                  >
-                    <ArrowDown className="h-4 w-4" />
-                    Descenso
-                  </Button>
-                </div>
-              </div>
-              <div className="grid gap-2">
-                <Label>Categoria actual</Label>
-                <Select value={recatCatAnteriorId} onValueChange={setRecatCatAnteriorId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar categoria actual" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categorias.map(cat => (
-                      <SelectItem key={cat.id} value={String(cat.id)}>
-                        {cat.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label>Nueva categoria</Label>
-                <Select value={recatCatNuevaId} onValueChange={setRecatCatNuevaId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar nueva categoria" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categorias
-                      .filter(cat => String(cat.id) !== recatCatAnteriorId)
-                      .map(cat => (
-                        <SelectItem key={cat.id} value={String(cat.id)}>
-                          {cat.nombre}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {recatCatAnteriorId && recatCatNuevaId && (
-                <div className={`rounded-lg border p-3 text-sm ${recatTipo === "ascenso" ? "border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400" : "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400"}`}>
-                  <p className="font-medium">
-                    {recatTipo === "ascenso" ? "ASCENSO" : "DESCENSO"}: {recatJugador?.nombre} {recatJugador?.apellido}
-                  </p>
-                  <p className="mt-1">
-                    {categorias.find(c => String(c.id) === recatCatAnteriorId)?.nombre || "?"} → {categorias.find(c => String(c.id) === recatCatNuevaId)?.nombre || "?"}
-                  </p>
-                  <p className="mt-1 text-xs opacity-75">Se generara automaticamente una noticia con esta recategorizacion.</p>
-                </div>
-              )}
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setRecatDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button
-                onClick={handleRecategorizar}
-                disabled={recatSaving || !recatCatNuevaId}
-                className={recatTipo === "ascenso" ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"}
-              >
-                {recatSaving ? "Procesando..." : `Confirmar ${recatTipo}`}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-    </main>
+    </AdminWrapper>
   )
 }

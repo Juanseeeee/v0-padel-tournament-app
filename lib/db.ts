@@ -31,6 +31,8 @@ export type FechaTorneo = {
   direccion: string | null;
   estado: "programada" | "en_juego" | "finalizada";
   temporada: number;
+  modalidad?: string;
+  dias_juego?: string;
   created_at: string;
 };
 

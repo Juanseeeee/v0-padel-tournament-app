@@ -65,6 +65,7 @@ import {
   ImageIcon,
 } from "lucide-react";
 import { FlyerGenerator } from "@/components/flyer-generator";
+import { AdminWrapper } from "@/components/admin-wrapper";
 import type {
   FechaTorneo,
   Categoria,
@@ -115,10 +116,18 @@ export default function TorneoManagementPage() {
     set3_p2: "",
   });
 
-  // Helper para validar y clampear el valor de games (max 7)
+  // Helper para validar y clampear el valor de games (max dinámico según modalidad)
   const handleSetChange = (field: string, value: string) => {
     if (value !== "" && !/^\d+$/.test(value)) return;
-    if (value !== "" && parseInt(value) > 7) return;
+    
+    let max = 7;
+    if (torneo?.modalidad?.includes("americano")) {
+        max = 25; // Permitir más games en americano (ej: a 21)
+    } else if (torneo?.modalidad === "2_sets_6_tiebreak" && (field === "set3_p1" || field === "set3_p2")) {
+        max = 30; // Super tiebreak
+    }
+
+    if (value !== "" && parseInt(value) > max) return;
     setResultado(prev => ({ ...prev, [field]: value }));
   };
 
@@ -131,6 +140,8 @@ export default function TorneoManagementPage() {
     duracion_partido_min: number;
     hora_inicio_viernes: string | null;
     hora_inicio_sabado: string | null;
+    modalidad: string | null;
+    dias_juego: string | null;
   };
 
   const { data: torneo, error: torneoError } = useSWR<TorneoExtendido>(
@@ -460,135 +471,121 @@ export default function TorneoManagementPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto max-w-7xl px-4 py-8">
-        {/* Header */}
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/admin/fechas">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
+    <AdminWrapper
+      title={`Fecha ${torneo.numero_fecha}`}
+      description={`${new Date(torneo.fecha_calendario).toLocaleDateString("es-AR", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })} - ${torneo.sede}`}
+      headerActions={
+        <div className="flex items-center gap-2">
+          <Badge
+            variant="outline"
+            className={
+              torneo.estado === "programada"
+                ? "border-blue-500/30 bg-blue-500/20 text-blue-400"
+                : torneo.estado === "en_juego"
+                  ? "border-primary/30 bg-primary/20 text-primary"
+                  : "border-border bg-muted text-muted-foreground"
+            }
+          >
+            {torneo.estado === "programada"
+              ? "Programada"
+              : torneo.estado === "en_juego"
+                ? "En Juego"
+                : "Finalizada"}
+          </Badge>
+          {torneo.estado !== "finalizada" && (
+            <Button
+              onClick={handleFinalizarTorneo}
+              disabled={isSubmitting}
+              className="bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+            >
+              <Trophy className="mr-2 h-4 w-4" />
+              Finalizar Torneo
+            </Button>
+          )}
+        </div>
+      }
+    >
+      {/* Info de categoría y configuración */}
+      <Card className="mb-6 border-0 shadow-lg backdrop-blur-sm bg-white/50 dark:bg-black/50">
+        <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
-                Fecha {torneo.numero_fecha}
-              </h1>
-              <p className="text-muted-foreground">
-                {new Date(torneo.fecha_calendario).toLocaleDateString("es-AR", {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}{" "}
-                - {torneo.sede}
+              <Label className="text-muted-foreground text-xs">Categoría</Label>
+              <p className="font-semibold text-lg">{torneo.categoria_nombre || "Sin categoría"}</p>
+            </div>
+            <div className="sm:border-l sm:pl-4">
+              <Label className="text-muted-foreground text-xs">Configuración</Label>
+              <p className="text-sm">
+                {`VIE ${torneo.hora_inicio_viernes || '18:00'}hs | SAB ${torneo.hora_inicio_sabado || '18:00'}hs | `}Zonas de {torneo.formato_zona || 3} parejas | {torneo.duracion_partido_min || 60} min/partido
               </p>
             </div>
           </div>
           <div className="flex gap-2">
-            <Badge
-              variant="outline"
-              className={
-                torneo.estado === "programada"
-                  ? "border-blue-500/30 bg-blue-500/20 text-blue-400"
-                  : torneo.estado === "en_juego"
-                    ? "border-primary/30 bg-primary/20 text-primary"
-                    : "border-border bg-muted text-muted-foreground"
-              }
-            >
-              {torneo.estado === "programada"
-                ? "Programada"
-                : torneo.estado === "en_juego"
-                  ? "En Juego"
-                  : "Finalizada"}
-            </Badge>
-            {torneo.estado !== "finalizada" && (
-              <Button
-                onClick={handleFinalizarTorneo}
-                disabled={isSubmitting}
-                className="bg-primary text-primary-foreground"
-              >
-                <Trophy className="mr-2 h-4 w-4" />
-                Finalizar Torneo
-              </Button>
-            )}
+            <Button variant="outline" size="sm" onClick={() => setShowConfigDialog(true)} className="w-full sm:w-auto">
+              <Settings className="mr-2 h-4 w-4" />
+              Editar Config
+            </Button>
           </div>
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* Info de categoría y configuración */}
-        <Card className="mb-6">
-          <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4">
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3 bg-muted/50 p-1">
+          <TabsTrigger value="parejas" className="gap-2 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+            <Users className="h-4 w-4" />
+            <span className="hidden sm:inline">Parejas</span>
+            <span className="sm:hidden">({parejasCategoria?.length || 0})</span>
+            <span className="hidden sm:inline">({parejasCategoria?.length || 0})</span>
+          </TabsTrigger>
+          <TabsTrigger value="zonas" className="gap-2 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+            <Grid3X3 className="h-4 w-4" />
+            Zonas
+          </TabsTrigger>
+          <TabsTrigger value="llaves" className="gap-2 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+            <GitBranch className="h-4 w-4" />
+            Llaves
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Tab Parejas */}
+        <TabsContent value="parejas">
+          <Card className="border-0 shadow-lg backdrop-blur-sm bg-white/50 dark:bg-black/50">
+            <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <Label className="text-muted-foreground text-xs">Categoría</Label>
-                <p className="font-semibold text-lg">{torneo.categoria_nombre || "Sin categoría"}</p>
+                <CardTitle>Parejas Inscriptas</CardTitle>
+                {parejasCategoria && parejasCategoria.length > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {parejasCategoria.length} parejas | 
+                    VIE: {parejasCategoria.filter((p: any) => p.dia_preferido === "viernes").length} | 
+                    SAB: {parejasCategoria.filter((p: any) => p.dia_preferido === "sabado").length} | 
+                    Flexible: {parejasCategoria.filter((p: any) => !p.dia_preferido).length}
+                  </p>
+                )}
               </div>
-              <div className="border-l pl-4">
-                <Label className="text-muted-foreground text-xs">Configuración</Label>
-                <p className="text-sm">
-                  {`VIE ${torneo.hora_inicio_viernes || '18:00'}hs | SAB ${torneo.hora_inicio_sabado || '18:00'}hs | `}Zonas de {torneo.formato_zona || 3} parejas | {torneo.duracion_partido_min || 60} min/partido
-                </p>
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={() => setShowParejaDialog(true)} className="flex-1 sm:flex-none">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Agregar
+                </Button>
+                <Button variant="outline" onClick={() => setShowFlyerDialog(true)} className="flex-1 sm:flex-none">
+                  <ImageIcon className="mr-2 h-4 w-4" />
+                  Flyer
+                </Button>
+                {torneo?.categoria_id && parejasCategoria && parejasCategoria.length >= 3 && (
+                  <Button variant="secondary" onClick={handleGenerarZonas} disabled={isSubmitting} className="flex-1 sm:flex-none w-full sm:w-auto">
+                    <Shuffle className="mr-2 h-4 w-4" />
+                    Generar Zonas
+                  </Button>
+                )}
               </div>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setShowConfigDialog(true)}>
-                <Settings className="mr-2 h-4 w-4" />
-                Editar Config
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-6 grid w-full grid-cols-3">
-            <TabsTrigger value="parejas" className="gap-2">
-              <Users className="h-4 w-4" />
-              Parejas ({parejasCategoria?.length || 0})
-            </TabsTrigger>
-            <TabsTrigger value="zonas" className="gap-2">
-              <Grid3X3 className="h-4 w-4" />
-              Zonas
-            </TabsTrigger>
-            <TabsTrigger value="llaves" className="gap-2">
-              <GitBranch className="h-4 w-4" />
-              Llaves
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Tab Parejas */}
-          <TabsContent value="parejas">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-  <div>
-    <CardTitle>Parejas Inscriptas</CardTitle>
-    {parejasCategoria && parejasCategoria.length > 0 && (
-      <p className="text-xs text-muted-foreground mt-1">
-        {parejasCategoria.length} parejas | 
-        VIE: {parejasCategoria.filter((p: any) => p.dia_preferido === "viernes").length} | 
-        SAB: {parejasCategoria.filter((p: any) => p.dia_preferido === "sabado").length} | 
-        Flexible: {parejasCategoria.filter((p: any) => !p.dia_preferido).length}
-      </p>
-    )}
-  </div>
-  <div className="flex gap-2">
-  <Button onClick={() => setShowParejaDialog(true)}>
-  <Plus className="mr-2 h-4 w-4" />
-  Agregar Pareja
-  </Button>
-  <Button variant="outline" onClick={() => setShowFlyerDialog(true)}>
-  <ImageIcon className="mr-2 h-4 w-4" />
-  Generar Flyer
-  </Button>
-  {torneo?.categoria_id && parejasCategoria && parejasCategoria.length >= 3 && (
-  <Button variant="secondary" onClick={handleGenerarZonas} disabled={isSubmitting}>
-  <Shuffle className="mr-2 h-4 w-4" />
-  Generar Zonas
-  </Button>
-  )}
-  </div>
-              </CardHeader>
-              <CardContent>
+            </CardHeader>
+            <CardContent>
                 {!parejasCategoria || parejasCategoria.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                     <Users className="mb-4 h-12 w-12 opacity-50" />
@@ -676,6 +673,7 @@ export default function TorneoManagementPage() {
               horaInicioSabado={torneo?.hora_inicio_sabado || "18:00"}
               duracionPartido={torneo?.duracion_partido_min || 60}
               onZonaUpdate={() => { mutateZonas(); mutateLlaves(); }}
+              modalidad={torneo?.modalidad || "normal"}
             />
           </TabsContent>
 
@@ -795,15 +793,19 @@ export default function TorneoManagementPage() {
                       <div className="grid grid-cols-2 gap-3 mt-2">
                         <div className="grid gap-1">
                           <Label className="text-xs">Dia preferido</Label>
-                          <select
-                            value={diaPreferido}
-                            onChange={(e) => setDiaPreferido(e.target.value)}
-                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                          <Select
+                            value={diaPreferido || "sin_preferencia"}
+                            onValueChange={(val) => setDiaPreferido(val === "sin_preferencia" ? "" : val)}
                           >
-                            <option value="">Sin preferencia</option>
-                            <option value="viernes">Viernes ({countViernes} parejas)</option>
-                            <option value="sabado">Sabado ({countSabado} parejas)</option>
-                          </select>
+                            <SelectTrigger className="w-full h-9">
+                              <SelectValue placeholder="Sin preferencia" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="sin_preferencia">Sin preferencia</SelectItem>
+                              <SelectItem value="viernes">Viernes ({countViernes} parejas)</SelectItem>
+                              <SelectItem value="sabado">Sabado ({countSabado} parejas)</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div className="grid gap-1">
                           <Label className="text-xs">Disponible desde</Label>
@@ -933,8 +935,90 @@ export default function TorneoManagementPage() {
             onOpenChange={setShowFlyerDialog}
           />
         )}
-      </div>
-    </div>
+
+        {/* Dialog Resultado Llaves */}
+        <Dialog open={showLlaveResultadoDialog} onOpenChange={setShowLlaveResultadoDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Resultado del Partido (Llave)</DialogTitle>
+              <DialogDescription>
+                {selectedLlave && (
+                  <span className="block mt-2">
+                    {selectedLlave.pareja1_id ? (selectedLlave.pareja1_jugadores || `Pareja ${selectedLlave.pareja1_id}`) : "Por definir"} 
+                    {" vs "}
+                    {selectedLlave.pareja2_id ? (selectedLlave.pareja2_jugadores || `Pareja ${selectedLlave.pareja2_id}`) : "Por definir"}
+                  </span>
+                )}
+                <span className="block mt-1 text-xs text-muted-foreground">
+                    Modalidad: {torneo?.modalidad?.replace(/_/g, " ").toUpperCase() || "NORMAL"}
+                </span>
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              {torneo?.modalidad?.includes("americano") ? (
+                  // Modalidad Americano (1 set)
+                  <div className="grid grid-cols-5 items-center gap-2">
+                    <Label className="col-span-1">Games</Label>
+                    <Input
+                      type="number" min="0" max="15" className="col-span-2" placeholder="P1"
+                      value={resultado.set1_p1} onChange={(e) => handleSetChange('set1_p1', e.target.value)}
+                    />
+                    <Input
+                      type="number" min="0" max="15" className="col-span-2" placeholder="P2"
+                      value={resultado.set1_p2} onChange={(e) => handleSetChange('set1_p2', e.target.value)}
+                    />
+                  </div>
+              ) : (
+                  // Modalidad Normal o 2 sets + tiebreak
+                  <>
+                    <div className="grid grid-cols-5 items-center gap-2">
+                        <Label className="col-span-1">Set 1</Label>
+                        <Input
+                        type="number" min="0" max="7" className="col-span-2" placeholder="P1"
+                        value={resultado.set1_p1} onChange={(e) => handleSetChange('set1_p1', e.target.value)}
+                        />
+                        <Input
+                        type="number" min="0" max="7" className="col-span-2" placeholder="P2"
+                        value={resultado.set1_p2} onChange={(e) => handleSetChange('set1_p2', e.target.value)}
+                        />
+                    </div>
+                    <div className="grid grid-cols-5 items-center gap-2">
+                        <Label className="col-span-1">Set 2</Label>
+                        <Input
+                        type="number" min="0" max="7" className="col-span-2" placeholder="P1"
+                        value={resultado.set2_p1} onChange={(e) => handleSetChange('set2_p1', e.target.value)}
+                        />
+                        <Input
+                        type="number" min="0" max="7" className="col-span-2" placeholder="P2"
+                        value={resultado.set2_p2} onChange={(e) => handleSetChange('set2_p2', e.target.value)}
+                        />
+                    </div>
+                    <div className="grid grid-cols-5 items-center gap-2">
+                        <Label className="col-span-1 text-muted-foreground">
+                            {torneo?.modalidad === '2_sets_6_tiebreak' ? 'Tiebreak' : 'Set 3'}
+                        </Label>
+                        <Input
+                        type="number" min="0" max={torneo?.modalidad === '2_sets_6_tiebreak' ? 20 : 7} className="col-span-2" placeholder="P1"
+                        value={resultado.set3_p1} onChange={(e) => handleSetChange('set3_p1', e.target.value)}
+                        />
+                        <Input
+                        type="number" min="0" max={torneo?.modalidad === '2_sets_6_tiebreak' ? 20 : 7} className="col-span-2" placeholder="P2"
+                        value={resultado.set3_p2} onChange={(e) => handleSetChange('set3_p2', e.target.value)}
+                        />
+                    </div>
+                  </>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowLlaveResultadoDialog(false)}>Cancelar</Button>
+              <Button onClick={handleGuardarResultadoLlave} disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Guardar"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+      </AdminWrapper>
   );
 }
 
@@ -949,6 +1033,7 @@ function ZonasTab({
   horaInicioSabado,
   duracionPartido,
   onZonaUpdate,
+  modalidad,
 }: {
   torneoId: string;
   categoriaId: string;
@@ -959,6 +1044,7 @@ function ZonasTab({
   horaInicioSabado: string;
   duracionPartido: number;
   onZonaUpdate: () => void;
+  modalidad: string;
 }) {
   const [selectedZona, setSelectedZona] = useState<Zona | null>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
@@ -1034,7 +1120,7 @@ function ZonasTab({
         {zonas.map((zona) => (
           <Card 
             key={zona.id} 
-            className="cursor-pointer hover:border-primary transition-colors"
+            className="cursor-pointer transition-all hover:scale-[1.02] border-0 shadow-lg hover:shadow-xl backdrop-blur-sm bg-white/50 dark:bg-black/50"
             onClick={() => setSelectedZona(zona)}
           >
             <CardHeader className="pb-2">
@@ -1074,6 +1160,7 @@ function ZonasTab({
               horaInicioViernes={horaInicioViernes}
               horaInicioSabado={horaInicioSabado}
               duracionPartido={duracionPartido}
+              modalidad={modalidad}
             />
           )}
         </DialogContent>
@@ -1092,6 +1179,7 @@ function ZonaDetailContent({
   horaInicioViernes,
   horaInicioSabado,
   duracionPartido,
+  modalidad,
 }: {
   zona: Zona;
   torneoId: string;
@@ -1101,6 +1189,7 @@ function ZonaDetailContent({
   horaInicioViernes: string;
   horaInicioSabado: string;
   duracionPartido?: number;
+  modalidad: string;
 }) {
   const { data, mutate } = useSWR<{ zona: Zona; parejas: ParejaZona[]; partidos: PartidoZona[] }>(
     `/api/admin/torneo/${torneoId}/zonas/${zona.id}`,
@@ -1116,7 +1205,15 @@ function ZonaDetailContent({
 
   const handleSetChange = (field: string, value: string) => {
     if (value !== "" && !/^\d+$/.test(value)) return;
-    if (value !== "" && parseInt(value) > 7) return;
+    
+    let max = 7;
+    if (modalidad?.includes("americano")) {
+        max = 25; // Permitir más games en americano (ej: a 21)
+    } else if (modalidad === "2_sets_6_tiebreak" && (field === "set3_p1" || field === "set3_p2")) {
+        max = 30; // Super tiebreak
+    }
+
+    if (value !== "" && parseInt(value) > max) return;
     setResultado(prev => ({ ...prev, [field]: value }));
   };
 
@@ -1314,16 +1411,19 @@ function ZonaDetailContent({
                         </div>
                         {isMoving && (
                           <div className="flex items-center gap-2 mt-1">
-                            <select
+                            <Select
                               value={moveTargetZona}
-                              onChange={(e) => setMoveTargetZona(e.target.value)}
-                              className="flex h-8 rounded-md border border-input bg-transparent px-2 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                              onValueChange={setMoveTargetZona}
                             >
-                              <option value="">Seleccionar zona destino...</option>
-                              {otherZonas.map(z => (
-                                <option key={z.id} value={z.id.toString()}>{z.nombre}</option>
-                              ))}
-                            </select>
+                              <SelectTrigger className="h-8 w-[180px] text-xs">
+                                <SelectValue placeholder="Seleccionar zona..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {otherZonas.map(z => (
+                                  <SelectItem key={z.id} value={z.id.toString()}>{z.nombre}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             <Button size="sm" variant="default" className="h-7 text-xs" onClick={handleMoverPareja} disabled={!moveTargetZona || saving}>
                               {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : "Mover"}
                             </Button>
@@ -1478,72 +1578,61 @@ function ZonaDetailContent({
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            {/* Set 1 */}
-            <div className="grid grid-cols-5 items-center gap-2">
-              <Label className="col-span-1">Set 1</Label>
-              <Input
-                type="number"
-                min="0"
-                max="7"
-                className="col-span-2"
-                placeholder="P1"
-                value={resultado.set1_p1}
-                onChange={(e) => handleSetChange('set1_p1', e.target.value)}
-              />
-              <Input
-                type="number"
-                min="0"
-                max="7"
-                className="col-span-2"
-                placeholder="P2"
-                value={resultado.set1_p2}
-                onChange={(e) => handleSetChange('set1_p2', e.target.value)}
-              />
-            </div>
-            {/* Set 2 */}
-            <div className="grid grid-cols-5 items-center gap-2">
-              <Label className="col-span-1">Set 2</Label>
-              <Input
-                type="number"
-                min="0"
-                max="7"
-                className="col-span-2"
-                placeholder="P1"
-                value={resultado.set2_p1}
-                onChange={(e) => handleSetChange('set2_p1', e.target.value)}
-              />
-              <Input
-                type="number"
-                min="0"
-                max="7"
-                className="col-span-2"
-                placeholder="P2"
-                value={resultado.set2_p2}
-                onChange={(e) => handleSetChange('set2_p2', e.target.value)}
-              />
-            </div>
-            {/* Set 3 */}
-            <div className="grid grid-cols-5 items-center gap-2">
-              <Label className="col-span-1 text-muted-foreground">Set 3</Label>
-              <Input
-                type="number"
-                min="0"
-                max="7"
-                className="col-span-2"
-                placeholder="P1 (opcional)"
-                value={resultado.set3_p1}
-                onChange={(e) => handleSetChange('set3_p1', e.target.value)}
-              />
-              <Input
-                type="number"
-                min="0"
-                max="7"
-                className="col-span-2"
-                placeholder="P2 (opcional)"
-                value={resultado.set3_p2}
-                onChange={(e) => handleSetChange('set3_p2', e.target.value)}
-              />
-            </div>
+            {modalidad?.includes("americano") ? (
+                // Modalidad Americano (1 set)
+                <div className="grid grid-cols-5 items-center gap-2">
+                  <Label className="col-span-1">Games</Label>
+                  <Input
+                    type="number" min="0" max="25" className="col-span-2" placeholder="P1"
+                    value={resultado.set1_p1} onChange={(e) => handleSetChange('set1_p1', e.target.value)}
+                  />
+                  <Input
+                    type="number" min="0" max="25" className="col-span-2" placeholder="P2"
+                    value={resultado.set1_p2} onChange={(e) => handleSetChange('set1_p2', e.target.value)}
+                  />
+                </div>
+            ) : (
+                <>
+                  {/* Set 1 */}
+                  <div className="grid grid-cols-5 items-center gap-2">
+                    <Label className="col-span-1">Set 1</Label>
+                    <Input
+                      type="number" min="0" max="7" className="col-span-2" placeholder="P1"
+                      value={resultado.set1_p1} onChange={(e) => handleSetChange('set1_p1', e.target.value)}
+                    />
+                    <Input
+                      type="number" min="0" max="7" className="col-span-2" placeholder="P2"
+                      value={resultado.set1_p2} onChange={(e) => handleSetChange('set1_p2', e.target.value)}
+                    />
+                  </div>
+                  {/* Set 2 */}
+                  <div className="grid grid-cols-5 items-center gap-2">
+                    <Label className="col-span-1">Set 2</Label>
+                    <Input
+                      type="number" min="0" max="7" className="col-span-2" placeholder="P1"
+                      value={resultado.set2_p1} onChange={(e) => handleSetChange('set2_p1', e.target.value)}
+                    />
+                    <Input
+                      type="number" min="0" max="7" className="col-span-2" placeholder="P2"
+                      value={resultado.set2_p2} onChange={(e) => handleSetChange('set2_p2', e.target.value)}
+                    />
+                  </div>
+                  {/* Set 3 */}
+                  <div className="grid grid-cols-5 items-center gap-2">
+                    <Label className="col-span-1 text-muted-foreground">
+                        {modalidad === '2_sets_6_tiebreak' ? 'Tiebreak' : 'Set 3'}
+                    </Label>
+                    <Input
+                      type="number" min="0" max={modalidad === '2_sets_6_tiebreak' ? 30 : 7} className="col-span-2" placeholder="P1 (opcional)"
+                      value={resultado.set3_p1} onChange={(e) => handleSetChange('set3_p1', e.target.value)}
+                    />
+                    <Input
+                      type="number" min="0" max={modalidad === '2_sets_6_tiebreak' ? 30 : 7} className="col-span-2" placeholder="P2 (opcional)"
+                      value={resultado.set3_p2} onChange={(e) => handleSetChange('set3_p2', e.target.value)}
+                    />
+                  </div>
+                </>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingPartido(null)}>Cancelar</Button>
@@ -1608,7 +1697,7 @@ function LlavesTab({
 
   return (
     <>
-    <Card>
+    <Card className="border-0 shadow-lg backdrop-blur-sm bg-white/50 dark:bg-black/50">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <GitBranch className="h-5 w-5 text-primary" />
@@ -1628,9 +1717,10 @@ function LlavesTab({
                   return (
                   <div
                     key={llave.id}
-                    className={`rounded-lg border p-3 ${
-                      isBye ? "border-muted bg-muted/30 opacity-60" :
-                      llave.estado === 'finalizado' ? "border-primary/50 bg-primary/5" : "bg-card"
+                    onClick={() => !isBye && onResultadoClick(llave)}
+                    className={`rounded-lg border p-3 cursor-pointer transition-all hover:shadow-md ${
+                      isBye ? "border-muted bg-muted/30 opacity-60 cursor-default" :
+                      llave.estado === 'finalizado' ? "border-primary/50 bg-primary/5 hover:bg-primary/10" : "bg-card hover:border-primary/50"
                     }`}
                   >
                     <div className="space-y-2">

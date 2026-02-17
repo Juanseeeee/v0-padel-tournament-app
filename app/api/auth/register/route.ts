@@ -20,7 +20,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Ya existe una cuenta con este email" }, { status: 409 });
     }
 
-    const passwordHash = hashPassword(password);
+    const passwordHash = await hashPassword(password);
 
     // Create jugador first
     const jugadores = await sql`

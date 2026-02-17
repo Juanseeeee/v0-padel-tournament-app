@@ -5,7 +5,7 @@ import React from "react"
 import { useMemo, useState, useEffect } from "react"
 import Link from "next/link"
 import { Calendar as MonthCalendar } from "@/components/ui/calendar"
-import { ArrowLeft, Plus, Edit2, Trash2, Calendar as CalendarIcon, MapPin, Users } from "lucide-react"
+import { Plus, Edit2, Trash2, Calendar as CalendarIcon, MapPin, Users, Filter } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -36,6 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { AdminWrapper } from "@/components/admin-wrapper"
 import type { FechaTorneo, Sede, Categoria } from "@/lib/db"
 
 type FechaExtendida = FechaTorneo & {
@@ -46,7 +47,16 @@ type FechaExtendida = FechaTorneo & {
   duracion_partido_min: number
   hora_inicio_viernes: string | null
   hora_inicio_sabado: string | null
+  modalidad?: string
+  dias_juego?: string
 }
+
+const MODALIDAD_OPTIONS = [
+  { value: "normal_3_sets_6", label: "Normal (3 sets a 6)" },
+  { value: "2_sets_6_tiebreak", label: "2 sets a 6 + Tiebreak" },
+  { value: "americano_1_set_9", label: "Americano (1 set a 9)" },
+  { value: "americano_1_set_7", label: "Americano (1 set a 7)" },
+]
 
 function getEstadoBadge(estado: FechaTorneo['estado']) {
   const variants: Record<FechaTorneo['estado'], { label: string; className: string }> = {
@@ -90,7 +100,9 @@ export default function FechasAdminPage() {
     formato_zona: 3,
     duracion_partido_min: 60,
     hora_inicio_viernes: "18:00",
-    hora_inicio_sabado: "18:00",
+    hora_inicio_sabado: "14:00",
+    modalidad: "normal_3_sets_6",
+    dias_juego: "viernes,sabado,domingo",
   })
 
   useEffect(() => {
@@ -174,7 +186,9 @@ export default function FechasAdminPage() {
       formato_zona: 3,
       duracion_partido_min: 60,
       hora_inicio_viernes: "18:00",
-      hora_inicio_sabado: "18:00",
+      hora_inicio_sabado: "14:00",
+      modalidad: "normal_3_sets_6",
+      dias_juego: "viernes,sabado,domingo",
     })
   }
 
@@ -199,6 +213,8 @@ export default function FechasAdminPage() {
       duracion_partido_min: fecha.duracion_partido_min || 60,
       hora_inicio_viernes: fecha.hora_inicio_viernes || "18:00",
       hora_inicio_sabado: fecha.hora_inicio_sabado || "18:00",
+      modalidad: fecha.modalidad || "normal_3_sets_6",
+      dias_juego: fecha.dias_juego || "viernes,sabado,domingo",
     })
     setDialogOpen(true)
   }
@@ -236,6 +252,8 @@ export default function FechasAdminPage() {
           duracion_partido_min: formData.duracion_partido_min,
           hora_inicio_viernes: formData.hora_inicio_viernes,
           hora_inicio_sabado: formData.hora_inicio_sabado,
+          modalidad: formData.modalidad,
+          dias_juego: formData.dias_juego,
         }),
       })
 
@@ -282,36 +300,26 @@ export default function FechasAdminPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/admin">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">Gestión de Fechas</h1>
-              <p className="text-muted-foreground">Cada fecha corresponde a un torneo de una categoría</p>
-            </div>
-          </div>
-          <Button onClick={openCreateDialog} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Nueva Fecha
-          </Button>
-        </div>
-
+    <AdminWrapper
+        title="Gestión de Fechas"
+        description="Cada fecha corresponde a un torneo de una categoría"
+        headerActions={
+            <Button onClick={openCreateDialog} className="gap-2 shadow-lg shadow-primary/20">
+                <Plus className="h-4 w-4" />
+                Nueva Fecha
+            </Button>
+        }
+    >
         {loading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <Card key={i} className="animate-pulse">
+              <Card key={i} className="animate-pulse border-none shadow-md bg-card/50">
                 <CardContent className="h-24" />
               </Card>
             ))}
           </div>
         ) : fechas.length === 0 ? (
-          <Card>
+          <Card className="border-none shadow-lg bg-card/95 backdrop-blur-sm">
             <CardContent className="flex flex-col items-center justify-center py-12">
               <CalendarIcon className="mb-4 h-12 w-12 text-muted-foreground" />
               <p className="mb-4 text-lg text-muted-foreground">No hay fechas registradas</p>
@@ -322,196 +330,214 @@ export default function FechasAdminPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-6">
-            <Card className="overflow-hidden border-border/50 bg-card">
-              <CardHeader className="pb-3">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <CardTitle className="text-base">Calendario</CardTitle>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="inline-flex h-2 w-2 rounded-full bg-primary" />
-                    Programada
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="mx-auto w-fit">
-                  <MonthCalendar
-                    mode="single"
-                    selected={selectedCalendarDay}
-                    onSelect={setSelectedCalendarDay}
-                    modifiers={{
-                      hasProgramada: calendarioMarkedDays.programada,
-                      hasEnJuego: calendarioMarkedDays.en_juego,
-                      hasFinalizada: calendarioMarkedDays.finalizada,
-                    }}
-                    modifiersClassNames={{
-                      hasProgramada:
-                        "relative rounded-full bg-primary/20 text-primary ring-2 ring-primary/40 hover:bg-primary/25 after:absolute after:bottom-1 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-primary",
-                      hasEnJuego:
-                        "relative rounded-full bg-blue-500/15 text-blue-600 ring-2 ring-blue-500/30 hover:bg-blue-500/20 dark:text-blue-400 after:absolute after:bottom-1 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-blue-500",
-                      hasFinalizada:
-                        "relative after:absolute after:bottom-1 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-muted-foreground/70",
-                    }}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>Próximas</span>
-                  <Badge variant="secondary">{proximasFechas.length} fechas</Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {proximasFechas.map((fecha) => {
-                  const badgeInfo = getEstadoBadge(fecha.estado)
-                  return (
-                    <div
-                      key={fecha.id}
-                      className="flex items-center gap-4 rounded-lg border border-border p-4 transition-colors hover:bg-muted/30"
-                    >
-                      <div className="flex h-14 w-14 flex-col items-center justify-center rounded-lg bg-primary/10 text-primary">
-                        <span className="text-xl font-bold leading-none">
-                          {fecha.fecha_calendario ? new Date(fecha.fecha_calendario).getDate() : "-"}
-                        </span>
-                        <span className="text-xs uppercase">
-                          {fecha.fecha_calendario ? new Date(fecha.fecha_calendario).toLocaleDateString('es-AR', { month: 'short' }) : ""}
-                        </span>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-medium text-foreground">
-                            Fecha {fecha.numero_fecha} - {fecha.categoria_nombre || "Sin categoría"}
-                          </span>
-                          <Badge variant="outline" className={badgeInfo.className}>
-                            {badgeInfo.label}
-                          </Badge>
-                        </div>
-                        <div className="mt-1 flex flex-wrap gap-4 text-sm text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {fecha.sede || "Sin sede"}
-                          </span>
-                          <span>Zonas de {fecha.formato_zona || 3} parejas</span>
-                          <span>{fecha.dias_torneo || 3} días</span>
-                        </div>
-                      </div>
-                      <div className="flex gap-1">
-                        <Link href={`/admin/torneo/${fecha.id}`}>
-                          <Button variant="outline" size="sm" className="gap-1 bg-transparent">
-                            <Users className="h-4 w-4" />
-                            Gestionar
-                          </Button>
-                        </Link>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => openEditDialog(fecha)}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => {
-                            setDeletingFecha(fecha)
-                            setDeleteDialogOpen(true)
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+          <div className="grid gap-6 lg:grid-cols-3 animate-in fade-in slide-in-from-bottom-4">
+            {/* Calendar Column */}
+            <div className="lg:col-span-1">
+                <Card className="overflow-hidden border-none shadow-lg bg-card/95 backdrop-blur-sm ring-1 ring-border/50 sticky top-4">
+                <CardHeader className="pb-3 border-b border-border/10 bg-muted/20">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <CardTitle className="text-base font-bold">Calendario</CardTitle>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="inline-flex h-2 w-2 rounded-full bg-primary" />
+                        Programada
                     </div>
-                  )
-                })}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>Anteriores</span>
-                  <Badge variant="secondary">{fechasAnteriores.length} fechas</Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {fechasAnteriores.map((fecha) => {
-                  const badgeInfo = getEstadoBadge(fecha.estado)
-                  return (
-                    <div
-                      key={fecha.id}
-                      className="flex items-center gap-4 rounded-lg border border-border p-4 transition-colors hover:bg-muted/30"
-                    >
-                      <div className="flex h-14 w-14 flex-col items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
-                        <span className="text-xl font-bold leading-none">
-                          {fecha.fecha_calendario ? new Date(fecha.fecha_calendario).getDate() : "-"}
-                        </span>
-                        <span className="text-xs uppercase">
-                          {fecha.fecha_calendario ? new Date(fecha.fecha_calendario).toLocaleDateString('es-AR', { month: 'short' }) : ""}
-                        </span>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-medium text-foreground">
-                            Fecha {fecha.numero_fecha} - {fecha.categoria_nombre || "Sin categoría"}
-                          </span>
-                          <Badge variant="outline" className={badgeInfo.className}>
-                            {badgeInfo.label}
-                          </Badge>
-                        </div>
-                        <div className="mt-1 flex flex-wrap gap-4 text-sm text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {fecha.sede || "Sin sede"}
-                          </span>
-                          <span>Zonas de {fecha.formato_zona || 3} parejas</span>
-                          <span>{fecha.dias_torneo || 3} días</span>
-                        </div>
-                      </div>
-                      <div className="flex gap-1">
-                        <Link href={`/admin/torneo/${fecha.id}`}>
-                          <Button variant="outline" size="sm" className="gap-1 bg-transparent">
-                            <Users className="h-4 w-4" />
-                            Gestionar
-                          </Button>
-                        </Link>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => openEditDialog(fecha)}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => {
-                            setDeletingFecha(fecha)
-                            setDeleteDialogOpen(true)
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
                     </div>
-                  )
-                })}
-              </CardContent>
-            </Card>
+                </CardHeader>
+                <CardContent className="pt-4 flex justify-center">
+                    <MonthCalendar
+                        mode="single"
+                        selected={selectedCalendarDay}
+                        onSelect={setSelectedCalendarDay}
+                        modifiers={{
+                        hasProgramada: calendarioMarkedDays.programada,
+                        hasEnJuego: calendarioMarkedDays.en_juego,
+                        hasFinalizada: calendarioMarkedDays.finalizada,
+                        }}
+                        modifiersClassNames={{
+                        hasProgramada:
+                            "relative rounded-full bg-primary/20 text-primary ring-2 ring-primary/40 hover:bg-primary/25 after:absolute after:bottom-1 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-primary",
+                        hasEnJuego:
+                            "relative rounded-full bg-blue-500/15 text-blue-600 ring-2 ring-blue-500/30 hover:bg-blue-500/20 dark:text-blue-400 after:absolute after:bottom-1 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-blue-500",
+                        hasFinalizada:
+                            "relative after:absolute after:bottom-1 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-muted-foreground/70",
+                        }}
+                        className="p-0"
+                    />
+                </CardContent>
+                </Card>
+            </div>
+
+            {/* List Column */}
+            <div className="lg:col-span-2 space-y-6">
+                <Card className="border-none shadow-lg bg-card/95 backdrop-blur-sm ring-1 ring-border/50">
+                    <CardHeader className="border-b border-border/10 bg-muted/20">
+                        <CardTitle className="flex items-center justify-between text-lg">
+                        <span className="flex items-center gap-2">
+                            <CalendarIcon className="h-5 w-5 text-primary" />
+                            Próximas
+                        </span>
+                        <Badge variant="secondary" className="rounded-full px-3">{proximasFechas.length}</Badge>
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3 p-4">
+                        {proximasFechas.map((fecha) => {
+                        const badgeInfo = getEstadoBadge(fecha.estado)
+                        return (
+                            <div
+                            key={fecha.id}
+                            className="flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-xl border border-border/40 p-4 transition-all hover:bg-muted/50 hover:shadow-sm"
+                            >
+                            <div className="flex h-14 w-14 sm:h-16 sm:w-16 flex-col items-center justify-center rounded-2xl bg-primary/10 text-primary shrink-0">
+                                <span className="text-xl sm:text-2xl font-black leading-none tracking-tighter">
+                                {fecha.fecha_calendario ? new Date(fecha.fecha_calendario).getDate() : "-"}
+                                </span>
+                                <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">
+                                {fecha.fecha_calendario ? new Date(fecha.fecha_calendario).toLocaleDateString('es-AR', { month: 'short' }) : ""}
+                                </span>
+                            </div>
+                            <div className="min-w-0 flex-1 space-y-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-bold text-foreground text-lg">
+                                    Fecha {fecha.numero_fecha}
+                                </span>
+                                <span className="text-muted-foreground mx-1">•</span>
+                                <span className="font-medium text-foreground">
+                                    {fecha.categoria_nombre || "Sin categoría"}
+                                </span>
+                                <Badge variant="outline" className={`${badgeInfo.className} ml-auto sm:ml-2`}>
+                                    {badgeInfo.label}
+                                </Badge>
+                                </div>
+                                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                    <MapPin className="h-3.5 w-3.5" />
+                                    {fecha.sede || "Sin sede"}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                    <Users className="h-3.5 w-3.5" />
+                                    Zonas de {fecha.formato_zona || 3}
+                                </span>
+                                </div>
+                            </div>
+                            <div className="flex gap-1 w-full sm:w-auto justify-end mt-2 sm:mt-0">
+                                <Link href={`/admin/torneo/${fecha.id}`}>
+                                <Button variant="outline" size="sm" className="gap-1 rounded-lg h-9">
+                                    <Users className="h-4 w-4" />
+                                    Gestionar
+                                </Button>
+                                </Link>
+                                <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-9 w-9 rounded-lg hover:bg-primary/10 hover:text-primary"
+                                onClick={() => openEditDialog(fecha)}
+                                >
+                                <Edit2 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-9 w-9 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => {
+                                    setDeletingFecha(fecha)
+                                    setDeleteDialogOpen(true)
+                                }}
+                                >
+                                <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </div>
+                            </div>
+                        )
+                        })}
+                        {proximasFechas.length === 0 && (
+                            <div className="text-center py-8 text-muted-foreground">
+                                No hay fechas próximas programadas
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card className="border-none shadow-lg bg-card/95 backdrop-blur-sm ring-1 ring-border/50">
+                    <CardHeader className="border-b border-border/10 bg-muted/20">
+                        <CardTitle className="flex items-center justify-between text-lg">
+                        <span className="flex items-center gap-2">
+                            <Filter className="h-5 w-5 text-muted-foreground" />
+                            Anteriores
+                        </span>
+                        <Badge variant="secondary" className="rounded-full px-3">{fechasAnteriores.length}</Badge>
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3 p-4">
+                        {fechasAnteriores.map((fecha) => {
+                        const badgeInfo = getEstadoBadge(fecha.estado)
+                        return (
+                            <div
+                            key={fecha.id}
+                            className="flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-xl border border-border/40 p-4 transition-all hover:bg-muted/50 opacity-80 hover:opacity-100"
+                            >
+                            <div className="flex h-14 w-14 sm:h-16 sm:w-16 flex-col items-center justify-center rounded-2xl bg-muted text-muted-foreground shrink-0">
+                                <span className="text-xl sm:text-2xl font-black leading-none tracking-tighter">
+                                {fecha.fecha_calendario ? new Date(fecha.fecha_calendario).getDate() : "-"}
+                                </span>
+                                <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">
+                                {fecha.fecha_calendario ? new Date(fecha.fecha_calendario).toLocaleDateString('es-AR', { month: 'short' }) : ""}
+                                </span>
+                            </div>
+                            <div className="min-w-0 flex-1 space-y-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-bold text-foreground text-lg">
+                                    Fecha {fecha.numero_fecha}
+                                </span>
+                                <span className="text-muted-foreground mx-1">•</span>
+                                <span className="font-medium text-foreground">
+                                    {fecha.categoria_nombre || "Sin categoría"}
+                                </span>
+                                <Badge variant="outline" className={`${badgeInfo.className} ml-auto sm:ml-2`}>
+                                    {badgeInfo.label}
+                                </Badge>
+                                </div>
+                                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                    <MapPin className="h-3.5 w-3.5" />
+                                    {fecha.sede || "Sin sede"}
+                                </span>
+                                </div>
+                            </div>
+                            <div className="flex gap-1 w-full sm:w-auto justify-end mt-2 sm:mt-0">
+                                <Link href={`/admin/torneo/${fecha.id}`}>
+                                <Button variant="outline" size="sm" className="gap-1 rounded-lg h-9">
+                                    <Users className="h-4 w-4" />
+                                    Gestionar
+                                </Button>
+                                </Link>
+                                <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-9 w-9 rounded-lg hover:bg-primary/10 hover:text-primary"
+                                onClick={() => openEditDialog(fecha)}
+                                >
+                                <Edit2 className="h-4 w-4" />
+                                </Button>
+                            </div>
+                            </div>
+                        )
+                        })}
+                         {fechasAnteriores.length === 0 && (
+                            <div className="text-center py-8 text-muted-foreground">
+                                No hay fechas anteriores
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
           </div>
         )}
 
         {/* Create/Edit Dialog */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl border-none shadow-2xl bg-card">
             <DialogHeader>
-              <DialogTitle>
+              <DialogTitle className="text-2xl font-bold">
                 {editingFecha ? "Editar Fecha" : "Nueva Fecha de Torneo"}
               </DialogTitle>
               <DialogDescription>
@@ -521,7 +547,7 @@ export default function FechasAdminPage() {
                 }
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid gap-4 py-4">
                 {/* CATEGORIA - Lo más importante primero */}
                 <div className="grid gap-2">
@@ -532,7 +558,7 @@ export default function FechasAdminPage() {
                     value={formData.categoria_id}
                     onValueChange={(value) => setFormData({ ...formData, categoria_id: value })}
                   >
-                    <SelectTrigger className={!formData.categoria_id ? "border-destructive" : ""}>
+                    <SelectTrigger className={`h-11 rounded-xl ${!formData.categoria_id ? "border-destructive/50 bg-destructive/5" : ""}`}>
                       <SelectValue placeholder="Seleccionar categoría" />
                     </SelectTrigger>
                     <SelectContent>
@@ -554,6 +580,7 @@ export default function FechasAdminPage() {
                       min={1}
                       value={formData.numero_fecha}
                       onChange={(e) => setFormData({ ...formData, numero_fecha: parseInt(e.target.value) || 1 })}
+                      className="rounded-xl"
                     />
                   </div>
                   <div className="grid gap-2">
@@ -563,6 +590,7 @@ export default function FechasAdminPage() {
                       type="number"
                       value={formData.temporada}
                       onChange={(e) => setFormData({ ...formData, temporada: parseInt(e.target.value) })}
+                      className="rounded-xl"
                     />
                   </div>
                 </div>
@@ -574,13 +602,14 @@ export default function FechasAdminPage() {
                     type="date"
                     value={formData.fecha_calendario}
                     onChange={(e) => setFormData({ ...formData, fecha_calendario: e.target.value })}
+                    className="rounded-xl"
                   />
                 </div>
 
                 <div className="grid gap-2">
                   <Label htmlFor="sede">Sede</Label>
                   <Select value={formData.sede_id} onValueChange={handleSedeChange}>
-                    <SelectTrigger>
+                    <SelectTrigger className="rounded-xl">
                       <SelectValue placeholder="Seleccionar sede" />
                     </SelectTrigger>
                     <SelectContent>
@@ -594,59 +623,136 @@ export default function FechasAdminPage() {
                 </div>
 
                 {/* Configuración del Torneo */}
-                <div className="border-t pt-4 mt-2">
-                  <Label className="text-base font-semibold">Configuración del Torneo</Label>
-  <div className="grid grid-cols-3 gap-3 mt-3">
-  <div className="grid gap-2">
-  <Label className="text-sm">Inicio Viernes</Label>
-  <Input
-  type="time"
-  value={formData.hora_inicio_viernes}
-  onChange={(e) => setFormData({ ...formData, hora_inicio_viernes: e.target.value })}
-  />
-  </div>
-  <div className="grid gap-2">
-  <Label className="text-sm">Inicio Sabado</Label>
-  <Input
-  type="time"
-  value={formData.hora_inicio_sabado}
-  onChange={(e) => setFormData({ ...formData, hora_inicio_sabado: e.target.value })}
-  />
-  </div>
-  <div className="grid gap-2">
-  <Label className="text-sm">Dias</Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={7}
-                        value={formData.dias_torneo}
-                        onChange={(e) => setFormData({ ...formData, dias_torneo: parseInt(e.target.value) || 3 })}
-                      />
+                <div className="bg-muted/30 p-4 rounded-2xl border border-border/40 mt-2 space-y-3">
+                  <Label className="text-base font-semibold flex items-center gap-2">
+                    <CalendarIcon className="h-4 w-4" /> Configuración
+                  </Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="grid gap-1.5 col-span-2 sm:col-span-1">
+                        <Label className="text-xs text-muted-foreground">Modalidad</Label>
+                        <Select
+                            value={formData.modalidad}
+                            onValueChange={(val) => {
+                                const isAmericano = val === "americano_1_set_9" || val === "americano_1_set_7";
+                                let newFormData = { ...formData, modalidad: val };
+                                if (isAmericano) {
+                                    newFormData.dias_torneo = 1;
+                                    newFormData.dias_juego = "sabado";
+                                }
+                                setFormData(newFormData);
+                            }}
+                        >
+                            <SelectTrigger className="rounded-lg h-9 text-sm">
+                            <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="normal_3_sets_6">Normal (3 sets a 6)</SelectItem>
+                                <SelectItem value="normal_2_sets_6_tiebreak">Normal (2 sets a 6 + tiebreak)</SelectItem>
+                                <SelectItem value="americano_1_set_9">Americano (1 set a 9)</SelectItem>
+                                <SelectItem value="americano_1_set_7">Americano (1 set a 7)</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
-                    <div className="grid gap-2">
-                      <Label className="text-sm">Parejas/Zona</Label>
-                      <Select
-                        value={formData.formato_zona.toString()}
-                        onValueChange={(val) => setFormData({ ...formData, formato_zona: parseInt(val) })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="3">3 parejas</SelectItem>
-                          <SelectItem value="4">4 parejas</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    <div className="grid gap-1.5">
+                        <Label className="text-xs text-muted-foreground">Días</Label>
+                        <Select
+                            value={formData.dias_torneo.toString()}
+                            onValueChange={(val) => {
+                                const dias = parseInt(val);
+                                let defaultDiasJuego = formData.dias_juego;
+                                // Reset to default based on new days count
+                                if (dias === 1) defaultDiasJuego = "sabado";
+                                else if (dias === 2) defaultDiasJuego = "viernes,sabado";
+                                else if (dias === 3) defaultDiasJuego = "viernes,sabado,domingo";
+                                
+                                setFormData({ ...formData, dias_torneo: dias, dias_juego: defaultDiasJuego });
+                            }}
+                        >
+                            <SelectTrigger className="rounded-lg h-9 text-sm">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="1">1 día</SelectItem>
+                                <SelectItem value="2">2 días</SelectItem>
+                                <SelectItem value="3">3 días</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
-                    <div className="grid gap-2">
-                      <Label className="text-sm">Min/Partido</Label>
-                      <Input
-                        type="number"
-                        min={30}
-                        step={15}
-                        value={formData.duracion_partido_min}
-                        onChange={(e) => setFormData({ ...formData, duracion_partido_min: parseInt(e.target.value) || 60 })}
-                      />
+                    <div className="grid gap-1.5 col-span-2 sm:col-span-1">
+                        <Label className="text-xs text-muted-foreground">Días de Juego</Label>
+                        <Select
+                            value={formData.dias_juego}
+                            onValueChange={(val) => setFormData({ ...formData, dias_juego: val })}
+                        >
+                            <SelectTrigger className="rounded-lg h-9 text-sm">
+                            <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {formData.dias_torneo === 1 && (
+                                    <>
+                                        <SelectItem value="viernes">Viernes</SelectItem>
+                                        <SelectItem value="sabado">Sábado</SelectItem>
+                                        <SelectItem value="domingo">Domingo</SelectItem>
+                                    </>
+                                )}
+                                {formData.dias_torneo === 2 && (
+                                    <>
+                                        <SelectItem value="viernes,sabado">Viernes y Sábado</SelectItem>
+                                        <SelectItem value="sabado,domingo">Sábado y Domingo</SelectItem>
+                                        <SelectItem value="viernes,domingo">Viernes y Domingo</SelectItem>
+                                    </>
+                                )}
+                                {formData.dias_torneo >= 3 && (
+                                    <SelectItem value="viernes,sabado,domingo">Viernes, Sábado y Domingo</SelectItem>
+                                )}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    
+                    <div className="grid gap-1.5">
+                        <Label className="text-xs text-muted-foreground">Inicio Viernes</Label>
+                        <Input
+                        type="time"
+                        value={formData.hora_inicio_viernes}
+                        onChange={(e) => setFormData({ ...formData, hora_inicio_viernes: e.target.value })}
+                        className="rounded-lg h-9 text-sm"
+                        />
+                    </div>
+                    <div className="grid gap-1.5">
+                        <Label className="text-xs text-muted-foreground">Inicio Sabado</Label>
+                        <Input
+                        type="time"
+                        value={formData.hora_inicio_sabado}
+                        onChange={(e) => setFormData({ ...formData, hora_inicio_sabado: e.target.value })}
+                        className="rounded-lg h-9 text-sm"
+                        />
+                    </div>
+                    
+                    <div className="grid gap-1.5">
+                        <Label className="text-xs text-muted-foreground">Parejas/Zona</Label>
+                        <Select
+                            value={formData.formato_zona.toString()}
+                            onValueChange={(val) => setFormData({ ...formData, formato_zona: parseInt(val) })}
+                        >
+                            <SelectTrigger className="rounded-lg h-9 text-sm">
+                            <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                            <SelectItem value="3">3 parejas</SelectItem>
+                            <SelectItem value="4">4 parejas</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="grid gap-1.5 col-span-2 sm:col-span-1">
+                        <Label className="text-xs text-muted-foreground">Min/Partido</Label>
+                        <Input
+                            type="number"
+                            min={30}
+                            step={15}
+                            value={formData.duracion_partido_min}
+                            onChange={(e) => setFormData({ ...formData, duracion_partido_min: parseInt(e.target.value) || 60 })}
+                            className="rounded-lg h-9 text-sm"
+                            />
                     </div>
                   </div>
                 </div>
@@ -657,7 +763,7 @@ export default function FechasAdminPage() {
                     value={formData.estado}
                     onValueChange={(value: FechaTorneo['estado']) => setFormData({ ...formData, estado: value })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="rounded-xl">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -670,10 +776,10 @@ export default function FechasAdminPage() {
               </div>
 
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                <Button type="button" variant="ghost" onClick={() => setDialogOpen(false)} className="rounded-xl">
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={saving || !formData.categoria_id}>
+                <Button type="submit" disabled={saving || !formData.categoria_id} className="rounded-xl shadow-lg shadow-primary/20">
                   {saving ? "Guardando..." : editingFecha ? "Actualizar" : "Crear Fecha"}
                 </Button>
               </DialogFooter>
@@ -683,7 +789,7 @@ export default function FechasAdminPage() {
 
         {/* Delete Dialog */}
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <AlertDialogContent>
+          <AlertDialogContent className="rounded-3xl border-none shadow-2xl bg-card">
             <AlertDialogHeader>
               <AlertDialogTitle>¿Eliminar fecha?</AlertDialogTitle>
               <AlertDialogDescription>
@@ -692,17 +798,16 @@ export default function FechasAdminPage() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogCancel className="rounded-xl">Cancelar</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleDelete}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl shadow-lg shadow-destructive/20"
               >
                 Eliminar
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </div>
-    </main>
+    </AdminWrapper>
   )
 }

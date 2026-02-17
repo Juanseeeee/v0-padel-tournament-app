@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { ArrowLeft, FileText, Loader2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
+import { AdminWrapper } from "@/components/admin-wrapper"
 
 export default function NuevaNoticiaPage() {
   const router = useRouter()
@@ -46,31 +47,12 @@ export default function NuevaNoticiaPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center px-4 py-4 lg:px-8">
-          <Link href="/admin/noticias">
-            <Button variant="ghost" size="icon" className="mr-2">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-500/10">
-              <FileText className="h-5 w-5 text-orange-500" />
-            </div>
-            <div>
-              <h1 className="font-[var(--font-display)] text-xl tracking-wide text-foreground">
-                NUEVA NOTICIA
-              </h1>
-              <p className="text-xs text-muted-foreground">Publicar nuevo informe</p>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-2xl px-4 py-8 lg:px-8">
-        <Card>
+    <AdminWrapper
+      title="Nueva Noticia"
+      description="Publicar nuevo informe"
+    >
+      <main className="mx-auto max-w-2xl">
+        <Card className="border-0 shadow-lg backdrop-blur-sm bg-white/50 dark:bg-black/50">
           <CardHeader>
             <CardTitle>Datos de la Noticia</CardTitle>
           </CardHeader>
@@ -84,6 +66,7 @@ export default function NuevaNoticiaPage() {
                   value={formData.titulo}
                   onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
                   required
+                  className="rounded-xl"
                 />
               </div>
 
@@ -96,6 +79,7 @@ export default function NuevaNoticiaPage() {
                   onChange={(e) => setFormData({ ...formData, contenido: e.target.value })}
                   rows={10}
                   required
+                  className="rounded-xl"
                 />
               </div>
 
@@ -107,6 +91,7 @@ export default function NuevaNoticiaPage() {
                     placeholder="Nombre del autor"
                     value={formData.autor}
                     onChange={(e) => setFormData({ ...formData, autor: e.target.value })}
+                    className="rounded-xl"
                   />
                 </div>
                 <div className="space-y-2">
@@ -117,11 +102,12 @@ export default function NuevaNoticiaPage() {
                     placeholder="https://..."
                     value={formData.imagen_url}
                     onChange={(e) => setFormData({ ...formData, imagen_url: e.target.value })}
+                    className="rounded-xl"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-between rounded-lg border border-border p-4">
+              <div className="flex items-center justify-between rounded-xl border border-border p-4 bg-background/50">
                 <div>
                   <Label htmlFor="destacado" className="text-base">Noticia Destacada</Label>
                   <p className="text-sm text-muted-foreground">
@@ -136,12 +122,12 @@ export default function NuevaNoticiaPage() {
               </div>
 
               <div className="flex gap-4 pt-4">
-                <Button type="submit" disabled={loading} className="flex-1">
+                <Button type="submit" disabled={loading} className="flex-1 rounded-xl shadow-lg shadow-primary/20">
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Publicar Noticia
                 </Button>
                 <Link href="/admin/noticias">
-                  <Button type="button" variant="outline">
+                  <Button type="button" variant="outline" className="rounded-xl">
                     Cancelar
                   </Button>
                 </Link>
@@ -150,6 +136,6 @@ export default function NuevaNoticiaPage() {
           </CardContent>
         </Card>
       </main>
-    </div>
+    </AdminWrapper>
   )
 }

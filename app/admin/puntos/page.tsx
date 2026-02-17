@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import useSWR from "swr"
+import { AdminWrapper } from "@/components/admin/admin-wrapper"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, Medal, Save, Loader2, Trophy, Award } from "lucide-react"
+import { Medal, Save, Loader2, Trophy, Award } from "lucide-react"
 import type { PuntosConfiguracion } from "@/lib/db"
 
 const fetcher = (url: string) => fetch(url).then(res => res.json())
@@ -60,31 +61,12 @@ export default function PuntosConfigPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center px-4 py-4 lg:px-8">
-          <Link href="/admin">
-            <Button variant="ghost" size="icon" className="mr-2">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10">
-              <Medal className="h-5 w-5 text-accent" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold tracking-wide text-foreground">
-                Configuración de Puntos
-              </h1>
-              <p className="text-xs text-muted-foreground">Definir puntos por instancia alcanzada</p>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-2xl px-4 py-8 lg:px-8">
-        <Card>
+    <AdminWrapper
+      title="Configuración de Puntos"
+      description="Definir puntos por instancia alcanzada"
+    >
+      <div className="mx-auto max-w-2xl space-y-6">
+        <Card className="border-none shadow-md bg-card/95 backdrop-blur-sm ring-1 ring-border/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Trophy className="h-5 w-5 text-primary" />
@@ -112,12 +94,12 @@ export default function PuntosConfigPage() {
                   return (
                     <div 
                       key={p.instancia} 
-                      className="flex items-center gap-4 rounded-lg border border-border p-4 transition-colors hover:bg-muted/30"
+                      className="flex flex-col sm:flex-row items-center gap-4 rounded-lg border border-border p-4 transition-colors hover:bg-muted/30"
                     >
                       <div className={`flex h-12 w-12 items-center justify-center rounded-full bg-card text-2xl ${info.color}`}>
                         {info.icon}
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 text-center sm:text-left">
                         <Label htmlFor={`puntos-${p.instancia}`} className="text-base font-medium">
                           {info.label}
                         </Label>
@@ -125,17 +107,17 @@ export default function PuntosConfigPage() {
                           Instancia: {p.instancia}
                         </p>
                       </div>
-                      <div className="w-32">
+                      <div className="flex items-center gap-2">
                         <Input
                           id={`puntos-${p.instancia}`}
                           type="number"
                           min="0"
                           value={p.puntos}
                           onChange={(e) => updatePuntos(p.instancia, Number(e.target.value))}
-                          className="text-center text-lg font-bold"
+                          className="w-24 text-center text-lg font-bold"
                         />
+                        <span className="text-sm text-muted-foreground">pts</span>
                       </div>
-                      <div className="text-sm text-muted-foreground">pts</div>
                     </div>
                   )
                 })}
@@ -143,7 +125,7 @@ export default function PuntosConfigPage() {
             )}
 
             <div className="mt-6 flex justify-end">
-              <Button onClick={handleSave} disabled={loading} className="gap-2">
+              <Button onClick={handleSave} disabled={loading} className="gap-2 w-full sm:w-auto">
                 {loading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
@@ -155,11 +137,11 @@ export default function PuntosConfigPage() {
           </CardContent>
         </Card>
 
-        <Card className="mt-6">
+        <Card className="border-none shadow-sm bg-muted/20">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-base">
               <Award className="h-5 w-5 text-accent" />
-              Información
+              Información Importante
             </CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
@@ -171,7 +153,7 @@ export default function PuntosConfigPage() {
             </ul>
           </CardContent>
         </Card>
-      </main>
-    </div>
+      </div>
+    </AdminWrapper>
   )
 }

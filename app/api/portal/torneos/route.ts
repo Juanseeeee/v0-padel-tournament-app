@@ -25,11 +25,26 @@ export async function GET() {
 
   // Get open tournaments for this category
   const torneos = await sql`
-    SELECT f.id, f.numero_fecha, f.fecha_calendario, f.sede, f.direccion,
-           f.hora_inicio_viernes, f.hora_inicio_sabado, f.duracion_partido_min,
-           f.categoria_id,
-           (SELECT COUNT(*) FROM parejas_torneo pt WHERE pt.fecha_torneo_id = f.id AND pt.categoria_id = f.categoria_id) as parejas_count
+    SELECT 
+      f.id,
+      f.numero_fecha,
+      f.temporada,
+      f.estado,
+      f.fecha_calendario,
+      f.sede,
+      f.direccion,
+      f.hora_inicio_viernes,
+      f.hora_inicio_sabado,
+      f.duracion_partido_min,
+      f.categoria_id,
+      c.nombre as categoria_nombre,
+      (
+        SELECT COUNT(*)
+        FROM parejas_torneo pt
+        WHERE pt.fecha_torneo_id = f.id AND pt.categoria_id = f.categoria_id
+      ) as parejas_count
     FROM fechas_torneo f
+    JOIN categorias c ON c.id = f.categoria_id
     WHERE f.estado = 'programada'
       AND f.categoria_id = ${categoriaId}
     ORDER BY f.fecha_calendario ASC

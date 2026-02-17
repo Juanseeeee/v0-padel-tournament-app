@@ -9,6 +9,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Loader2, UserPlus, ArrowLeft } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -118,33 +125,36 @@ export default function RegistroPage() {
 
             <div className="grid gap-1.5">
               <Label htmlFor="localidad">Localidad</Label>
-              <select
-                id="localidad"
+              <Select
                 value={form.localidad}
-                onChange={e => setForm({...form, localidad: e.target.value})}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                onValueChange={(val) => setForm({...form, localidad: val})}
               >
-                <option value="">Seleccionar...</option>
-                {localidades.map((l: any) => (
-                  <option key={l.id} value={l.nombre}>{l.nombre}</option>
-                ))}
-              </select>
+                <SelectTrigger className="w-full h-9">
+                  <SelectValue placeholder="Seleccionar..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {localidades.map((l: any) => (
+                    <SelectItem key={l.id} value={l.nombre}>{l.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid gap-1.5">
               <Label htmlFor="categoria">Categoria</Label>
-              <select
-                id="categoria"
-                required
+              <Select
                 value={form.categoria_id}
-                onChange={e => setForm({...form, categoria_id: e.target.value})}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                onValueChange={(val) => setForm({...form, categoria_id: val})}
               >
-                <option value="">Seleccionar categoria...</option>
-                {categorias.map((c: any) => (
-                  <option key={c.id} value={c.id}>{c.nombre}</option>
-                ))}
-              </select>
+                <SelectTrigger className="w-full h-9">
+                  <SelectValue placeholder="Seleccionar categoria..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {categorias.map((c: any) => (
+                    <SelectItem key={c.id} value={c.id.toString()}>{c.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-3">

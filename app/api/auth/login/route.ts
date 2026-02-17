@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     }
 
     const user = users[0];
-    const valid = verifyPassword(password, user.password_hash);
+    const valid = await verifyPassword(password, user.password_hash);
 
     if (!valid) {
       return NextResponse.json({ error: "Email o password incorrectos" }, { status: 401 });

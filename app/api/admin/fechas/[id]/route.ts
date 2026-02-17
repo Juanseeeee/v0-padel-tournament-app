@@ -49,7 +49,9 @@ export async function PUT(
       formato_zona,
       duracion_partido_min,
       hora_inicio_viernes,
-      hora_inicio_sabado
+      hora_inicio_sabado,
+      modalidad,
+      dias_juego
     } = body
 
     const result = await sql`
@@ -66,7 +68,9 @@ export async function PUT(
         formato_zona = ${formato_zona || 3},
         duracion_partido_min = ${duracion_partido_min || 60},
         hora_inicio_viernes = ${hora_inicio_viernes || '18:00'},
-        hora_inicio_sabado = ${hora_inicio_sabado || '18:00'}
+        hora_inicio_sabado = ${hora_inicio_sabado || '18:00'},
+        modalidad = ${modalidad || 'normal_3_sets_6'},
+        dias_juego = ${dias_juego || 'viernes,sabado,domingo'}
       WHERE id = ${id}
       RETURNING *
     `

@@ -3,18 +3,12 @@
 import { useState } from "react"
 import Link from "next/link"
 import useSWR from "swr"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { 
-  FileText, ArrowLeft, Edit, Trash2, MoreHorizontal, Plus, Calendar, Star
+  FileText, Edit, Trash2, Plus, Calendar, Star, User
 } from "lucide-react"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { AdminWrapper } from "@/components/admin-wrapper"
 import type { Informe } from "@/lib/db"
 
 const fetcher = (url: string) => fetch(url).then(res => res.json())
@@ -58,119 +53,118 @@ export default function AdminNoticiasPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 lg:px-8">
-          <div className="flex items-center gap-3">
-            <Link href="/admin">
-              <Button variant="ghost" size="icon" className="mr-2">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-500/10">
-              <FileText className="h-5 w-5 text-orange-500" />
-            </div>
-            <div>
-              <h1 className="font-[var(--font-display)] text-xl tracking-wide text-foreground">
-                NOTICIAS
-              </h1>
-              <p className="text-xs text-muted-foreground">Gestión de informes</p>
-            </div>
+    <AdminWrapper
+      title="Gestión de Noticias"
+      description="Publica y administra las noticias e informes del torneo"
+      headerActions={
+        <Link href="/admin/noticias/nueva">
+          <Button className="gap-2 shadow-lg shadow-primary/20">
+            <Plus className="h-4 w-4" />
+            Nueva Noticia
+          </Button>
+        </Link>
+      }
+    >
+        {isLoading ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map((i) => (
+              <Card key={i} className="animate-pulse border-none shadow-md bg-card/50">
+                <CardHeader className="h-20 bg-muted/50 rounded-t-xl" />
+                <CardContent className="h-24" />
+              </Card>
+            ))}
           </div>
-          <Link href="/admin/noticias/nueva">
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Nueva Noticia
-            </Button>
-          </Link>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Lista de Noticias</span>
-              <Badge variant="secondary">{informes.length} noticias</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="py-12 text-center text-muted-foreground">Cargando...</div>
-            ) : error ? (
-              <div className="py-12 text-center text-destructive">Error al cargar noticias</div>
-            ) : informes.length === 0 ? (
-              <div className="py-12 text-center text-muted-foreground">
-                No hay noticias publicadas
+        ) : error ? (
+          <Card className="border-destructive/50 bg-destructive/5">
+            <CardContent className="flex flex-col items-center justify-center py-12 text-center text-destructive">
+              <p>Error al cargar noticias</p>
+              <Button variant="outline" onClick={() => mutate()} className="mt-4 border-destructive/30 hover:bg-destructive/10">
+                Reintentar
+              </Button>
+            </CardContent>
+          </Card>
+        ) : informes.length === 0 ? (
+          <Card className="border-none shadow-lg bg-card/95 backdrop-blur-sm">
+            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="h-16 w-16 rounded-full bg-muted/50 flex items-center justify-center mb-4">
+                  <FileText className="h-8 w-8 text-muted-foreground" />
               </div>
-            ) : (
-              <div className="space-y-3">
-                {informes.map((informe) => (
-                  <div 
-                    key={informe.id} 
-                    className="flex items-center gap-4 rounded-lg border border-border p-4 transition-colors hover:bg-muted/30"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-foreground truncate">
-                          {informe.titulo}
-                        </span>
-                        {informe.destacado && (
-                          <Badge className="bg-accent text-accent-foreground gap-1">
-                            <Star className="h-3 w-3" />
-                            Destacado
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {formatDate(informe.fecha_publicacion)}
-                        </span>
-                        {informe.autor && (
-                          <span>por {informe.autor}</span>
-                        )}
-                      </div>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem asChild>
-                          <Link href={`/admin/noticias/${informe.id}`}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Editar
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link href={`/noticias/${informe.id}`}>
-                            <FileText className="mr-2 h-4 w-4" />
-                            Ver Público
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          className="text-destructive"
-                          onClick={() => setDeleteId(informe.id)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Eliminar
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+              <p className="mb-4 text-lg text-muted-foreground">No hay noticias publicadas</p>
+              <Link href="/admin/noticias/nueva">
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Crear primera noticia
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 animate-in fade-in slide-in-from-bottom-4">
+            {informes.map((informe, idx) => (
+              <Card 
+                key={informe.id} 
+                className="border-none shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-card/95 backdrop-blur-sm ring-1 ring-border/50 group overflow-hidden flex flex-col"
+                style={{ animationDelay: `${idx * 50}ms` }}
+              >
+                <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
+                    <FileText className="h-24 w-24" />
+                </div>
+                
+                <CardHeader className="pb-2 relative z-10">
+                  <div className="flex justify-between items-start gap-2 mb-2">
+                    <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">
+                      <Calendar className="mr-1 h-3 w-3" />
+                      {formatDate(informe.fecha_publicacion)}
+                    </Badge>
+                    {informe.destacado && (
+                      <Badge className="bg-yellow-500/10 text-yellow-600 hover:bg-yellow-500/20 border-yellow-500/20 gap-1 shadow-none">
+                        <Star className="h-3 w-3 fill-yellow-600" />
+                        Destacado
+                      </Badge>
+                    )}
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </main>
+                  <CardTitle className="text-xl font-bold line-clamp-2 leading-tight min-h-[3rem]">
+                    {informe.titulo}
+                  </CardTitle>
+                  {informe.autor && (
+                    <CardDescription className="flex items-center gap-1 text-xs pt-1">
+                      <User className="h-3 w-3" />
+                      {informe.autor}
+                    </CardDescription>
+                  )}
+                </CardHeader>
+                
+                <CardContent className="flex-1 relative z-10 flex flex-col justify-end pt-0">
+                  <div className="flex items-center justify-between pt-4 mt-auto border-t border-border/10">
+                    <Link href={`/noticias/${informe.id}`} className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
+                      <FileText className="h-3 w-3" />
+                      Ver publicación
+                    </Link>
+                    
+                    <div className="flex gap-1">
+                      <Link href={`/admin/noticias/${informe.id}`}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-background/80">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setDeleteId(informe.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-md rounded-3xl border-none shadow-2xl bg-card">
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar noticia?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -178,13 +172,13 @@ export default function AdminNoticiasPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogCancel className="rounded-xl">Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl shadow-lg shadow-destructive/20">
               Eliminar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </AdminWrapper>
   )
 }

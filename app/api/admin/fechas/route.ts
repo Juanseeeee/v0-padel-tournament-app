@@ -33,7 +33,9 @@ export async function POST(request: Request) {
       formato_zona,
       duracion_partido_min,
       hora_inicio_viernes,
-      hora_inicio_sabado
+      hora_inicio_sabado,
+      modalidad,
+      dias_juego
     } = body
 
     if (!categoria_id) {
@@ -53,7 +55,9 @@ export async function POST(request: Request) {
         formato_zona,
         duracion_partido_min,
         hora_inicio_viernes,
-        hora_inicio_sabado
+        hora_inicio_sabado,
+        modalidad,
+        dias_juego
       )
       VALUES (
         ${numero_fecha}, 
@@ -67,7 +71,9 @@ export async function POST(request: Request) {
         ${formato_zona || 3},
         ${duracion_partido_min || 60},
         ${hora_inicio_viernes || '18:00'},
-        ${hora_inicio_sabado || '18:00'}
+        ${hora_inicio_sabado || '18:00'},
+        ${modalidad || 'normal_3_sets_6'},
+        ${dias_juego || 'viernes,sabado,domingo'}
       )
       RETURNING *
     `

@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { AdminWrapper } from "@/components/admin/admin-wrapper";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Upload, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { Upload, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -39,29 +40,13 @@ export default function ImportarDatosPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-4 sm:p-8">
+    <AdminWrapper
+      title="Importar Datos de Verano"
+      description="Cargar jugadores, categorías y sedes desde la liga de verano"
+    >
       <div className="mx-auto max-w-4xl space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/admin">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <div>
-              <h1 className="font-display text-3xl font-bold text-foreground">
-                Importar Datos de Verano
-              </h1>
-              <p className="text-muted-foreground">
-                Cargar jugadores, categorías y sedes desde la liga de verano
-              </p>
-            </div>
-          </div>
-        </div>
-
         {/* Import Card */}
-        <Card>
+        <Card className="border-none shadow-md bg-card/95 backdrop-blur-sm ring-1 ring-border/50">
           <CardHeader>
             <CardTitle>Datos a Importar</CardTitle>
             <CardDescription>
@@ -174,6 +159,6 @@ export default function ImportarDatosPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </AdminWrapper>
   );
 }

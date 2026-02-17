@@ -21,16 +21,16 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 lg:px-8">
+      <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 lg:px-8 lg:py-4">
         <Link href="/" className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
             <Trophy className="h-6 w-6 text-primary-foreground" />
           </div>
-          <div className="flex flex-col">
-            <span className="font-[var(--font-display)] text-xl tracking-wide text-foreground">
+          <div className="flex flex-col min-w-0">
+            <span className="font-[var(--font-display)] text-lg sm:text-xl tracking-wide text-foreground leading-none truncate">
               LIGA DE PADEL
             </span>
-            <span className="text-xs text-muted-foreground">Sistema de Gestión</span>
+            <span className="hidden sm:block text-xs text-muted-foreground">Sistema de Gestión</span>
           </div>
         </Link>
 

@@ -93,164 +93,206 @@ export function CalendarioView({
   }, [fechasPasadas, proximasFechas])
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-10">
-      <div className="flex items-center justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <CalendarIcon className="h-4 w-4" />
-            Calendario
-          </div>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">Fechas y torneos</h1>
-          <p className="mt-1 text-sm text-muted-foreground sm:text-base">Consultá próximas fechas y resultados anteriores.</p>
-        </div>
+    <div className="relative min-h-screen">
+       {/* Background Pattern */}
+       <div className="fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-[#0a0a0a] to-black pointer-events-none" />
 
-        <div className="hidden lg:flex lg:items-center lg:gap-2">
-          <Link href="/rankings">
-            <Button variant="outline" className="bg-transparent">
-              Ver ranking
-            </Button>
-          </Link>
-          <Link href="/portal">
-            <Button>Ir al portal</Button>
-          </Link>
-        </div>
-      </div>
-
-      <section className="mt-6">
-        <Card className="overflow-hidden border-border bg-card">
-          <CardHeader className="pb-3">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <CardTitle className="text-base">Calendario</CardTitle>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="inline-flex h-2 w-2 rounded-full bg-primary" />
-                Programada
-              </div>
+       {/* Curved Hero Section */}
+       <section className="relative z-10 w-full rounded-b-[3rem] bg-gradient-to-br from-secondary to-secondary/90 px-6 pt-12 pb-32 text-white shadow-2xl transition-all overflow-hidden">
+          {/* Decorative Background Elements */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary/10 rounded-full blur-2xl -ml-12 -mb-12 pointer-events-none" />
+          
+          <div className="relative z-10 mx-auto max-w-7xl text-center">
+            <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-sm mb-6 ring-1 ring-white/20 shadow-lg">
+              <CalendarIcon className="h-8 w-8 text-primary" />
             </div>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="mx-auto w-fit">
-              <MonthCalendar
-                mode="single"
-                selected={selectedCalendarDay}
-                onSelect={setSelectedCalendarDay}
-                modifiers={{
-                  hasProgramada: calendarioMarkedDays.programada,
-                  hasEnJuego: calendarioMarkedDays.en_juego,
-                  hasFinalizada: calendarioMarkedDays.finalizada,
-                }}
-                modifiersClassNames={{
-                  hasProgramada:
-                    "relative rounded-full bg-primary/20 text-primary ring-2 ring-primary/40 hover:bg-primary/25 after:absolute after:bottom-1 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-primary",
-                  hasEnJuego:
-                    "relative rounded-full bg-blue-500/15 text-blue-600 ring-2 ring-blue-500/30 hover:bg-blue-500/20 dark:text-blue-400 after:absolute after:bottom-1 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-blue-500",
-                  hasFinalizada:
-                    "relative after:absolute after:bottom-1 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-muted-foreground/70",
-                }}
-              />
+            <h1 className="font-[var(--font-display)] text-4xl font-bold tracking-tight sm:text-5xl mb-4 text-white drop-shadow-sm">
+              CALENDARIO
+            </h1>
+            <p className="text-white/80 text-lg max-w-2xl mx-auto font-medium">
+              Consultá próximas fechas y resultados anteriores
+            </p>
+
+            <div className="mt-8 flex justify-center gap-4">
+               <Link href="/rankings">
+                <Button variant="outline" className="bg-white/5 border-white/20 text-white hover:bg-white/10 hover:text-white backdrop-blur-sm">
+                  Ver ranking
+                </Button>
+              </Link>
+              <Link href="/portal">
+                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20">Ir al portal</Button>
+              </Link>
             </div>
-          </CardContent>
-        </Card>
-      </section>
-
-      <section className="mt-6">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground">Próximas</h3>
-        </div>
-        {proximasFechas.length === 0 ? (
-          <Card>
-            <CardContent className="py-10 text-center text-muted-foreground">No hay fechas programadas.</CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {proximasFechas
-              .slice()
-              .sort((a, b) => new Date(a.fecha_calendario).getTime() - new Date(b.fecha_calendario).getTime())
-              .map((fecha) => {
-                const badge = getEstadoBadge(fecha.estado)
-                return (
-                  <Card key={fecha.id} className="transition-all hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5">
-                    <CardContent className="p-5">
-                      <div className="flex items-start justify-between gap-3">
-                        <DatePill dateString={fecha.fecha_calendario} />
-                        <Badge variant="outline" className={badge.className}>
-                          {badge.label}
-                        </Badge>
-                      </div>
-
-                      <div className="mt-4">
-                        <div className="text-sm font-semibold text-foreground">
-                          Fecha {fecha.numero_fecha} · Temporada {fecha.temporada}
-                        </div>
-                        <div className="mt-2 space-y-1 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4" />
-                            <span>{formatShortDate(fecha.fecha_calendario)}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4" />
-                            <span className="truncate">{fecha.sede}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <Link href={`/calendario/${fecha.id}`} className="mt-4 block">
-                        <Button variant="secondary" className="w-full justify-between">
-                          Ver detalles
-                          <ArrowRight className="h-4 w-4" />
-                        </Button>
-                      </Link>
-                    </CardContent>
-                  </Card>
-                )
-              })}
           </div>
-        )}
-      </section>
+        </section>
 
-      <section className="mt-6">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground">Anteriores</h3>
+      <div className="relative z-20 mx-auto max-w-7xl px-4 -mt-20 pb-20 space-y-8">
+        
+        {/* Calendar Card */}
+        <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
+            <Card className="overflow-hidden border-none shadow-xl bg-card/95 backdrop-blur-sm rounded-[2rem] ring-1 ring-border/50">
+            <CardHeader className="bg-muted/30 border-b border-border/40 pb-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <CardTitle className="text-xl font-bold text-foreground flex items-center gap-2">
+                    <CalendarIcon className="h-5 w-5 text-primary" />
+                    Vista Mensual
+                </CardTitle>
+                <div className="flex items-center gap-3 text-xs font-medium">
+                    <div className="flex items-center gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-primary/20" />
+                        <span className="text-foreground/80">Programada</span>
+                    </div>
+                     <div className="flex items-center gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-full bg-blue-500 ring-2 ring-blue-500/20" />
+                        <span className="text-foreground/80">En juego</span>
+                    </div>
+                </div>
+                </div>
+            </CardHeader>
+            <CardContent className="pt-6">
+                <div className="mx-auto w-fit">
+                <MonthCalendar
+                    mode="single"
+                    selected={selectedCalendarDay}
+                    onSelect={setSelectedCalendarDay}
+                    modifiers={{
+                    hasProgramada: calendarioMarkedDays.programada,
+                    hasEnJuego: calendarioMarkedDays.en_juego,
+                    hasFinalizada: calendarioMarkedDays.finalizada,
+                    }}
+                    modifiersClassNames={{
+                    hasProgramada:
+                        "relative rounded-full bg-primary/20 text-primary ring-2 ring-primary/40 hover:bg-primary/25 after:absolute after:bottom-1 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-primary font-bold",
+                    hasEnJuego:
+                        "relative rounded-full bg-blue-500/15 text-blue-600 ring-2 ring-blue-500/30 hover:bg-blue-500/20 dark:text-blue-400 after:absolute after:bottom-1 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-blue-500 font-bold",
+                    hasFinalizada:
+                        "relative after:absolute after:bottom-1 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-muted-foreground/70 font-medium text-muted-foreground",
+                    }}
+                    className="p-4 bg-background/50 rounded-xl border border-border/50 shadow-inner"
+                />
+                </div>
+            </CardContent>
+            </Card>
         </div>
-        {fechasPasadas.length === 0 ? (
-          <Card>
-            <CardContent className="py-10 text-center text-muted-foreground">Todavía no hay fechas finalizadas.</CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            {fechasPasadas
-              .slice()
-              .sort((a, b) => new Date(b.fecha_calendario).getTime() - new Date(a.fecha_calendario).getTime())
-              .map((fecha) => {
-                const badge = getEstadoBadge(fecha.estado)
-                return (
-                  <Card key={fecha.id} className="transition-colors hover:border-border/80">
-                    <CardContent className="flex items-center justify-between gap-4 p-4">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <DatePill dateString={fecha.fecha_calendario} muted />
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-semibold">
-                            Fecha {fecha.numero_fecha} · {formatShortDate(fecha.fecha_calendario)}
-                          </div>
-                          <div className="truncate text-sm text-muted-foreground">{fecha.sede}</div>
+
+        {/* Próximas Fechas */}
+        <section>
+          <div className="mb-4 flex items-center justify-between px-2">
+            <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                <Clock className="h-5 w-5 text-primary" />
+                Próximas Fechas
+            </h3>
+          </div>
+          {proximasFechas.length === 0 ? (
+            <Card className="border-dashed border-2 bg-muted/20">
+              <CardContent className="py-12 text-center text-muted-foreground">
+                <CalendarIcon className="mx-auto h-12 w-12 opacity-20 mb-4" />
+                No hay fechas programadas próximamente
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {proximasFechas
+                .slice()
+                .sort((a, b) => new Date(a.fecha_calendario).getTime() - new Date(b.fecha_calendario).getTime())
+                .map((fecha) => {
+                  const badge = getEstadoBadge(fecha.estado)
+                  return (
+                    <Card key={fecha.id} className="group overflow-hidden border-none shadow-md bg-card hover:shadow-xl transition-all duration-300 ring-1 ring-border/50 rounded-2xl">
+                      <CardContent className="p-5">
+                        <div className="flex items-start justify-between gap-3">
+                          <DatePill dateString={fecha.fecha_calendario} />
+                          <Badge variant="outline" className={cn(badge.className, "font-bold tracking-wide")}>
+                            {badge.label}
+                          </Badge>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className={badge.className}>
-                          {badge.label}
-                        </Badge>
-                        <Link href={`/calendario/${fecha.id}`}>
-                          <Button variant="ghost" size="icon" aria-label="Ver resultados">
-                            <Users className="h-4 w-4" />
+
+                        <div className="mt-4">
+                          <div className="text-base font-bold text-foreground group-hover:text-primary transition-colors">
+                            Fecha {fecha.numero_fecha} · Temporada {fecha.temporada}
+                          </div>
+                          <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-2 bg-muted/30 p-2 rounded-lg">
+                              <Clock className="h-4 w-4 text-primary" />
+                              <span className="font-medium">{formatShortDate(fecha.fecha_calendario)}</span>
+                            </div>
+                            <div className="flex items-center gap-2 bg-muted/30 p-2 rounded-lg">
+                              <MapPin className="h-4 w-4 text-primary" />
+                              <span className="truncate font-medium">{fecha.sede}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <Link href={`/calendario/${fecha.id}`} className="mt-5 block">
+                          <Button className="w-full justify-between group-hover:bg-primary group-hover:text-primary-foreground transition-all shadow-sm">
+                            Ver detalles
+                            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                           </Button>
                         </Link>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+            </div>
+          )}
+        </section>
+
+        {/* Fechas Pasadas */}
+        <section>
+          <div className="mb-4 flex items-center justify-between px-2">
+            <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary" />
+                Resultados Anteriores
+            </h3>
           </div>
-        )}
-      </section>
+          {fechasPasadas.length === 0 ? (
+            <Card className="border-dashed border-2 bg-muted/20">
+              <CardContent className="py-12 text-center text-muted-foreground">
+                <Clock className="mx-auto h-12 w-12 opacity-20 mb-4" />
+                Todavía no hay fechas finalizadas
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {fechasPasadas
+                .slice()
+                .sort((a, b) => new Date(b.fecha_calendario).getTime() - new Date(a.fecha_calendario).getTime())
+                .map((fecha) => {
+                  const badge = getEstadoBadge(fecha.estado)
+                  return (
+                    <Card key={fecha.id} className="group transition-all hover:bg-muted/40 border-none shadow-sm ring-1 ring-border/50 rounded-2xl overflow-hidden">
+                      <CardContent className="flex items-center justify-between gap-4 p-4">
+                        <div className="flex min-w-0 items-center gap-4">
+                          <DatePill dateString={fecha.fecha_calendario} muted />
+                          <div className="min-w-0">
+                            <div className="truncate text-base font-bold text-foreground group-hover:text-primary transition-colors">
+                              Fecha {fecha.numero_fecha} · {formatShortDate(fecha.fecha_calendario)}
+                            </div>
+                            <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+                                <MapPin className="h-3 w-3" />
+                                <span className="truncate">{fecha.sede}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Badge variant="outline" className={cn(badge.className, "hidden sm:inline-flex font-bold")}>
+                            {badge.label}
+                          </Badge>
+                          <Link href={`/calendario/${fecha.id}`}>
+                            <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full hover:bg-primary/10 hover:text-primary transition-colors" aria-label="Ver resultados">
+                              <ArrowRight className="h-5 w-5" />
+                            </Button>
+                          </Link>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   )
 }
