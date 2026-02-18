@@ -1,23 +1,30 @@
+
 import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 import { hashPassword, createSession } from "@/lib/auth";
 
 export async function POST(request: Request) {
   try {
-    const { email, password, nombre, apellido, telefono, localidad, categoria_id } = await request.json();
+    const { email, password, nombre, apellido, telefono, dni, localidad, categoria_id } = await request.json();
 
-    if (!email || !password || !nombre || !apellido || !categoria_id) {
-      return NextResponse.json({ error: "Nombre, apellido, email, contrasena y categoria son requeridos" }, { status: 400 });
+    if (!email || !password || !nombre || !apellido || !categoria_id || !telefono || !dni) {
+      return NextResponse.json({ error: "Todos los campos son obligatorios (incluyendo DNI y teléfono)" }, { status: 400 });
     }
 
     if (password.length < 6) {
-      return NextResponse.json({ error: "La contrasena debe tener al menos 6 caracteres" }, { status: 400 });
+      return NextResponse.json({ error: "La contraseña debe tener al menos 6 caracteres" }, { status: 400 });
     }
 
     // Check if email already exists
-    const existing = await sql`SELECT id FROM usuarios WHERE email = ${email.toLowerCase().trim()}`;
-    if (existing.length > 0) {
+    const existingEmail = await sql`SELECT id FROM usuarios WHERE email = ${email.toLowerCase().trim()}`;
+    if (existingEmail.length > 0) {
       return NextResponse.json({ error: "Ya existe una cuenta con este email" }, { status: 409 });
+    }
+
+    // Check if dni already exists
+    const existingDni = await sql`SELECT id FROM usuarios WHERE dni = ${dni.trim()}`;
+    if (existingDni.length > 0) {
+      return NextResponse.json({ error: "Ya existe una cuenta con este DNI" }, { status: 409 });
     }
 
     const passwordHash = await hashPassword(password);
@@ -39,8 +46,8 @@ export async function POST(request: Request) {
 
     // Create user account linked to jugador
     const users = await sql`
-      INSERT INTO usuarios (email, password_hash, nombre, apellido, rol, jugador_id)
-      VALUES (${email.toLowerCase().trim()}, ${passwordHash}, ${nombre}, ${apellido}, 'jugador', ${jugadorId})
+      INSERT INTO usuarios (email, password_hash, nombre, apellido, rol, jugador_id, dni, telefono)
+      VALUES (${email.toLowerCase().trim()}, ${passwordHash}, ${nombre}, ${apellido}, 'jugador', ${jugadorId}, ${dni.trim()}, ${telefono})
       RETURNING id, email, nombre, rol
     `;
 

@@ -1,6 +1,5 @@
-"use client";
 
-import React from "react"
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -34,7 +33,7 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Error al iniciar sesion");
+        setError(data.error || "Error al iniciar sesión");
         return;
       }
 
@@ -45,7 +44,7 @@ export default function LoginPage() {
         router.push("/portal");
       }
     } catch {
-      setError("Error de conexion");
+      setError("Error de conexión");
     } finally {
       setLoading(false);
     }
@@ -58,7 +57,7 @@ export default function LoginPage() {
       </div>
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Iniciar Sesion</CardTitle>
+          <CardTitle className="text-2xl font-bold">Iniciar Sesión</CardTitle>
           <CardDescription>Ingresa tus datos para acceder al sistema</CardDescription>
         </CardHeader>
         <CardContent>
@@ -69,18 +68,18 @@ export default function LoginPage() {
               </div>
             )}
             <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email o DNI</Label>
               <Input
                 id="email"
-                type="email"
-                placeholder="tu@email.com"
+                type="text"
+                placeholder="tu@email.com o DNI"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Contraseña</Label>
               <Input
                 id="password"
                 type="password"
@@ -95,9 +94,9 @@ export default function LoginPage() {
             </Button>
           </form>
           <div className="mt-4 text-center text-sm text-muted-foreground">
-            Sos jugador?{" "}
+            ¿Sos jugador?{" "}
             <Link href="/registro" className="text-primary underline hover:no-underline">
-              Registrate aca
+              Regístrate acá
             </Link>
           </div>
         </CardContent>

@@ -1,6 +1,5 @@
-"use client";
 
-import React from "react"
+"use client";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -30,9 +29,10 @@ export default function RegistroPage() {
     nombre: "",
     apellido: "",
     email: "",
+    dni: "",
+    telefono: "",
     password: "",
     password2: "",
-    telefono: "",
     localidad: "",
     categoria_id: "",
   });
@@ -47,15 +47,23 @@ export default function RegistroPage() {
     setError("");
 
     if (form.password !== form.password2) {
-      setError("Las contrasenas no coinciden");
+      setError("Las contraseñas no coinciden");
       return;
     }
     if (form.password.length < 6) {
-      setError("La contrasena debe tener al menos 6 caracteres");
+      setError("La contraseña debe tener al menos 6 caracteres");
       return;
     }
     if (!form.categoria_id) {
-      setError("Selecciona una categoria");
+      setError("Selecciona una categoría");
+      return;
+    }
+    if (!form.dni) {
+      setError("El DNI es obligatorio");
+      return;
+    }
+    if (!form.telefono) {
+      setError("El teléfono es obligatorio");
       return;
     }
 
@@ -69,6 +77,7 @@ export default function RegistroPage() {
           password: form.password,
           nombre: form.nombre,
           apellido: form.apellido,
+          dni: form.dni,
           telefono: form.telefono,
           localidad: form.localidad || null,
           categoria_id: parseInt(form.categoria_id),
@@ -81,7 +90,7 @@ export default function RegistroPage() {
         router.push("/portal");
       }
     } catch {
-      setError("Error de conexion");
+      setError("Error de conexión");
     } finally {
       setLoading(false);
     }
@@ -98,7 +107,7 @@ export default function RegistroPage() {
             <ArrowLeft className="h-4 w-4" /> Volver
           </Link>
           <CardTitle className="text-2xl">Crear Cuenta</CardTitle>
-          <CardDescription>Registrate para inscribirte en torneos</CardDescription>
+          <CardDescription>Regístrate para inscribirte en torneos</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -114,13 +123,18 @@ export default function RegistroPage() {
             </div>
 
             <div className="grid gap-1.5">
+              <Label htmlFor="dni">DNI</Label>
+              <Input id="dni" required value={form.dni} onChange={e => setForm({...form, dni: e.target.value})} placeholder="Ej: 12345678" />
+            </div>
+
+            <div className="grid gap-1.5">
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" required value={form.email} onChange={e => setForm({...form, email: e.target.value})} />
             </div>
 
             <div className="grid gap-1.5">
-              <Label htmlFor="telefono">Telefono</Label>
-              <Input id="telefono" value={form.telefono} onChange={e => setForm({...form, telefono: e.target.value})} placeholder="Ej: 2477-401234" />
+              <Label htmlFor="telefono">Teléfono</Label>
+              <Input id="telefono" required value={form.telefono} onChange={e => setForm({...form, telefono: e.target.value})} placeholder="Ej: 2477-401234" />
             </div>
 
             <div className="grid gap-1.5">
@@ -141,13 +155,13 @@ export default function RegistroPage() {
             </div>
 
             <div className="grid gap-1.5">
-              <Label htmlFor="categoria">Categoria</Label>
+              <Label htmlFor="categoria">Categoría</Label>
               <Select
                 value={form.categoria_id}
                 onValueChange={(val) => setForm({...form, categoria_id: val})}
               >
                 <SelectTrigger className="w-full h-9">
-                  <SelectValue placeholder="Seleccionar categoria..." />
+                  <SelectValue placeholder="Seleccionar categoría..." />
                 </SelectTrigger>
                 <SelectContent>
                   {categorias.map((c: any) => (
@@ -159,7 +173,7 @@ export default function RegistroPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
-                <Label htmlFor="password">Contrasena</Label>
+                <Label htmlFor="password">Contraseña</Label>
                 <Input id="password" type="password" required value={form.password} onChange={e => setForm({...form, password: e.target.value})} />
               </div>
               <div className="grid gap-1.5">
@@ -176,8 +190,8 @@ export default function RegistroPage() {
             </Button>
 
             <p className="text-center text-sm text-muted-foreground">
-              Ya tenes cuenta?{" "}
-              <Link href="/login" className="text-primary hover:underline">Inicia sesion</Link>
+              ¿Ya tienes cuenta?{" "}
+              <Link href="/login" className="text-primary hover:underline">Inicia sesión</Link>
             </p>
           </form>
         </CardContent>
