@@ -38,6 +38,26 @@ export async function PUT(
       return NextResponse.json({ error: "Los games por set no pueden superar 7" }, { status: 400 });
     }
 
+    // Validar si el partido ya está definido en 2 sets
+    if (s1p1 !== null && s1p2 !== null && s2p1 !== null && s2p2 !== null) {
+      const getSetWinner = (p1: number, p2: number) => {
+        if (p1 >= 6 && p1 - p2 >= 2) return 1;
+        if (p1 === 7 && (p2 === 5 || p2 === 6)) return 1;
+        if (p2 >= 6 && p2 - p1 >= 2) return 2;
+        if (p2 === 7 && (p1 === 5 || p1 === 6)) return 2;
+        return 0;
+      };
+
+      const w1 = getSetWinner(s1p1, s1p2);
+      const w2 = getSetWinner(s2p1, s2p2);
+
+      if (w1 !== 0 && w1 === w2) {
+        if (s3p1 !== null || s3p2 !== null) {
+           return NextResponse.json({ error: "El partido ya está definido en 2 sets. No se puede ingresar un 3er set." }, { status: 400 });
+        }
+      }
+    }
+
     let setsP1 = 0;
     let setsP2 = 0;
     let gamesP1 = 0;

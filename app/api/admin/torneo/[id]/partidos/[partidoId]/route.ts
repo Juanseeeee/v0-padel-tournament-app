@@ -18,6 +18,26 @@ export async function PUT(
 
     const p = partido[0];
 
+    // Validar si el partido ya está definido en 2 sets
+    if (set1_p1 !== null && set1_p2 !== null && set2_p1 !== null && set2_p2 !== null) {
+      const getSetWinner = (p1: number, p2: number) => {
+        if (p1 >= 6 && p1 - p2 >= 2) return 1;
+        if (p1 === 7 && (p2 === 5 || p2 === 6)) return 1;
+        if (p2 >= 6 && p2 - p1 >= 2) return 2;
+        if (p2 === 7 && (p1 === 5 || p1 === 6)) return 2;
+        return 0;
+      };
+
+      const w1 = getSetWinner(set1_p1, set1_p2);
+      const w2 = getSetWinner(set2_p1, set2_p2);
+
+      if (w1 !== 0 && w1 === w2) {
+        if (set3_p1 !== null || set3_p2 !== null) {
+           return NextResponse.json({ error: "El partido ya está definido en 2 sets. No se puede ingresar un 3er set." }, { status: 400 });
+        }
+      }
+    }
+
     // Determinar ganador
     let setsP1 = 0;
     let setsP2 = 0;
