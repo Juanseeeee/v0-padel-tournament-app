@@ -8,10 +8,12 @@ import { Spinner } from '@/components/ui/spinner'
 export function AppEnhancements() {
   const [pendingCount, setPendingCount] = useState(0)
   const originalFetchRef = useRef<typeof fetch | null>(null)
+  const originalUnboundRef = useRef<typeof fetch | null>(null)
 
   useEffect(() => {
     if (originalFetchRef.current) return
-    originalFetchRef.current = window.fetch
+    originalUnboundRef.current = window.fetch
+    originalFetchRef.current = window.fetch.bind(window) as typeof fetch
 
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       setPendingCount((c) => c + 1)
@@ -38,8 +40,9 @@ export function AppEnhancements() {
     }
 
     return () => {
-      if (originalFetchRef.current) {
-        window.fetch = originalFetchRef.current
+      if (originalUnboundRef.current) {
+        window.fetch = originalUnboundRef.current
+        originalUnboundRef.current = null
         originalFetchRef.current = null
       }
     }
