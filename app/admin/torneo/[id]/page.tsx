@@ -1590,6 +1590,9 @@ function ZonaDetailContent({
   };
 
   const otherZonas = allZonas.filter(z => z.id !== zona.id && z.estado !== 'finalizada');
+  const otherZonasCapaces = otherZonas.filter(z => (((z as any).parejas_count || 0) < torneo.formato_zona));
+  const hasZona4Disponible = otherZonas.some(z => ((z as any).parejas_count || 0) === 4);
+  const autoRebalanceCase = parejas.length === 3 && hasZona4Disponible;
 
   const partidosFinalizados = partidos.filter(p => p.estado === 'finalizado').length;
   const totalPartidos = partidos.length;
@@ -1977,17 +1980,23 @@ function ZonaDetailContent({
           <div className="grid gap-4 py-4">
             {parejas.length === 3 ? (
               <>
-                <div className="grid gap-2">
-                  <Label>Acción</Label>
-                  <Select value={dropOption} onValueChange={(v: "vacante_final" | "reestructurar" | "organizar_3") => setDropOption(v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="vacante_final">Final entre las dos restantes</SelectItem>
-                      <SelectItem value="reestructurar">Reestructurar: mover las restantes a otras zonas</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {dropOption === "reestructurar" && (
+                {autoRebalanceCase ? (
+                  <div className="p-3 rounded border bg-muted/30 text-sm">
+                    Se reestructurará automáticamente: traer una pareja desde una zona de 4 hacia esta zona para que ambas queden en 3. No se permite exceder 4 parejas por zona.
+                  </div>
+                ) : (
+                  <div className="grid gap-2">
+                    <Label>Acción</Label>
+                    <Select value={dropOption} onValueChange={(v: "vacante_final" | "reestructurar" | "organizar_3") => setDropOption(v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="vacante_final">Final entre las dos restantes</SelectItem>
+                        <SelectItem value="reestructurar">Reestructurar: mover las restantes a otras zonas</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {!autoRebalanceCase && dropOption === "reestructurar" && (
                   <div className="grid gap-3">
                     {parejas.filter(pp => pp.pareja_torneo_id !== dropPairId).map(pp => (
                       <div key={pp.pareja_torneo_id} className="grid gap-1">
@@ -1998,8 +2007,10 @@ function ZonaDetailContent({
                         >
                           <SelectTrigger className="h-8"><SelectValue placeholder="Seleccionar zona destino" /></SelectTrigger>
                           <SelectContent>
-                            {otherZonas.map(z => (
-                              <SelectItem key={z.id} value={z.id.toString()}>{z.nombre}</SelectItem>
+                            {otherZonasCapaces.map(z => (
+                              <SelectItem key={z.id} value={z.id.toString()}>
+                                {z.nombre} · {((z as any).parejas_count || 0)}/{torneo.formato_zona}
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -2025,8 +2036,11 @@ function ZonaDetailContent({
                 try {
                   const body: any = { pareja_id: dropPairId };
                   if (parejas.length === 3) {
-                    body.opcion = dropOption;
-                    if (dropOption === "reestructurar") {
+                    if (autoRebalanceCase) {
+                      body.opcion = "organizar_3";
+                    } else {
+                      body.opcion = dropOption;
+                      if (dropOption === "reestructurar") {
                       const otros = parejas.filter(pp => pp.pareja_torneo_id !== dropPairId);
                       const map: Record<number, number> = {};
                       for (const pp of otros) {
@@ -2035,6 +2049,7 @@ function ZonaDetailContent({
                         map[pp.pareja_torneo_id] = parseInt(dest);
                       }
                       body.destinos = map;
+                      }
                     }
                   } else {
                     body.opcion = "organizar_3";
