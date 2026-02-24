@@ -92,10 +92,88 @@ export async function DELETE(
 ) {
   const { id } = await params
   try {
-    // Delete related data first
+    // 1. Get info before deleting
+    // We need to know which players need their total points recalculated
+    const historialResult = await sql`
+      SELECT DISTINCT jugador_id FROM historial_puntos WHERE fecha_torneo_id = ${id}
+    `
+    const affectedPlayerIds = historialResult.map(row => row.jugador_id)
+    
+    // Get tournament info to know the category
+    const torneoResult = await sql`
+      SELECT categoria_id FROM fechas_torneo WHERE id = ${id}
+    `
+    const categoriaId = torneoResult.length > 0 ? torneoResult[0].categoria_id : null;
+
+    // 2. Delete related data in correct order to respect Foreign Key constraints
+    
+    // Partidos de zona (depends on zonas)
+    await sql`
+      DELETE FROM partidos_zona 
+      WHERE zona_id IN (SELECT id FROM zonas WHERE fecha_torneo_id = ${id})
+    `
+    
+    // Parejas de zona (depends on zonas)
+    await sql`
+      DELETE FROM parejas_zona 
+      WHERE zona_id IN (SELECT id FROM zonas WHERE fecha_torneo_id = ${id})
+    `
+    
+    // Zonas (depends on fechas_torneo)
+    await sql`DELETE FROM zonas WHERE fecha_torneo_id = ${id}`
+    
+    // Llaves (depends on fechas_torneo)
+    await sql`DELETE FROM llaves WHERE fecha_torneo_id = ${id}`
+    
+    // Participaciones (depends on fechas_torneo)
     await sql`DELETE FROM participaciones WHERE fecha_torneo_id = ${id}`
+    
+    // Historial Puntos (depends on fechas_torneo)
     await sql`DELETE FROM historial_puntos WHERE fecha_torneo_id = ${id}`
+    
+    // Parejas Torneo (Inscripciones) (depends on fechas_torneo)
+    await sql`DELETE FROM parejas_torneo WHERE fecha_torneo_id = ${id}`
+    
+    // Finally delete the tournament date
     await sql`DELETE FROM fechas_torneo WHERE id = ${id}`
+
+    // 3. Recalculate points for affected players
+    if (affectedPlayerIds.length > 0) {
+      // Use standard SQL for array handling if driver supports it, or loop if safer.
+      // Neon/Postgres: = ANY($1) works with arrays.
+      
+      // We update points_totales for each affected player by summing their remaining history
+      await sql`
+        UPDATE jugadores j
+        SET puntos_totales = (
+          SELECT COALESCE(SUM(hp.puntos_acumulados), 0)
+          FROM historial_puntos hp
+          WHERE hp.jugador_id = j.id
+        )
+        WHERE j.id = ANY(${affectedPlayerIds})
+      `
+      
+      // Recalculate puntos_categoria for affected players in the tournament category
+      if (categoriaId) {
+        // For each affected player, update their entry in puntos_categoria for this category
+        await sql`
+          UPDATE puntos_categoria pc
+          SET 
+            puntos_acumulados = (
+              SELECT COALESCE(SUM(hp.puntos_acumulados), 0)
+              FROM historial_puntos hp
+              WHERE hp.jugador_id = pc.jugador_id AND hp.categoria_id = ${categoriaId}
+            ),
+            torneos_jugados = (
+              SELECT COUNT(DISTINCT hp.fecha_torneo_id)
+              FROM historial_puntos hp
+              WHERE hp.jugador_id = pc.jugador_id AND hp.categoria_id = ${categoriaId}
+            )
+          WHERE pc.categoria_id = ${categoriaId} AND pc.jugador_id = ANY(${affectedPlayerIds})
+        `
+      }
+    }
+
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error deleting fecha:', error)

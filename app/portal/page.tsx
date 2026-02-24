@@ -183,7 +183,7 @@ export default function PortalPage() {
 
         {/* Floating Tabs */}
         <div className="flex justify-center w-full px-4 mt-2">
-            <div className="flex items-center justify-between gap-4 bg-black/20 backdrop-blur-md p-3 rounded-2xl border border-white/10 shadow-lg w-full max-w-lg">
+            <div className="flex items-center justify-between gap-8 bg-black/20 backdrop-blur-md p-3 rounded-2xl border border-white/10 shadow-lg w-full max-w-2xl">
                 {[
                     { id: "torneos", icon: CalendarIcon, label: "Torneos" },
                     { id: "calendario", icon: CalendarDays, label: "Calendario" },

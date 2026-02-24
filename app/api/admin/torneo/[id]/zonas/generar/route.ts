@@ -332,6 +332,9 @@ export async function POST(
       zonasCreadas.push({ id: zonaId, nombre, parejas: ids.length, dia, partidos: partidosInfo.length });
     }
 
+    // Marcar el torneo como "en_juego"
+    await sql`UPDATE fechas_torneo SET estado = 'en_juego' WHERE id = ${torneoId}`;
+
     return NextResponse.json({
       success: true,
       zonas: zonasCreadas,

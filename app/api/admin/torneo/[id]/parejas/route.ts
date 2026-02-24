@@ -41,7 +41,7 @@ export async function POST(
 ) {
   const { id } = await params;
   const body = await request.json();
-  const { jugador1_id, jugador2_id, categoria_id, cabeza_serie, dia_preferido, hora_disponible } = body;
+  const { jugador1_id, jugador2_id, categoria_id, cabeza_serie, dia_preferido, hora_disponible, zona_id } = body as any;
 
   try {
     // Verificar que los jugadores no estén ya en otra pareja de este torneo
@@ -73,9 +73,60 @@ export async function POST(
       RETURNING *
     `;
 
-    return NextResponse.json(result[0]);
+    const creada = result[0];
+
+    if (zona_id) {
+      const [zona] = await sql`
+        SELECT * FROM zonas WHERE id = ${parseInt(zona_id)} AND fecha_torneo_id = ${parseInt(id)} AND estado != 'finalizada'
+      `;
+      if (!zona) {
+        return NextResponse.json({ error: "Zona no válida para asignación" }, { status: 400 });
+      }
+      const countRes = await sql`
+        SELECT COUNT(*) as count FROM parejas_zona WHERE zona_id = ${parseInt(zona_id)}
+      `;
+      const torneoInfo = await sql`
+        SELECT formato_zona FROM fechas_torneo WHERE id = ${parseInt(id)}
+      `;
+      const cap = parseInt(String(torneoInfo[0]?.formato_zona || 4), 10);
+      const currentCount = parseInt(countRes[0].count);
+      if (currentCount >= cap) {
+        return NextResponse.json({ error: `La zona ya tiene ${currentCount}/${cap} parejas` }, { status: 400 });
+      }
+      await sql`
+        INSERT INTO parejas_zona (zona_id, pareja_id, posicion_final)
+        VALUES (${parseInt(zona_id)}, ${creada.id}, ${currentCount + 1})
+      `;
+      await regenerateZoneMatches(parseInt(zona_id), parseInt(id));
+    }
+
+    return NextResponse.json(creada);
   } catch (error) {
     console.error("Error creating pareja:", error);
     return NextResponse.json({ error: "Error al crear pareja" }, { status: 500 });
+  }
+}
+
+async function regenerateZoneMatches(zonaId: number, torneoId: number) {
+  const parejasZona = await sql`SELECT pareja_id FROM parejas_zona WHERE zona_id = ${zonaId}`;
+  if (parejasZona.length < 2) return;
+  await sql`DELETE FROM partidos_zona WHERE zona_id = ${zonaId} AND estado = 'pendiente'`;
+  const existentes = await sql`
+    SELECT pareja1_id, pareja2_id FROM partidos_zona WHERE zona_id = ${zonaId} AND estado = 'finalizado'
+  `;
+  const existenteSet = new Set(
+    existentes.map((e: any) => `${Math.min(e.pareja1_id, e.pareja2_id)}-${Math.max(e.pareja1_id, e.pareja2_id)}`)
+  );
+  const ids = parejasZona.map((p: any) => p.pareja_id);
+  for (let i = 0; i < ids.length; i++) {
+    for (let j = i + 1; j < ids.length; j++) {
+      const key = `${Math.min(ids[i], ids[j])}-${Math.max(ids[i], ids[j])}`;
+      if (!existenteSet.has(key)) {
+        await sql`
+          INSERT INTO partidos_zona (zona_id, fecha_torneo_id, pareja1_id, pareja2_id, tipo_partido, estado)
+          VALUES (${zonaId}, ${torneoId}, ${ids[i]}, ${ids[j]}, 'round_robin', 'pendiente')
+        `;
+      }
+    }
   }
 }

@@ -13,7 +13,8 @@ export async function GET(
     let zonas;
     if (categoriaId && categoriaId !== "todas") {
       zonas = await sql`
-        SELECT z.*, c.nombre as categoria_nombre
+        SELECT z.*, c.nombre as categoria_nombre,
+               (SELECT COUNT(*) FROM parejas_zona pz WHERE pz.zona_id = z.id) as parejas_count
         FROM zonas z
         JOIN categorias c ON z.categoria_id = c.id
         WHERE z.fecha_torneo_id = ${parseInt(id)} AND z.categoria_id = ${parseInt(categoriaId)}
@@ -21,7 +22,8 @@ export async function GET(
       `;
     } else {
       zonas = await sql`
-        SELECT z.*, c.nombre as categoria_nombre
+        SELECT z.*, c.nombre as categoria_nombre,
+               (SELECT COUNT(*) FROM parejas_zona pz WHERE pz.zona_id = z.id) as parejas_count
         FROM zonas z
         JOIN categorias c ON z.categoria_id = c.id
         WHERE z.fecha_torneo_id = ${parseInt(id)}
