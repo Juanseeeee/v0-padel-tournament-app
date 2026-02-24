@@ -783,6 +783,7 @@ export default function TorneoManagementPage() {
               onZonaUpdate={() => { mutateZonas(); mutateLlaves(); }}
               modalidad={torneo?.modalidad || "normal"}
               torneoEstado={torneo?.estado}
+              formatoZona={torneo?.formato_zona || 4}
             />
           </TabsContent>
 
@@ -1204,6 +1205,7 @@ function ZonasTab({
   onZonaUpdate,
   modalidad,
   torneoEstado,
+  formatoZona,
 }: {
   torneoId: string;
   categoriaId: string;
@@ -1216,6 +1218,7 @@ function ZonasTab({
   onZonaUpdate: () => void;
   modalidad: string;
   torneoEstado?: string;
+  formatoZona: number;
 }) {
   const [selectedZona, setSelectedZona] = useState<Zona | null>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
@@ -1332,7 +1335,7 @@ function ZonasTab({
               horaInicioSabado={horaInicioSabado}
               duracionPartido={duracionPartido}
               modalidad={modalidad}
-              formatoZona={torneo?.formato_zona || 4}
+              formatoZona={formatoZona}
             />
           )}
         </DialogContent>
