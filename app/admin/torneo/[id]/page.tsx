@@ -66,6 +66,8 @@ import {
 } from "lucide-react";
 import { FlyerGenerator } from "@/components/flyer-generator";
 import { AdminWrapper } from "@/components/admin-wrapper";
+import { toast } from "@/hooks/use-toast";
+import { Spinner } from "@/components/ui/spinner";
 import type {
   FechaTorneo,
   Categoria,
@@ -249,7 +251,7 @@ export default function TorneoManagementPage() {
 
   const handleAddPareja = async () => {
     if (!jugador1Id || !jugador2Id || !torneo?.categoria_id) {
-      alert("Faltan datos para crear la pareja");
+      toast({ title: "Datos incompletos", description: "Faltan datos para crear la pareja", variant: "destructive" });
       return;
     }
 
@@ -281,7 +283,7 @@ export default function TorneoManagementPage() {
       setShowParejaDialog(false);
       resetParejaForm();
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Error al crear pareja");
+      toast({ title: "Error al crear pareja", description: error instanceof Error ? error.message : "No se pudo crear la pareja", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -302,7 +304,7 @@ export default function TorneoManagementPage() {
       setShowDeleteAlert(false);
       setParejaToDelete(null);
     } catch (error) {
-      alert("Error al eliminar la pareja");
+      toast({ title: "Error al eliminar pareja", description: "No se pudo eliminar la pareja", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -329,7 +331,7 @@ export default function TorneoManagementPage() {
       setShowConfigDialog(false);
       mutate(`/api/admin/fechas/${torneoId}`);
     } catch (error) {
-      alert("Error al guardar configuración");
+      toast({ title: "Error", description: "No se pudo guardar la configuración", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -337,17 +339,17 @@ export default function TorneoManagementPage() {
 
   const handleGenerarZonas = async () => {
     if (!torneo?.categoria_id) {
-      alert("El torneo no tiene categoría asignada");
+      toast({ title: "Datos faltantes", description: "El torneo no tiene categoría asignada", variant: "destructive" });
       return;
     }
 
     if (torneo.estado === 'finalizada') {
-      alert("No se pueden generar zonas en un torneo finalizado");
+      toast({ title: "Acción no permitida", description: "No se pueden generar zonas en un torneo finalizado", variant: "destructive" });
       return;
     }
 
     if (!parejasCategoria || parejasCategoria.length < 3) {
-      alert("Se necesitan al menos 3 parejas para generar zonas");
+      toast({ title: "Requisito mínimo", description: "Se necesitan al menos 3 parejas para generar zonas", variant: "destructive" });
       return;
     }
 
@@ -370,7 +372,7 @@ export default function TorneoManagementPage() {
       mutateZonas();
       setActiveTab("zonas");
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Error al generar zonas");
+      toast({ title: "Error al generar zonas", description: error instanceof Error ? error.message : "No se pudieron generar las zonas", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -401,7 +403,7 @@ export default function TorneoManagementPage() {
       setSelectedPartido(null);
       setResultado({ set1_p1: "", set1_p2: "", set2_p1: "", set2_p2: "", set3_p1: "", set3_p2: "" });
     } catch (error) {
-      alert("Error al guardar el resultado");
+      toast({ title: "Error", description: "No se pudo guardar el resultado", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -409,12 +411,12 @@ export default function TorneoManagementPage() {
 
   const handleGenerarLlaves = async () => {
     if (!torneo?.categoria_id) {
-      alert("El torneo no tiene categoría asignada");
+      toast({ title: "Datos faltantes", description: "El torneo no tiene categoría asignada", variant: "destructive" });
       return;
     }
 
     if (torneo.estado === 'finalizada') {
-      alert("No se pueden generar llaves en un torneo finalizado");
+      toast({ title: "Acción no permitida", description: "No se pueden generar llaves en un torneo finalizado", variant: "destructive" });
       return;
     }
 
@@ -436,7 +438,7 @@ export default function TorneoManagementPage() {
       mutateLlaves();
       setActiveTab("llaves");
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Error al generar llaves");
+      toast({ title: "Error al generar llaves", description: error instanceof Error ? error.message : "No se pudieron generar las llaves", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -463,7 +465,7 @@ export default function TorneoManagementPage() {
       setSelectedLlave(null);
       setResultado({ set1_p1: "", set1_p2: "", set2_p1: "", set2_p2: "", set3_p1: "", set3_p2: "" });
     } catch (error) {
-      alert("Error al guardar el resultado");
+      toast({ title: "Error", description: "No se pudo guardar el resultado", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -485,11 +487,11 @@ export default function TorneoManagementPage() {
         throw new Error(data.error || "Error al finalizar torneo");
       }
 
-      alert(data.message || "Torneo finalizado. Los puntos han sido asignados automáticamente.");
+      toast({ title: "Torneo finalizado", description: data.message || "Los puntos han sido asignados automáticamente." });
       mutate(`/api/admin/fechas/${torneoId}`);
       router.push("/admin/fechas");
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Error al finalizar torneo");
+      toast({ title: "Error al finalizar torneo", description: error instanceof Error ? error.message : "No se pudo finalizar el torneo", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -506,10 +508,10 @@ export default function TorneoManagementPage() {
         throw new Error(data.error || "Error al eliminar torneo");
       }
       setShowDeleteTorneoAlert(false);
-      alert("Torneo eliminado correctamente");
+      toast({ title: "Torneo eliminado", description: "El torneo fue eliminado correctamente." });
       router.push("/admin/fechas");
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Error al eliminar torneo");
+      toast({ title: "Error al eliminar torneo", description: error instanceof Error ? error.message : "No se pudo eliminar el torneo", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -1264,7 +1266,7 @@ function ZonasTab({
       }
       URL.revokeObjectURL(url);
     } catch (error) {
-      alert("Error al exportar. Intenta de nuevo.");
+      toast({ title: "Error al exportar", description: "Intenta de nuevo.", variant: "destructive" });
     } finally {
       setExportingPdf(false);
     }
@@ -1475,10 +1477,10 @@ function ZonaDetailContent({
         mutate();
         onUpdate();
       } else {
-        alert("Error al guardar resultado");
+        toast({ title: "Error", description: "No se pudo guardar el resultado", variant: "destructive" });
       }
     } catch (error) {
-      alert("Error al guardar resultado");
+      toast({ title: "Error", description: "No se pudo guardar el resultado", variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -1513,10 +1515,10 @@ function ZonaDetailContent({
         onUpdate();
         onClose();
       } else {
-        alert("Error al cerrar zona");
+        toast({ title: "Error", description: "No se pudo cerrar la zona", variant: "destructive" });
       }
     } catch (error) {
-      alert("Error al cerrar zona");
+      toast({ title: "Error", description: "No se pudo cerrar la zona", variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -1532,7 +1534,7 @@ function ZonaDetailContent({
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(data.error || "Error al resolver empate");
+        toast({ title: "Error al resolver empate", description: data.error || "No se pudo resolver el empate", variant: "destructive" });
         return;
       }
       setShowTieDialog(false);
@@ -1540,7 +1542,7 @@ function ZonaDetailContent({
       onUpdate();
       if (metodo === "sorteo") onClose();
     } catch {
-      alert("Error al resolver empate");
+      toast({ title: "Error", description: "No se pudo resolver el empate", variant: "destructive" });
     } finally {
       setResolvingTie(false);
     }
@@ -1569,10 +1571,10 @@ function ZonaDetailContent({
         onUpdate();
       } else {
         const err = await res.json();
-        alert(err.error || "Error al mover pareja");
+        toast({ title: "Error al mover pareja", description: err.error || "No se pudo mover la pareja", variant: "destructive" });
       }
     } catch {
-      alert("Error al mover pareja");
+      toast({ title: "Error", description: "No se pudo mover la pareja", variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -2045,7 +2047,7 @@ function ZonaDetailContent({
                       const map: Record<number, number> = {};
                       for (const pp of otros) {
                         const dest = destinosMap[pp.pareja_torneo_id];
-                        if (!dest) { alert("Selecciona zona destino para ambas parejas"); setSaving(false); return; }
+                        if (!dest) { toast({ title: "Falta seleccionar destino", description: "Selecciona zona destino para ambas parejas", variant: "destructive" }); setSaving(false); return; }
                         map[pp.pareja_torneo_id] = parseInt(dest);
                       }
                       body.destinos = map;
@@ -2061,7 +2063,7 @@ function ZonaDetailContent({
                   });
                   if (!res.ok) {
                     const err = await res.json();
-                    alert(err.error || "Error al procesar baja");
+                    toast({ title: "Error", description: err.error || "Error al procesar baja", variant: "destructive" });
                   } else {
                     setShowDropDialog(false);
                     setDropPairId(null);
@@ -2070,7 +2072,7 @@ function ZonaDetailContent({
                     onUpdate();
                   }
                 } catch {
-                  alert("Error al procesar baja");
+                  toast({ title: "Error", description: "Error al procesar baja", variant: "destructive" });
                 } finally {
                   setSaving(false);
                 }

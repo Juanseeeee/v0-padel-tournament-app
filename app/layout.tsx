@@ -5,6 +5,7 @@ import { Analytics } from '@vercel/analytics/next'
 import { ThemeProvider } from '@/components/theme-provider'
 import { MobileBottomNav } from '@/components/mobile-bottom-nav'
 import './globals.css'
+import { AppEnhancements } from '@/components/ui/app-enhancements'
 
 const inter = Inter({
   subsets: ["latin"],
@@ -61,6 +62,7 @@ export default function RootLayout({
             {children}
           </div>
           <MobileBottomNav />
+          <AppEnhancements />
         </ThemeProvider>
         <Analytics />
       </body>
