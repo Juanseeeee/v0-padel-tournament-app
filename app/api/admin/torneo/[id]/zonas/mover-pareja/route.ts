@@ -102,6 +102,19 @@ export async function POST(
       `;
 
     } else {
+      // Capacity check for destination zone (no exceeding 4 or formato_zona)
+      const destCountRes = await sql`
+        SELECT COUNT(*) as count FROM parejas_zona WHERE zona_id = ${zona_destino_id}
+      `;
+      const destCount = parseInt(destCountRes[0].count);
+      const formatoRes = await sql`
+        SELECT formato_zona FROM fechas_torneo WHERE id = ${parseInt(torneoId)}
+      `;
+      const maxZona = parseInt(formatoRes[0]?.formato_zona || "4");
+      if (destCount >= maxZona) {
+        return NextResponse.json({ error: "La zona destino está completa" }, { status: 400 });
+      }
+
       // Standard Move (existing logic)
       // Remove pareja from origin zone
       await sql`
