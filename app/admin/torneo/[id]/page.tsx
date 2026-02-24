@@ -1993,22 +1993,24 @@ function ZonaDetailContent({
                     Se reestructurará automáticamente: traer una pareja desde una zona de 4 hacia esta zona para que ambas queden en 3. No se permite exceder 4 parejas por zona.
                   </div>
                 ) : (
-                  <div className="grid gap-2">
-                    <Label>Acción</Label>
-                  <Select value={dropOption} onValueChange={(v: "vacante_final" | "reestructurar" | "organizar_3" | "traer_de_zona_4") => setDropOption(v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="vacante_final">Final entre las dos restantes</SelectItem>
-                        <SelectItem value="reestructurar">Reestructurar: mover las restantes a otras zonas</SelectItem>
-                      <SelectItem value="traer_de_zona_4">Traer una pareja de la zona de 4</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                {dropOption === "traer_de_zona_4" && (
-                  <div className="p-3 rounded border bg-muted/30 text-sm">
-                    Se traerá una pareja desde una zona de 4 para que ambas queden en 3. No se exceden 4 parejas por zona.
-                  </div>
-                )}
+                  <>
+                    <div className="grid gap-2">
+                      <Label>Acción</Label>
+                      <Select value={dropOption} onValueChange={(v: "vacante_final" | "reestructurar" | "organizar_3" | "traer_de_zona_4") => setDropOption(v)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="vacante_final">Final entre las dos restantes</SelectItem>
+                          <SelectItem value="reestructurar">Reestructurar: mover las restantes a otras zonas</SelectItem>
+                          <SelectItem value="traer_de_zona_4">Traer una pareja de la zona de 4</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {dropOption === "traer_de_zona_4" && (
+                      <div className="p-3 rounded border bg-muted/30 text-sm">
+                        Se traerá una pareja desde una zona de 4 para que ambas queden en 3. No se exceden 4 parejas por zona.
+                      </div>
+                    )}
+                  </>
                 )}
                 {!autoRebalanceCase && dropOption === "reestructurar" && (
                   <div className="grid gap-3">
