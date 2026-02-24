@@ -510,16 +510,28 @@ export default function JugadoresAdminPage() {
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="">Ninguna</SelectItem>
-                                {recatJugador?.categorias_ids && Array.isArray(recatJugador.categorias_ids) && 
-                                    recatJugador.categorias_ids.map((id: number) => {
+                                {recatJugador?.categoria_ids && (
+                                  Array.isArray(recatJugador.categoria_ids) 
+                                    ? recatJugador.categoria_ids.map((id: number) => {
                                         const cat = categorias.find(c => c.id === id);
                                         return cat ? <SelectItem key={id} value={String(id)}>{cat.nombre}</SelectItem> : null
-                                    })
+                                      })
+                                    : typeof recatJugador.categoria_ids === 'string'
+                                      ? recatJugador.categoria_ids.split(',').map((idStr: string) => {
+                                          const id = Number(idStr);
+                                          const cat = categorias.find(c => c.id === id);
+                                          return cat ? <SelectItem key={id} value={String(id)}>{cat.nombre}</SelectItem> : null
+                                        })
+                                      : null
+                                )}
+                                
+                                {/* Fallback if no category ids but has current category */}
+                                {(!recatJugador?.categoria_ids && recatJugador?.categoria_actual_id) && 
+                                    (() => {
+                                        const cat = categorias.find(c => c.id === recatJugador.categoria_actual_id);
+                                        return cat ? <SelectItem value={String(cat.id)}>{cat.nombre}</SelectItem> : null
+                                    })()
                                 }
-                                {/* Fallback if using string representation or other prop */}
-                                {(!recatJugador?.categorias_ids) && categorias.map(c => (
-                                    <SelectItem key={c.id} value={String(c.id)}>{c.nombre}</SelectItem>
-                                ))}
                             </SelectContent>
                         </Select>
                     </div>
@@ -551,7 +563,17 @@ export default function JugadoresAdminPage() {
                                 <SelectValue placeholder="Seleccionar" />
                             </SelectTrigger>
                             <SelectContent>
-                                {categoriasForGenero.map(c => (
+                                {categorias.filter(cat => {
+                                    if (!recatJugador) return true;
+                                    const catGenero = (cat.genero || '').toUpperCase();
+                                    const nombre = cat.nombre.toLowerCase();
+                                    const jugGenero = recatJugador.genero || 'masculino';
+                                    if (jugGenero === "masculino") {
+                                        return catGenero === "MASCULINO" || nombre.includes("masculino") || nombre.includes("caballero") || nombre.includes("mixto") || nombre.includes("suma");
+                                    } else {
+                                        return catGenero === "FEMENINO" || nombre.includes("damas") || nombre.includes("femenino") || nombre.includes("dama") || nombre.includes("mixto") || nombre.includes("suma");
+                                    }
+                                }).map(c => (
                                     <SelectItem key={c.id} value={String(c.id)}>{c.nombre}</SelectItem>
                                 ))}
                             </SelectContent>
