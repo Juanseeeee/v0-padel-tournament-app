@@ -46,6 +46,76 @@ export async function POST(
       SELECT pareja_id FROM parejas_zona WHERE zona_id = ${parseInt(zonaId)} ORDER BY posicion_final
     `;
     const ids = restantes.map((r: any) => r.pareja_id);
+    const beforeCount = ids.length + 1;
+
+    // Auto-rebalance rule:
+    // Si la zona era de 3 y queda en 2, y existe alguna otra zona de 4 en el mismo torneo/categoría,
+    // traer una pareja de esa zona de 4 para que ambas queden de 3.
+    if (beforeCount === 3 && ids.length === 2) {
+      const zonasMismaCat = await sql`
+        SELECT z.id,
+               (SELECT COUNT(*) FROM parejas_zona pz WHERE pz.zona_id = z.id) as parejas_count
+        FROM zonas z
+        WHERE z.fecha_torneo_id = ${parseInt(torneoId)}
+          AND z.categoria_id = ${zona.categoria_id}
+          AND z.id <> ${parseInt(zonaId)}
+          AND z.estado <> 'finalizada'
+      `;
+      const zonaDe4 = zonasMismaCat.find((z: any) => parseInt(z.parejas_count) === 4);
+
+      if (zonaDe4) {
+        const z4Id = zonaDe4.id;
+        // Buscar una pareja candidata sin partidos finalizados en la zona de 4
+        const candidatas = await sql`
+          SELECT pz.pareja_id
+          FROM parejas_zona pz
+          WHERE pz.zona_id = ${z4Id}
+            AND NOT EXISTS (
+              SELECT 1 FROM partidos_zona p
+              WHERE p.zona_id = ${z4Id}
+                AND (p.pareja1_id = pz.pareja_id OR p.pareja2_id = pz.pareja_id)
+                AND p.estado = 'finalizado'
+            )
+          LIMIT 1
+        `;
+        if (candidatas.length === 0) {
+          return NextResponse.json({ error: "No se puede reequilibrar: todas las parejas de la zona de 4 tienen partidos finalizados" }, { status: 400 });
+        }
+        const parejaMover = candidatas[0].pareja_id;
+
+        // Remover de la zona de 4 y limpiar pendientes de esa pareja
+        await sql`DELETE FROM parejas_zona WHERE zona_id = ${z4Id} AND pareja_id = ${parejaMover}`;
+        await sql`
+          DELETE FROM partidos_zona 
+          WHERE zona_id = ${z4Id}
+            AND (pareja1_id = ${parejaMover} OR pareja2_id = ${parejaMover})
+            AND estado = 'pendiente'
+        `;
+
+        // Agregar a la zona actual (que quedó en 2) para formar 3
+        await sql`INSERT INTO parejas_zona (zona_id, pareja_id) VALUES (${parseInt(zonaId)}, ${parejaMover}) ON CONFLICT DO NOTHING`;
+
+        // Reorganizar ambas zonas como zonas de 3 (plantilla de 3 partidos)
+        async function reorganizarZona3For(zid: number) {
+          const lista = await sql`SELECT pareja_id FROM parejas_zona WHERE zona_id = ${zid} ORDER BY posicion_final`;
+          const arr = lista.map((x: any) => x.pareja_id);
+          if (arr.length !== 3) return;
+          await sql`DELETE FROM partidos_zona WHERE zona_id = ${zid}`;
+          await sql`
+            INSERT INTO partidos_zona (zona_id, pareja1_id, pareja2_id, orden_partido, tipo_partido, estado)
+            VALUES 
+              (${zid}, ${arr[0]}, ${arr[1]}, 1, 'inicial', 'pendiente'),
+              (${zid}, NULL, ${arr[2]}, 2, 'perdedor_vs_3', 'pendiente'),
+              (${zid}, NULL, ${arr[2]}, 3, 'ganador_vs_3', 'pendiente')
+          `;
+        }
+
+        await reorganizarZona3For(parseInt(zonaId));
+        await reorganizarZona3For(z4Id);
+
+        return NextResponse.json({ success: true, auto_rebalance: true });
+      }
+    }
 
     // Helper: reset zone schedule to desired format
     async function reorganizarZona3() {
