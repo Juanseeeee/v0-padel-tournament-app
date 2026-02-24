@@ -1332,6 +1332,7 @@ function ZonasTab({
               horaInicioSabado={horaInicioSabado}
               duracionPartido={duracionPartido}
               modalidad={modalidad}
+              formatoZona={torneo?.formato_zona || 4}
             />
           )}
         </DialogContent>
@@ -1351,6 +1352,7 @@ function ZonaDetailContent({
   horaInicioSabado,
   duracionPartido,
   modalidad,
+  formatoZona,
 }: {
   zona: Zona;
   torneoId: string;
@@ -1361,6 +1363,7 @@ function ZonaDetailContent({
   horaInicioSabado: string;
   duracionPartido?: number;
   modalidad: string;
+  formatoZona: number;
 }) {
   const { data, mutate } = useSWR<{ zona: Zona; parejas: ParejaZona[]; partidos: PartidoZona[] }>(
     `/api/admin/torneo/${torneoId}/zonas/${zona.id}`,
@@ -1592,7 +1595,7 @@ function ZonaDetailContent({
   };
 
   const otherZonas = allZonas.filter(z => z.id !== zona.id && z.estado !== 'finalizada');
-  const otherZonasCapaces = otherZonas.filter(z => (((z as any).parejas_count || 0) < torneo.formato_zona));
+  const otherZonasCapaces = otherZonas.filter(z => (((z as any).parejas_count || 0) < formatoZona));
   const hasZona4Disponible = otherZonas.some(z => ((z as any).parejas_count || 0) === 4);
   const autoRebalanceCase = parejas.length === 3 && hasZona4Disponible;
 
@@ -2011,7 +2014,7 @@ function ZonaDetailContent({
                           <SelectContent>
                             {otherZonasCapaces.map(z => (
                               <SelectItem key={z.id} value={z.id.toString()}>
-                                {z.nombre} · {((z as any).parejas_count || 0)}/{torneo.formato_zona}
+                                {z.nombre} · {((z as any).parejas_count || 0)}/{formatoZona}
                               </SelectItem>
                             ))}
                           </SelectContent>
