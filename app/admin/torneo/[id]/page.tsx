@@ -79,6 +79,37 @@ import type {
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
+// Helper para determinar si el partido ya está decidido (2-0)
+const isMatchDecided = (r: {set1_p1: string, set1_p2: string, set2_p1: string, set2_p2: string}) => {
+  const safeInt = (val: string) => val === "" ? 0 : parseInt(val);
+  const s1p1 = safeInt(r.set1_p1);
+  const s1p2 = safeInt(r.set1_p2);
+  const s2p1 = safeInt(r.set2_p1);
+  const s2p2 = safeInt(r.set2_p2);
+
+  const getSetWinner = (p1: number, p2: number) => {
+    // Gana si >= 6 y diferencia >= 2
+    if (p1 >= 6 && p1 - p2 >= 2) return 1;
+    // Tiebreak 7-6
+    if (p1 === 7 && p2 === 6) return 1;
+    // 7-5
+    if (p1 === 7 && p2 === 5) return 1;
+    
+    // Gana P2
+    if (p2 >= 6 && p2 - p1 >= 2) return 2;
+    if (p2 === 7 && p1 === 6) return 2;
+    if (p2 === 7 && p1 === 5) return 2;
+    
+    return 0;
+  };
+
+  const w1 = getSetWinner(s1p1, s1p2);
+  const w2 = getSetWinner(s2p1, s2p2);
+  
+  // Si ambos sets tienen ganador y es el mismo, partido decidido
+  return w1 !== 0 && w1 === w2;
+};
+
 export default function TorneoManagementPage() {
   const params = useParams();
   const router = useRouter();
@@ -128,7 +159,16 @@ export default function TorneoManagementPage() {
     }
 
     if (value !== "" && parseInt(value) > max) return;
-    setResultado(prev => ({ ...prev, [field]: value }));
+
+    setResultado(prev => {
+        const newRes = { ...prev, [field]: value };
+        // Si el partido está decidido por los dos primeros sets, limpiar el 3ro
+        if (isMatchDecided(newRes)) {
+            newRes.set3_p1 = "";
+            newRes.set3_p2 = "";
+        }
+        return newRes;
+    });
   };
 
   // Tipo extendido para torneo con categoría
@@ -1000,10 +1040,12 @@ export default function TorneoManagementPage() {
                         <Input
                         type="number" min="0" max={torneo?.modalidad === '2_sets_6_tiebreak' ? 20 : 7} className="col-span-2" placeholder="P1"
                         value={resultado.set3_p1} onChange={(e) => handleSetChange('set3_p1', e.target.value)}
+                        disabled={isMatchDecided(resultado)}
                         />
                         <Input
                         type="number" min="0" max={torneo?.modalidad === '2_sets_6_tiebreak' ? 20 : 7} className="col-span-2" placeholder="P2"
                         value={resultado.set3_p2} onChange={(e) => handleSetChange('set3_p2', e.target.value)}
+                        disabled={isMatchDecided(resultado)}
                         />
                     </div>
                   </>
@@ -1214,7 +1256,16 @@ function ZonaDetailContent({
     }
 
     if (value !== "" && parseInt(value) > max) return;
-    setResultado(prev => ({ ...prev, [field]: value }));
+
+    setResultado(prev => {
+        const newRes = { ...prev, [field]: value };
+        // Si el partido está decidido por los dos primeros sets, limpiar el 3ro
+        if (isMatchDecided(newRes)) {
+            newRes.set3_p1 = "";
+            newRes.set3_p2 = "";
+        }
+        return newRes;
+    });
   };
 
   const parejas = data?.parejas || [];
@@ -1625,10 +1676,12 @@ function ZonaDetailContent({
                     <Input
                       type="number" min="0" max={modalidad === '2_sets_6_tiebreak' ? 30 : 7} className="col-span-2" placeholder="P1 (opcional)"
                       value={resultado.set3_p1} onChange={(e) => handleSetChange('set3_p1', e.target.value)}
+                      disabled={isMatchDecided(resultado)}
                     />
                     <Input
                       type="number" min="0" max={modalidad === '2_sets_6_tiebreak' ? 30 : 7} className="col-span-2" placeholder="P2 (opcional)"
                       value={resultado.set3_p2} onChange={(e) => handleSetChange('set3_p2', e.target.value)}
+                      disabled={isMatchDecided(resultado)}
                     />
                   </div>
                 </>

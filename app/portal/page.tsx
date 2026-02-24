@@ -182,34 +182,36 @@ export default function PortalPage() {
         </div>
 
         {/* Floating Tabs */}
-        <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar pt-2 px-1">
-            {[
-                { id: "torneos", icon: CalendarIcon, label: "Torneos" },
-                { id: "calendario", icon: CalendarDays, label: "Calendario" },
-                { id: "inscripciones", icon: UserPlus, label: "Inscripciones" },
-                { id: "ranking", icon: Medal, label: "Ranking" },
-            ].map((tab) => (
-                <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id as PortalTab)}
-                    className={`group flex flex-col items-center gap-2 min-w-[70px] transition-all duration-300 outline-none focus:outline-none ${
-                        activeTab === tab.id ? "scale-105 opacity-100" : "opacity-60 hover:opacity-80 scale-95"
-                    }`}
-                >
-                    <div className={`p-3.5 rounded-2xl transition-all duration-300 ${
-                        activeTab === tab.id 
-                        ? "bg-primary text-primary-foreground shadow-[0_0_20px_-5px_var(--primary)] ring-4 ring-primary/20 transform -translate-y-1" 
-                        : "bg-white/10 text-white group-hover:bg-white/20"
-                    }`}>
-                        <tab.icon className="h-5 w-5" />
-                    </div>
-                    <span className={`text-[10px] font-bold tracking-wide transition-colors ${
-                        activeTab === tab.id ? "text-primary" : "text-white/60"
-                    }`}>
-                        {tab.label}
-                    </span>
-                </button>
-            ))}
+        <div className="flex justify-center w-full px-4 mt-2">
+            <div className="flex items-center justify-between gap-4 bg-black/20 backdrop-blur-md p-3 rounded-2xl border border-white/10 shadow-lg w-full max-w-lg">
+                {[
+                    { id: "torneos", icon: CalendarIcon, label: "Torneos" },
+                    { id: "calendario", icon: CalendarDays, label: "Calendario" },
+                    { id: "inscripciones", icon: UserPlus, label: "Inscripciones" },
+                    { id: "ranking", icon: Medal, label: "Ranking" },
+                ].map((tab) => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id as PortalTab)}
+                        className={`group flex flex-col items-center gap-1.5 flex-1 transition-all duration-300 outline-none focus:outline-none ${
+                            activeTab === tab.id ? "opacity-100" : "opacity-60 hover:opacity-80"
+                        }`}
+                    >
+                        <div className={`p-2.5 rounded-xl transition-all duration-300 ${
+                            activeTab === tab.id 
+                            ? "bg-primary text-primary-foreground shadow-lg scale-110 ring-2 ring-primary/20" 
+                            : "text-white group-hover:bg-white/10"
+                        }`}>
+                            <tab.icon className="h-5 w-5" />
+                        </div>
+                        <span className={`text-[10px] font-bold tracking-wide transition-colors ${
+                            activeTab === tab.id ? "text-primary" : "text-white/60"
+                        }`}>
+                            {tab.label}
+                        </span>
+                    </button>
+                ))}
+            </div>
         </div>
       </div>
 
