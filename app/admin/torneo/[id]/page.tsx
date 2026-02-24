@@ -1451,6 +1451,8 @@ function ZonaDetailContent({
       'perdedores': 'Por 3er puesto',
       'ganadores': 'Final',
       'round_robin': 'Partido',
+      'tiebreak_1': 'Tiebreak 1',
+      'tiebreak_2': 'Tiebreak 2',
     };
     return labels[tipo] || tipo;
   };
@@ -1482,8 +1484,23 @@ function ZonaDetailContent({
     }
   };
 
+  const [showTieDialog, setShowTieDialog] = useState(false);
+  const [resolvingTie, setResolvingTie] = useState(false);
+  const isTripleTie = (): boolean => {
+    if (parejas.length !== 3) return false;
+    if (partidos.length === 0 || partidosFinalizados !== totalPartidos) return false;
+    const wins = new Set(parejas.map((p: any) => Number(p.partidos_ganados || 0)));
+    const setDiff = new Set(parejas.map((p: any) => Number((p.sets_ganados || 0) - (p.sets_perdidos || 0))));
+    const gameDiff = new Set(parejas.map((p: any) => Number((p.games_ganados || 0) - (p.games_perdidos || 0))));
+    return wins.size === 1 && setDiff.size === 1 && gameDiff.size === 1;
+  };
+
   const handleCerrarZona = async () => {
     if (!confirm("¿Estás seguro de cerrar esta zona? Las parejas clasificadas pasarán a llaves.")) return;
+    if (isTripleTie()) {
+      setShowTieDialog(true);
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch(`/api/admin/torneo/${torneoId}/zonas/${zona.id}`, {
@@ -1502,6 +1519,30 @@ function ZonaDetailContent({
       alert("Error al cerrar zona");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const resolverEmpate = async (metodo: "sorteo" | "tiebreak") => {
+    setResolvingTie(true);
+    try {
+      const res = await fetch(`/api/admin/torneo/${torneoId}/zonas/${zona.id}/resolver-empate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ metodo }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Error al resolver empate");
+        return;
+      }
+      setShowTieDialog(false);
+      mutate();
+      onUpdate();
+      if (metodo === "sorteo") onClose();
+    } catch {
+      alert("Error al resolver empate");
+    } finally {
+      setResolvingTie(false);
     }
   };
 
@@ -1897,6 +1938,28 @@ function ZonaDetailContent({
               Guardar Resultado
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Empate en zona de 3 */}
+      <Dialog open={showTieDialog} onOpenChange={setShowTieDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Empate en zona de 3</DialogTitle>
+            <DialogDescription>
+              Todas las parejas están empatadas estadísticamente. Elegí cómo definir quién pasa:
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 py-2">
+            <Button variant="default" onClick={() => resolverEmpate("sorteo")} disabled={resolvingTie}>
+              {resolvingTie ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Hacer un sorteo para ver quien pasa
+            </Button>
+            <Button variant="outline" onClick={() => resolverEmpate("tiebreak")} disabled={resolvingTie}>
+              {resolvingTie ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Jugar un tiebreak entre las parejas
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
       <Dialog open={showDropDialog} onOpenChange={(o) => { if (!o) { setShowDropDialog(false); setDropPairId(null); setDestinosMap({}); } }}>

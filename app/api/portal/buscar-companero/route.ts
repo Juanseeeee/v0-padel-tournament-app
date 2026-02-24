@@ -11,8 +11,13 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const q = searchParams.get("q") || "";
   const categoriaId = searchParams.get("categoria_id");
+  const listAll = searchParams.get("all") === "1";
 
-  if (q.length < 2 || !categoriaId) {
+  if (!categoriaId) {
+    return NextResponse.json([]);
+  }
+
+  if (!listAll && q.length < 2) {
     return NextResponse.json([]);
   }
 
@@ -20,19 +25,31 @@ export async function GET(request: NextRequest) {
   const user = await sql`SELECT jugador_id FROM usuarios WHERE id = ${session.userId}`;
   const myJugadorId = user[0]?.jugador_id;
 
-  // Search players in the same category
-  const jugadores = await sql`
-    SELECT j.id as jugador_id, j.nombre, j.apellido, j.localidad
-    FROM jugadores j
-    JOIN jugador_categorias jc ON jc.jugador_id = j.id
-    WHERE jc.categoria_id = ${parseInt(categoriaId)}
-      AND j.estado = 'activo'
-      AND j.id != ${myJugadorId}
-      AND (LOWER(j.nombre) LIKE ${'%' + q.toLowerCase() + '%'} 
-           OR LOWER(j.apellido) LIKE ${'%' + q.toLowerCase() + '%'})
-    ORDER BY j.apellido, j.nombre
-    LIMIT 10
-  `;
+  let jugadores;
+  if (listAll) {
+    jugadores = await sql`
+      SELECT j.id as jugador_id, j.nombre, j.apellido, j.localidad
+      FROM jugadores j
+      JOIN jugador_categorias jc ON jc.jugador_id = j.id
+      WHERE jc.categoria_id = ${parseInt(categoriaId)}
+        AND j.estado = 'activo'
+        AND j.id != ${myJugadorId}
+      ORDER BY j.apellido, j.nombre
+    `;
+  } else {
+    jugadores = await sql`
+      SELECT j.id as jugador_id, j.nombre, j.apellido, j.localidad
+      FROM jugadores j
+      JOIN jugador_categorias jc ON jc.jugador_id = j.id
+      WHERE jc.categoria_id = ${parseInt(categoriaId)}
+        AND j.estado = 'activo'
+        AND j.id != ${myJugadorId}
+        AND (LOWER(j.nombre) LIKE ${'%' + q.toLowerCase() + '%'} 
+             OR LOWER(j.apellido) LIKE ${'%' + q.toLowerCase() + '%'})
+      ORDER BY j.apellido, j.nombre
+      LIMIT 10
+    `;
+  }
 
   return NextResponse.json(jugadores);
 }
