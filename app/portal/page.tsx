@@ -58,6 +58,8 @@ export default function PortalPage() {
   const [searching, setSearching] = useState(false);
   const [diaPreferido, setDiaPreferido] = useState("");
   const [horaDisponible, setHoraDisponible] = useState("");
+  const [jugadoresCategoria, setJugadoresCategoria] = useState<any[]>([]);
+  const [loadingJugadores, setLoadingJugadores] = useState(false);
 
   const torneosList = useMemo(() => Array.isArray(torneos) ? torneos : [], [torneos]);
   const inscriptoFechaIds = useMemo(() => new Set<number>((Array.isArray(misInscripciones) ? misInscripciones : []).map((i: any) => Number(i.fecha_torneo_id))), [misInscripciones]);
@@ -79,6 +81,15 @@ export default function PortalPage() {
       setCompaneros(data);
     } catch { setCompaneros([]); }
     finally { setSearching(false); }
+  }
+  
+  if (enrollDialog && jugadoresCategoria.length === 0 && !loadingJugadores) {
+    setLoadingJugadores(true);
+    fetch(`/api/portal/buscar-companero?categoria_id=${enrollDialog?.categoria_id}&all=1`)
+      .then(r => r.json())
+      .then(data => setJugadoresCategoria(Array.isArray(data) ? data : []))
+      .catch(() => setJugadoresCategoria([]))
+      .finally(() => setLoadingJugadores(false));
   }
 
   async function handleEnroll() {
@@ -462,6 +473,50 @@ export default function PortalPage() {
                         ))}
                     </div>
                 )}
+             </div>
+             
+             <div className="space-y-2">
+               <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Jugadores de tu categoría</label>
+               <div className="border rounded-xl p-2 max-h-40 overflow-y-auto bg-muted/30 shadow-inner custom-scrollbar">
+                 {loadingJugadores ? (
+                   <div className="text-xs text-muted-foreground p-2">Cargando...</div>
+                 ) : (jugadoresCategoria.length === 0 ? (
+                   <div className="text-xs text-muted-foreground p-2">No hay jugadores</div>
+                 ) : (
+                   jugadoresCategoria.map(c => (
+                     <div
+                       key={c.jugador_id}
+                       className="p-3 hover:bg-primary/10 cursor-pointer rounded-lg text-sm flex justify-between items-center transition-colors"
+                       onClick={() => { setSelectedCompanero(c); setCompaneros([]); setCompaneroSearch(`${c.nombre} ${c.apellido}`); }}
+                     >
+                       <span className="font-semibold">{c.nombre} {c.apellido}</span>
+                       <Badge variant="secondary" className="text-[10px] h-5">Select</Badge>
+                     </div>
+                   ))
+                 ))}
+               </div>
+             </div>
+             
+             <div className="space-y-2">
+               <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Preferencia de horario (opcional)</label>
+               <div className="grid grid-cols-2 gap-3">
+                 <select
+                   className="flex h-11 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                   value={diaPreferido}
+                   onChange={(e) => setDiaPreferido(e.target.value)}
+                 >
+                   <option value="">Seleccionar día</option>
+                   <option value="viernes">Viernes</option>
+                   <option value="sabado">Sábado</option>
+                   <option value="domingo">Domingo</option>
+                 </select>
+                 <input
+                   type="time"
+                   className="flex h-11 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                   value={horaDisponible}
+                   onChange={(e) => setHoraDisponible(e.target.value)}
+                 />
+               </div>
              </div>
           </div>
 
