@@ -1,14 +1,12 @@
-import { neon } from "@neondatabase/serverless";
+import { sql } from "@/lib/db";
 import { NextResponse } from "next/server";
-
-const sql = neon(process.env.DATABASE_URL!);
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: torneoId } = await params;
-  const { pareja_torneo_id, zona_origen_id, zona_destino_id } = await request.json();
+  const { pareja_torneo_id, zona_origen_id, zona_destino_id, pareja_intercambio_id } = await request.json();
 
   if (!pareja_torneo_id || !zona_origen_id || !zona_destino_id) {
     return NextResponse.json({ error: "Faltan datos" }, { status: 400 });
@@ -47,25 +45,84 @@ export async function POST(
       return NextResponse.json({ error: "No se puede mover una pareja que ya jugó partidos en su zona" }, { status: 400 });
     }
 
-    // Remove pareja from origin zone
-    await sql`
-      DELETE FROM parejas_zona WHERE pareja_torneo_id = ${pareja_torneo_id} AND zona_id = ${zona_origen_id}
-    `;
+    // If swapping, check the target pair
+    if (pareja_intercambio_id) {
+      // Verify target pair belongs to destination zone
+      const targetPairCheck = await sql`
+        SELECT id FROM parejas_zona
+        WHERE zona_id = ${zona_destino_id} AND pareja_id = ${pareja_intercambio_id}
+      `;
+      
+      if (targetPairCheck.length === 0) {
+        return NextResponse.json({ error: "La pareja de intercambio no pertenece a la zona de destino" }, { status: 400 });
+      }
 
-    // Delete pending matches involving this pareja in origin zone
-    await sql`
-      DELETE FROM partidos_zona 
-      WHERE zona_id = ${zona_origen_id}
-        AND (pareja1_id = ${pareja_torneo_id} OR pareja2_id = ${pareja_torneo_id})
-        AND estado = 'pendiente'
-    `;
+      // Check no played games in destination zone for target pair
+      const partidosJugadosTarget = await sql`
+        SELECT COUNT(*) as count FROM partidos_zona
+        WHERE zona_id = ${zona_destino_id}
+          AND (pareja1_id = ${pareja_intercambio_id} OR pareja2_id = ${pareja_intercambio_id})
+          AND estado = 'finalizado'
+      `;
 
-    // Add pareja to destination zone
-    await sql`
-      INSERT INTO parejas_zona (zona_id, pareja_torneo_id, fecha_torneo_id)
-      VALUES (${zona_destino_id}, ${pareja_torneo_id}, ${parseInt(torneoId)})
-      ON CONFLICT DO NOTHING
-    `;
+      if (parseInt(partidosJugadosTarget[0].count) > 0) {
+        return NextResponse.json({ error: "No se puede intercambiar con una pareja que ya jugó partidos" }, { status: 400 });
+      }
+
+      // Perform SWAP
+      // 1. Remove Pair A from Zone A
+      await sql`DELETE FROM parejas_zona WHERE pareja_id = ${pareja_torneo_id} AND zona_id = ${zona_origen_id}`;
+      // 2. Remove Pair B from Zone B
+      await sql`DELETE FROM parejas_zona WHERE pareja_id = ${pareja_intercambio_id} AND zona_id = ${zona_destino_id}`;
+      
+      // 3. Delete pending matches for Pair A in Zone A
+      await sql`
+        DELETE FROM partidos_zona 
+        WHERE zona_id = ${zona_origen_id}
+          AND (pareja1_id = ${pareja_torneo_id} OR pareja2_id = ${pareja_torneo_id})
+          AND estado = 'pendiente'
+      `;
+      // 4. Delete pending matches for Pair B in Zone B
+      await sql`
+        DELETE FROM partidos_zona 
+        WHERE zona_id = ${zona_destino_id}
+          AND (pareja1_id = ${pareja_intercambio_id} OR pareja2_id = ${pareja_intercambio_id})
+          AND estado = 'pendiente'
+      `;
+
+      // 5. Add Pair A to Zone B
+      await sql`
+        INSERT INTO parejas_zona (zona_id, pareja_id)
+        VALUES (${zona_destino_id}, ${pareja_torneo_id})
+      `;
+      // 6. Add Pair B to Zone A
+      await sql`
+        INSERT INTO parejas_zona (zona_id, pareja_id)
+        VALUES (${zona_origen_id}, ${pareja_intercambio_id})
+      `;
+
+    } else {
+      // Standard Move (existing logic)
+      // Remove pareja from origin zone
+      await sql`
+        DELETE FROM parejas_zona WHERE pareja_id = ${pareja_torneo_id} AND zona_id = ${zona_origen_id}
+      `;
+
+      // Delete pending matches involving this pareja in origin zone
+      await sql`
+        DELETE FROM partidos_zona 
+        WHERE zona_id = ${zona_origen_id}
+          AND (pareja1_id = ${pareja_torneo_id} OR pareja2_id = ${pareja_torneo_id})
+          AND estado = 'pendiente'
+      `;
+
+      // Add pareja to destination zone
+      await sql`
+        INSERT INTO parejas_zona (zona_id, pareja_id)
+        VALUES (${zona_destino_id}, ${pareja_torneo_id})
+        ON CONFLICT DO NOTHING
+      `;
+    }
 
     // Regenerate round-robin matches for both zones
     await regenerateZoneMatches(zona_origen_id, parseInt(torneoId));
@@ -81,7 +138,7 @@ export async function POST(
 async function regenerateZoneMatches(zonaId: number, torneoId: number) {
   // Get current parejas in this zone
   const parejasZona = await sql`
-    SELECT pareja_torneo_id FROM parejas_zona WHERE zona_id = ${zonaId}
+    SELECT pareja_id FROM parejas_zona WHERE zona_id = ${zonaId}
   `;
 
   if (parejasZona.length < 2) return;
@@ -101,7 +158,7 @@ async function regenerateZoneMatches(zonaId: number, torneoId: number) {
   );
 
   // Generate round-robin for all pairs not yet played
-  const ids = parejasZona.map(p => p.pareja_torneo_id);
+  const ids = parejasZona.map(p => p.pareja_id);
   for (let i = 0; i < ids.length; i++) {
     for (let j = i + 1; j < ids.length; j++) {
       const key = `${Math.min(ids[i], ids[j])}-${Math.max(ids[i], ids[j])}`;

@@ -120,6 +120,7 @@ export default function TorneoManagementPage() {
   const [showResultadoDialog, setShowResultadoDialog] = useState(false);
   const [showLlaveResultadoDialog, setShowLlaveResultadoDialog] = useState(false);
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
+  const [showDeleteTorneoAlert, setShowDeleteTorneoAlert] = useState(false);
   const [selectedPartido, setSelectedPartido] = useState<PartidoZona | null>(null);
   const [selectedLlave, setSelectedLlave] = useState<Llave | null>(null);
   const [parejaToDelete, setParejaToDelete] = useState<number | null>(null);
@@ -133,6 +134,9 @@ export default function TorneoManagementPage() {
   const [cabezaSerie, setCabezaSerie] = useState(false);
   const [diaPreferido, setDiaPreferido] = useState("");
   const [horaDisponible, setHoraDisponible] = useState("");
+  const [assignZonaId, setAssignZonaId] = useState("");
+  const [previewZonaPairs, setPreviewZonaPairs] = useState<ParejaZona[]>([]);
+  const [loadingZonaPreview, setLoadingZonaPreview] = useState(false);
 
   const [configDias, setConfigDias] = useState("3");
   const [configTipoZona, setConfigTipoZona] = useState<"grupos_3" | "grupos_4">("grupos_3");
@@ -214,6 +218,23 @@ export default function TorneoManagementPage() {
       setConfigMinutos(torneo.duracion_partido_min?.toString() || "60");
     }
   }, [torneo]);
+  
+  useEffect(() => {
+    if (!assignZonaId) {
+      setPreviewZonaPairs([]);
+      return;
+    }
+    setLoadingZonaPreview(true);
+    fetch(`/api/admin/torneo/${torneoId}/zonas/${assignZonaId}`)
+      .then(res => res.json())
+      .then(data => {
+        setPreviewZonaPairs(data?.parejas || []);
+      })
+      .catch(() => {
+        setPreviewZonaPairs([]);
+      })
+      .finally(() => setLoadingZonaPreview(false));
+  }, [assignZonaId, torneoId]);
 
   const parejasCategoria = parejas?.filter(
     (p) => !torneo?.categoria_id || p.categoria_id === torneo.categoria_id
@@ -244,6 +265,7 @@ export default function TorneoManagementPage() {
           cabeza_serie: cabezaSerie,
           dia_preferido: diaPreferido || null,
           hora_disponible: horaDisponible || null,
+          zona_id: assignZonaId ? parseInt(assignZonaId) : undefined,
         }),
       });
 
@@ -253,6 +275,9 @@ export default function TorneoManagementPage() {
       }
 
       mutateParejas();
+      if (assignZonaId) {
+        mutateZonas();
+      }
       setShowParejaDialog(false);
       resetParejaForm();
     } catch (error) {
@@ -313,6 +338,11 @@ export default function TorneoManagementPage() {
   const handleGenerarZonas = async () => {
     if (!torneo?.categoria_id) {
       alert("El torneo no tiene categoría asignada");
+      return;
+    }
+
+    if (torneo.estado === 'finalizada') {
+      alert("No se pueden generar zonas en un torneo finalizado");
       return;
     }
 
@@ -380,6 +410,11 @@ export default function TorneoManagementPage() {
   const handleGenerarLlaves = async () => {
     if (!torneo?.categoria_id) {
       alert("El torneo no tiene categoría asignada");
+      return;
+    }
+
+    if (torneo.estado === 'finalizada') {
+      alert("No se pueden generar llaves en un torneo finalizado");
       return;
     }
 
@@ -460,12 +495,34 @@ export default function TorneoManagementPage() {
     }
   };
 
+  const handleEliminarTorneo = async () => {
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`/api/admin/fechas/${torneoId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Error al eliminar torneo");
+      }
+      setShowDeleteTorneoAlert(false);
+      alert("Torneo eliminado correctamente");
+      router.push("/admin/fechas");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Error al eliminar torneo");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const resetParejaForm = () => {
     setJugador1Id("");
     setJugador2Id("");
     setCabezaSerie(false);
     setDiaPreferido("");
     setHoraDisponible("");
+    setAssignZonaId("");
+    setPreviewZonaPairs([]);
   };
 
   const openResultadoDialog = (partido: PartidoZona) => {
@@ -547,6 +604,15 @@ export default function TorneoManagementPage() {
               Finalizar Torneo
             </Button>
           )}
+          <Button
+            variant="destructive"
+            onClick={() => setShowDeleteTorneoAlert(true)}
+            disabled={isSubmitting}
+            className="shadow-lg shadow-destructive/20"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Eliminar Torneo
+          </Button>
         </div>
       }
     >
@@ -618,7 +684,7 @@ export default function TorneoManagementPage() {
                   Flyer
                 </Button>
                 {torneo?.categoria_id && parejasCategoria && parejasCategoria.length >= 3 && (
-                  <Button variant="secondary" onClick={handleGenerarZonas} disabled={isSubmitting} className="flex-1 sm:flex-none w-full sm:w-auto">
+                  <Button variant="secondary" onClick={handleGenerarZonas} disabled={isSubmitting || torneo.estado === 'finalizada'} className="flex-1 sm:flex-none w-full sm:w-auto">
                     <Shuffle className="mr-2 h-4 w-4" />
                     Generar Zonas
                   </Button>
@@ -714,6 +780,7 @@ export default function TorneoManagementPage() {
               duracionPartido={torneo?.duracion_partido_min || 60}
               onZonaUpdate={() => { mutateZonas(); mutateLlaves(); }}
               modalidad={torneo?.modalidad || "normal"}
+              torneoEstado={torneo?.estado}
             />
           </TabsContent>
 
@@ -890,6 +957,49 @@ export default function TorneoManagementPage() {
                   );
                 })()}
               </div>
+
+              <div className="border-t pt-3 mt-3">
+                <Label className="text-sm font-semibold text-muted-foreground">Asignar a zona (opcional)</Label>
+                <div className="grid grid-cols-2 gap-3 mt-2">
+                  <div className="grid gap-1">
+                    <Label className="text-xs">Zona</Label>
+                    <Select
+                      value={assignZonaId || ""}
+                      onValueChange={(val) => setAssignZonaId(val)}
+                      disabled={!zonas || zonas.length === 0}
+                    >
+                      <SelectTrigger className="w-full h-9">
+                        <SelectValue placeholder={(!zonas || zonas.length === 0) ? "Sin zonas disponibles" : "Seleccionar zona"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {zonas?.map((z) => (
+                          <SelectItem key={z.id} value={z.id.toString()}>
+                            {z.nombre} · {((z as any).parejas_count || 0)}/{torneo.formato_zona} {z.estado === 'finalizada' ? '(cerrada)' : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-1">
+                    <Label className="text-xs">Previsualización</Label>
+                    <div className="rounded border p-2 text-xs min-h-[40px]">
+                      {loadingZonaPreview ? (
+                        <span className="text-muted-foreground">Cargando...</span>
+                      ) : previewZonaPairs.length === 0 ? (
+                        <span className="text-muted-foreground">{assignZonaId ? "Zona vacía" : "Selecciona una zona"}</span>
+                      ) : (
+                        <ul className="space-y-1">
+                          {previewZonaPairs.map((pp) => (
+                            <li key={pp.pareja_zona_id}>
+                              {pp.j1_nombre} {pp.j1_apellido?.charAt(0)}. / {pp.j2_nombre} {pp.j2_apellido?.charAt(0)}.
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => { setShowParejaDialog(false); resetParejaForm(); }}>
@@ -953,6 +1063,21 @@ export default function TorneoManagementPage() {
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <AlertDialogAction onClick={handleDeletePareja} disabled={isSubmitting}>
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={showDeleteTorneoAlert} onOpenChange={setShowDeleteTorneoAlert}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Eliminar torneo?</AlertDialogTitle>
+              <AlertDialogDescription>Se eliminarán zonas, llaves e inscripciones asociadas. Esta acción no se puede deshacer.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleEliminarTorneo} disabled={isSubmitting}>
                 Eliminar
               </AlertDialogAction>
             </AlertDialogFooter>
@@ -1076,6 +1201,7 @@ function ZonasTab({
   duracionPartido,
   onZonaUpdate,
   modalidad,
+  torneoEstado,
 }: {
   torneoId: string;
   categoriaId: string;
@@ -1087,6 +1213,7 @@ function ZonasTab({
   duracionPartido: number;
   onZonaUpdate: () => void;
   modalidad: string;
+  torneoEstado?: string;
 }) {
   const [selectedZona, setSelectedZona] = useState<Zona | null>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
@@ -1151,7 +1278,7 @@ function ZonasTab({
   {exportingPdf ? "Exportando..." : "Exportar para WhatsApp"}
   </Button>
         {todasLasZonasFinalizadas && (
-          <Button onClick={onGenerarLlaves} disabled={isSubmitting}>
+          <Button onClick={onGenerarLlaves} disabled={isSubmitting || torneoEstado === 'finalizada'}>
             <GitBranch className="mr-2 h-4 w-4" />
             Generar Llaves
           </Button>
@@ -1241,9 +1368,33 @@ function ZonaDetailContent({
   const [editingPartido, setEditingPartido] = useState<PartidoZona | null>(null);
   const [movingPareja, setMovingPareja] = useState<number | null>(null);
   const [moveTargetZona, setMoveTargetZona] = useState("");
+  const [targetZonePairs, setTargetZonePairs] = useState<ParejaZona[]>([]);
+  const [swapPairId, setSwapPairId] = useState<string>("");
   const [resultado, setResultado] = useState({
     set1_p1: "", set1_p2: "", set2_p1: "", set2_p2: "", set3_p1: "", set3_p2: ""
   });
+  const [dropPairId, setDropPairId] = useState<number | null>(null);
+  const [showDropDialog, setShowDropDialog] = useState(false);
+  const [dropOption, setDropOption] = useState<"vacante_final" | "reestructurar" | "organizar_3">("vacante_final");
+  const [destinosMap, setDestinosMap] = useState<Record<number, string>>({});
+
+  // Fetch pairs when target zone changes
+  useEffect(() => {
+    if (!moveTargetZona) {
+      setTargetZonePairs([]);
+      setSwapPairId("");
+      return;
+    }
+
+    fetch(`/api/admin/torneo/${torneoId}/zonas/${moveTargetZona}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.parejas) {
+          setTargetZonePairs(data.parejas);
+        }
+      })
+      .catch(console.error);
+  }, [moveTargetZona, torneoId]);
 
   const handleSetChange = (field: string, value: string) => {
     if (value !== "" && !/^\d+$/.test(value)) return;
@@ -1365,11 +1516,14 @@ function ZonaDetailContent({
           pareja_torneo_id: movingPareja,
           zona_origen_id: zona.id,
           zona_destino_id: parseInt(moveTargetZona),
+          pareja_intercambio_id: swapPairId ? parseInt(swapPairId) : null,
         }),
       });
       if (res.ok) {
         setMovingPareja(null);
         setMoveTargetZona("");
+        setSwapPairId("");
+        setTargetZonePairs([]);
         mutate();
         onUpdate();
       } else {
@@ -1461,25 +1615,74 @@ function ZonaDetailContent({
                           {p.cabeza_serie && <Badge variant="outline" className="text-xs">CS</Badge>}
                         </div>
                         {isMoving && (
+                          <div className="flex flex-col gap-2 mt-2 p-2 bg-muted/50 rounded-md border border-border/50">
+                            <div className="flex flex-col gap-1.5">
+                              <Label className="text-[10px] uppercase text-muted-foreground font-semibold">Zona destino</Label>
+                              <Select
+                                value={moveTargetZona}
+                                onValueChange={(val) => {
+                                  setMoveTargetZona(val);
+                                  setSwapPairId("");
+                                }}
+                              >
+                                <SelectTrigger className="h-8 w-full text-xs bg-background">
+                                  <SelectValue placeholder="Seleccionar zona..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {otherZonas.map(z => (
+                                    <SelectItem key={z.id} value={z.id.toString()}>{z.nombre}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            {moveTargetZona && targetZonePairs.length > 0 && (
+                              <div className="flex flex-col gap-1.5">
+                                <Label className="text-[10px] uppercase text-muted-foreground font-semibold">Intercambiar con (opcional)</Label>
+                                <Select
+                                  value={swapPairId}
+                                  onValueChange={setSwapPairId}
+                                >
+                                  <SelectTrigger className="h-8 w-full text-xs bg-background">
+                                    <SelectValue placeholder="Solo mover..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="no_swap">Solo mover (sin intercambio)</SelectItem>
+                                    {targetZonePairs.map(tp => (
+                                      <SelectItem key={tp.pareja_torneo_id} value={tp.pareja_torneo_id.toString()}>
+                                        {tp.j1_nombre} {tp.j1_apellido?.charAt(0)}. / {tp.j2_nombre} {tp.j2_apellido?.charAt(0)}.
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
+
+                            <div className="flex items-center gap-2 mt-1">
+                              <Button size="sm" variant="default" className="h-7 text-xs flex-1" onClick={handleMoverPareja} disabled={!moveTargetZona || saving}>
+                                {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : (swapPairId && swapPairId !== "no_swap" ? "Intercambiar" : "Mover")}
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { 
+                                setMovingPareja(null); 
+                                setMoveTargetZona("");
+                                setSwapPairId("");
+                                setTargetZonePairs([]);
+                              }}>
+                                Cancelar
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                        {zonaData.estado !== 'finalizada' && (
                           <div className="flex items-center gap-2 mt-1">
-                            <Select
-                              value={moveTargetZona}
-                              onValueChange={setMoveTargetZona}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-destructive"
+                              title="Baja de pareja"
+                              onClick={() => { setDropPairId(p.pareja_torneo_id); setShowDropDialog(true); }}
                             >
-                              <SelectTrigger className="h-8 w-[180px] text-xs">
-                                <SelectValue placeholder="Seleccionar zona..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {otherZonas.map(z => (
-                                  <SelectItem key={z.id} value={z.id.toString()}>{z.nombre}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <Button size="sm" variant="default" className="h-7 text-xs" onClick={handleMoverPareja} disabled={!moveTargetZona || saving}>
-                              {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : "Mover"}
-                            </Button>
-                            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setMovingPareja(null); setMoveTargetZona(""); }}>
-                              Cancelar
+                              <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </div>
                         )}
@@ -1692,6 +1895,112 @@ function ZonaDetailContent({
             <Button onClick={handleSaveResultado} disabled={saving}>
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Guardar Resultado
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={showDropDialog} onOpenChange={(o) => { if (!o) { setShowDropDialog(false); setDropPairId(null); setDestinosMap({}); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Baja de Pareja</DialogTitle>
+            <DialogDescription>
+              {(() => {
+                const target = parejas.find(pp => pp.pareja_torneo_id === dropPairId);
+                const nombre = target ? `${target.j1_nombre} ${target.j1_apellido?.charAt(0)}. / ${target.j2_nombre} ${target.j2_apellido?.charAt(0)}.` : "";
+                return nombre ? `Se dará de baja: ${nombre}` : "";
+              })()}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            {parejas.length === 3 ? (
+              <>
+                <div className="grid gap-2">
+                  <Label>Acción</Label>
+                  <Select value={dropOption} onValueChange={(v: "vacante_final" | "reestructurar" | "organizar_3") => setDropOption(v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="vacante_final">Final entre las dos restantes</SelectItem>
+                      <SelectItem value="reestructurar">Reestructurar: mover las restantes a otras zonas</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {dropOption === "reestructurar" && (
+                  <div className="grid gap-3">
+                    {parejas.filter(pp => pp.pareja_torneo_id !== dropPairId).map(pp => (
+                      <div key={pp.pareja_torneo_id} className="grid gap-1">
+                        <Label className="text-xs">{pp.j1_nombre} {pp.j1_apellido?.charAt(0)}. / {pp.j2_nombre} {pp.j2_apellido?.charAt(0)}.</Label>
+                        <Select
+                          value={destinosMap[pp.pareja_torneo_id] || ""}
+                          onValueChange={(val) => setDestinosMap(prev => ({ ...prev, [pp.pareja_torneo_id]: val }))}
+                        >
+                          <SelectTrigger className="h-8"><SelectValue placeholder="Seleccionar zona destino" /></SelectTrigger>
+                          <SelectContent>
+                            {otherZonas.map(z => (
+                              <SelectItem key={z.id} value={z.id.toString()}>{z.nombre}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="p-3 rounded border bg-muted/30 text-sm">
+                  Al dar de baja, la zona quedará con 3 parejas y se reorganizarán los partidos y horarios.
+                </div>
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowDropDialog(false); setDropPairId(null); setDestinosMap({}); }}>Cancelar</Button>
+            <Button
+              onClick={async () => {
+                if (!dropPairId) return;
+                setSaving(true);
+                try {
+                  const body: any = { pareja_id: dropPairId };
+                  if (parejas.length === 3) {
+                    body.opcion = dropOption;
+                    if (dropOption === "reestructurar") {
+                      const otros = parejas.filter(pp => pp.pareja_torneo_id !== dropPairId);
+                      const map: Record<number, number> = {};
+                      for (const pp of otros) {
+                        const dest = destinosMap[pp.pareja_torneo_id];
+                        if (!dest) { alert("Selecciona zona destino para ambas parejas"); setSaving(false); return; }
+                        map[pp.pareja_torneo_id] = parseInt(dest);
+                      }
+                      body.destinos = map;
+                    }
+                  } else {
+                    body.opcion = "organizar_3";
+                  }
+                  const res = await fetch(`/api/admin/torneo/${torneoId}/zonas/${zona.id}/baja-pareja`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(body),
+                  });
+                  if (!res.ok) {
+                    const err = await res.json();
+                    alert(err.error || "Error al procesar baja");
+                  } else {
+                    setShowDropDialog(false);
+                    setDropPairId(null);
+                    setDestinosMap({});
+                    mutate();
+                    onUpdate();
+                  }
+                } catch {
+                  alert("Error al procesar baja");
+                } finally {
+                  setSaving(false);
+                }
+              }}
+              disabled={saving}
+            >
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Confirmar
             </Button>
           </DialogFooter>
         </DialogContent>
