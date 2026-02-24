@@ -154,7 +154,7 @@ export default function JugadoresAdminPage() {
           ? jugador.categoria_ids.split(',').map(Number).filter((n: number) => !isNaN(n) && n > 0)
           : Array.isArray(jugador.categoria_ids) ? jugador.categoria_ids : [])
       : (jugador.categoria_actual_id ? [jugador.categoria_actual_id] : [])
-    setRecatCatAnteriorId(catIds.length > 0 ? String(catIds[0]) : "")
+    setRecatCatAnteriorId(catIds.length > 0 ? String(catIds[0]) : "none")
     setRecatCatNuevaId("")
     setRecatTipo("ascenso")
     setRecatDialogOpen(true)
@@ -169,7 +169,7 @@ export default function JugadoresAdminPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           jugador_id: recatJugador.id,
-          categoria_anterior_id: recatCatAnteriorId ? Number(recatCatAnteriorId) : null,
+          categoria_anterior_id: (recatCatAnteriorId && recatCatAnteriorId !== "none") ? Number(recatCatAnteriorId) : null,
           categoria_nueva_id: Number(recatCatNuevaId),
           tipo: recatTipo,
         }),
@@ -509,7 +509,7 @@ export default function JugadoresAdminPage() {
                                 <SelectValue placeholder="Ninguna" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">Ninguna</SelectItem>
+                                <SelectItem value="none">Ninguna</SelectItem>
                                 {recatJugador?.categoria_ids && (
                                   Array.isArray(recatJugador.categoria_ids) 
                                     ? recatJugador.categoria_ids.map((id: number) => {
