@@ -88,10 +88,29 @@ export async function POST(
       const torneoInfo = await sql`
         SELECT formato_zona FROM fechas_torneo WHERE id = ${parseInt(id)}
       `;
-      const cap = parseInt(String(torneoInfo[0]?.formato_zona || 4), 10);
+      const baseCap = parseInt(String(torneoInfo[0]?.formato_zona || 4), 10);
       const currentCount = parseInt(countRes[0].count);
-      if (currentCount >= cap) {
-        return NextResponse.json({ error: `La zona ya tiene ${currentCount}/${cap} parejas` }, { status: 400 });
+      // Calcular capacidad permitida considerando distribución (permitir algunas zonas de 4 cuando base es 3)
+      let allowedCap = baseCap;
+      if (baseCap === 3) {
+        const zonasMismaCat = await sql`
+          SELECT z.id,
+                 (SELECT COUNT(*) FROM parejas_zona pz WHERE pz.zona_id = z.id) as parejas_count
+          FROM zonas z
+          WHERE z.fecha_torneo_id = ${parseInt(id)}
+            AND z.categoria_id = ${zona.categoria_id}
+            AND z.estado <> 'finalizada'
+        `;
+        const totalPairs = zonasMismaCat.reduce((acc: number, z: any) => acc + parseInt(z.parejas_count), 0);
+        const remainder = totalPairs % baseCap;
+        const zonesAt4 = zonasMismaCat.filter((z: any) => parseInt(z.parejas_count) === 4).length;
+        const canUpgradeTo4 = remainder > zonesAt4;
+        if (canUpgradeTo4 && currentCount < 4) {
+          allowedCap = 4;
+        }
+      }
+      if (currentCount >= allowedCap) {
+        return NextResponse.json({ error: `La zona ya tiene ${currentCount}/${allowedCap} parejas` }, { status: 400 });
       }
       await sql`
         INSERT INTO parejas_zona (zona_id, pareja_id, posicion_final)

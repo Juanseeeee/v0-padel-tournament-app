@@ -1385,6 +1385,9 @@ function ZonaDetailContent({
   const [showDropDialog, setShowDropDialog] = useState(false);
   const [dropOption, setDropOption] = useState<"vacante_final" | "reestructurar" | "organizar_3" | "traer_de_zona_4">("vacante_final");
   const [destinosMap, setDestinosMap] = useState<Record<number, string>>({});
+  const [traerZonaId, setTraerZonaId] = useState<string>("");
+  const [traerZonaPairs, setTraerZonaPairs] = useState<ParejaZona[]>([]);
+  const [traerParejaId, setTraerParejaId] = useState<string>("");
 
   // Fetch pairs when target zone changes
   useEffect(() => {
@@ -1403,6 +1406,23 @@ function ZonaDetailContent({
       })
       .catch(console.error);
   }, [moveTargetZona, torneoId]);
+  
+  // Fetch pairs for selected zona de 4 to bring from
+  useEffect(() => {
+    if (!traerZonaId) {
+      setTraerZonaPairs([]);
+      setTraerParejaId("");
+      return;
+    }
+    fetch(`/api/admin/torneo/${torneoId}/zonas/${traerZonaId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.parejas) {
+          setTraerZonaPairs(data.parejas);
+        }
+      })
+      .catch(console.error);
+  }, [traerZonaId, torneoId]);
 
   const handleSetChange = (field: string, value: string) => {
     if (value !== "" && !/^\d+$/.test(value)) return;
@@ -1600,6 +1620,7 @@ function ZonaDetailContent({
   const otherZonas = allZonas.filter(z => z.id !== zona.id && z.estado !== 'finalizada');
   const otherZonasCapaces = otherZonas.filter(z => (((z as any).parejas_count || 0) < formatoZona));
   const hasZona4Disponible = otherZonas.some(z => ((z as any).parejas_count || 0) === 4);
+  const zonasDe4 = otherZonas.filter(z => ((z as any).parejas_count || 0) === 4);
   const autoRebalanceCase = parejas.length === 3 && hasZona4Disponible;
 
   const partidosFinalizados = partidos.filter(p => p.estado === 'finalizado').length;
@@ -2010,6 +2031,38 @@ function ZonaDetailContent({
                         Se traerá una pareja desde una zona de 4 para que ambas queden en 3. No se exceden 4 parejas por zona.
                       </div>
                     )}
+                    {dropOption === "traer_de_zona_4" && (
+                      <div className="grid gap-3 mt-2">
+                        <div className="grid gap-2">
+                          <Label>Zona de 4 (origen)</Label>
+                          <Select value={traerZonaId} onValueChange={setTraerZonaId}>
+                            <SelectTrigger><SelectValue placeholder="Seleccionar zona de 4" /></SelectTrigger>
+                            <SelectContent>
+                              {zonasDe4.map(z => (
+                                <SelectItem key={z.id} value={z.id.toString()}>
+                                  {z.nombre} · {((z as any).parejas_count || 0)}/4
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {traerZonaId && (
+                          <div className="grid gap-2">
+                            <Label>Pareja a traer</Label>
+                            <Select value={traerParejaId} onValueChange={setTraerParejaId}>
+                              <SelectTrigger><SelectValue placeholder="Seleccionar pareja" /></SelectTrigger>
+                              <SelectContent>
+                                {traerZonaPairs.map(pp => (
+                                  <SelectItem key={pp.pareja_torneo_id} value={pp.pareja_torneo_id.toString()}>
+                                    {pp.j1_nombre} {pp.j1_apellido?.charAt(0)}. / {pp.j2_nombre} {pp.j2_apellido?.charAt(0)}.
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </>
                 )}
                 {!autoRebalanceCase && dropOption === "reestructurar" && (
@@ -2068,6 +2121,13 @@ function ZonaDetailContent({
                       }
                       if (dropOption === "traer_de_zona_4") {
                         body.opcion = "organizar_3";
+                        if (!traerZonaId || !traerParejaId) {
+                          toast({ title: "Selecciona zona y pareja", description: "Elegí la zona de 4 y la pareja a traer", variant: "destructive" });
+                          setSaving(false);
+                          return;
+                        }
+                        body.traer_zona_id = parseInt(traerZonaId);
+                        body.traer_pareja_id = parseInt(traerParejaId);
                       }
                     }
                   } else {
