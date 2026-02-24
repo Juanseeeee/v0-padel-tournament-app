@@ -1383,7 +1383,7 @@ function ZonaDetailContent({
   });
   const [dropPairId, setDropPairId] = useState<number | null>(null);
   const [showDropDialog, setShowDropDialog] = useState(false);
-  const [dropOption, setDropOption] = useState<"vacante_final" | "reestructurar" | "organizar_3">("vacante_final");
+  const [dropOption, setDropOption] = useState<"vacante_final" | "reestructurar" | "organizar_3" | "traer_de_zona_4">("vacante_final");
   const [destinosMap, setDestinosMap] = useState<Record<number, string>>({});
 
   // Fetch pairs when target zone changes
@@ -1995,14 +1995,20 @@ function ZonaDetailContent({
                 ) : (
                   <div className="grid gap-2">
                     <Label>Acción</Label>
-                    <Select value={dropOption} onValueChange={(v: "vacante_final" | "reestructurar" | "organizar_3") => setDropOption(v)}>
+                  <Select value={dropOption} onValueChange={(v: "vacante_final" | "reestructurar" | "organizar_3" | "traer_de_zona_4") => setDropOption(v)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="vacante_final">Final entre las dos restantes</SelectItem>
                         <SelectItem value="reestructurar">Reestructurar: mover las restantes a otras zonas</SelectItem>
+                      <SelectItem value="traer_de_zona_4">Traer una pareja de la zona de 4</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
+                {dropOption === "traer_de_zona_4" && (
+                  <div className="p-3 rounded border bg-muted/30 text-sm">
+                    Se traerá una pareja desde una zona de 4 para que ambas queden en 3. No se exceden 4 parejas por zona.
+                  </div>
+                )}
                 )}
                 {!autoRebalanceCase && dropOption === "reestructurar" && (
                   <div className="grid gap-3">
@@ -2057,6 +2063,9 @@ function ZonaDetailContent({
                         map[pp.pareja_torneo_id] = parseInt(dest);
                       }
                       body.destinos = map;
+                      }
+                      if (dropOption === "traer_de_zona_4") {
+                        body.opcion = "organizar_3";
                       }
                     }
                   } else {
