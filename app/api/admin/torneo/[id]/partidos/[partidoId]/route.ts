@@ -89,6 +89,58 @@ export async function PUT(
       WHERE id = ${parseInt(partidoId)}
     `;
 
+    // Actualizar partidos dependientes según formato de la zona
+    const tipoPartido = p.tipo_partido as string;
+    const zonaId = p.zona_id as number;
+    const perdedor_id = ganador_id === p.pareja1_id ? p.pareja2_id : (ganador_id === p.pareja2_id ? p.pareja1_id : null);
+
+    if (tipoPartido === 'inicial') {
+      // Zona de 3: setear participantes de los partidos siguientes
+      if (perdedor_id) {
+        await sql`
+          UPDATE partidos_zona
+          SET pareja1_id = ${perdedor_id}
+          WHERE zona_id = ${zonaId} AND tipo_partido = 'perdedor_vs_3'
+        `;
+      }
+      if (ganador_id) {
+        await sql`
+          UPDATE partidos_zona
+          SET pareja1_id = ${ganador_id}
+          WHERE zona_id = ${zonaId} AND tipo_partido = 'ganador_vs_3'
+        `;
+      }
+    }
+
+    if (tipoPartido === 'inicial_1' || tipoPartido === 'inicial_2') {
+      // Zona de 4: si ambos iniciales están finalizados, completar perdedores y ganadores
+      const [otroInicial] = await sql`
+        SELECT * FROM partidos_zona 
+        WHERE zona_id = ${zonaId} 
+          AND tipo_partido IN ('inicial_1', 'inicial_2')
+          AND tipo_partido != ${tipoPartido}
+          AND estado = 'finalizado'
+      `;
+
+      if (otroInicial) {
+        const ganador1 = tipoPartido === 'inicial_1' ? ganador_id : otroInicial.ganador_id;
+        const ganador2 = tipoPartido === 'inicial_2' ? ganador_id : otroInicial.ganador_id;
+        const perdedor1 = tipoPartido === 'inicial_1' ? perdedor_id : (otroInicial.pareja1_id === otroInicial.ganador_id ? otroInicial.pareja2_id : otroInicial.pareja1_id);
+        const perdedor2 = tipoPartido === 'inicial_2' ? perdedor_id : (otroInicial.pareja1_id === otroInicial.ganador_id ? otroInicial.pareja2_id : otroInicial.pareja1_id);
+
+        await sql`
+          UPDATE partidos_zona
+          SET pareja1_id = ${perdedor1}, pareja2_id = ${perdedor2}
+          WHERE zona_id = ${zonaId} AND tipo_partido = 'perdedores'
+        `;
+        await sql`
+          UPDATE partidos_zona
+          SET pareja1_id = ${ganador1}, pareja2_id = ${ganador2}
+          WHERE zona_id = ${zonaId} AND tipo_partido = 'ganadores'
+        `;
+      }
+    }
+
     await recalcularEstadisticasZona(p.zona_id);
 
     return NextResponse.json({ success: true });
