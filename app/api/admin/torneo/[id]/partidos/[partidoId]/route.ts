@@ -30,7 +30,6 @@ export async function PUT(
       return NextResponse.json({ success: true });
     }
 
-    // Validar si el partido ya está definido en 2 sets
     if (set1_p1 !== null && set1_p2 !== null && set2_p1 !== null && set2_p2 !== null) {
       const getSetWinner = (p1: number, p2: number) => {
         if (p1 >= 6 && p1 - p2 >= 2) return 1;
@@ -50,7 +49,6 @@ export async function PUT(
       }
     }
 
-    // Determinar ganador
     let setsP1 = 0;
     let setsP2 = 0;
     let gamesP1 = 0;
@@ -76,23 +74,21 @@ export async function PUT(
     }
 
     const ganador_id = setsP1 > setsP2 ? p.pareja1_id : setsP2 > setsP1 ? p.pareja2_id : null;
-    const completado = ganador_id !== null;
+    const estado = ganador_id !== null ? 'finalizado' : 'pendiente';
 
-    // Actualizar partido
     await sql`
       UPDATE partidos_zona SET
-        set1_p1 = ${set1_p1},
-        set1_p2 = ${set1_p2},
-        set2_p1 = ${set2_p1},
-        set2_p2 = ${set2_p2},
-        set3_p1 = ${set3_p1},
-        set3_p2 = ${set3_p2},
+        set1_pareja1 = ${set1_p1},
+        set1_pareja2 = ${set1_p2},
+        set2_pareja1 = ${set2_p1},
+        set2_pareja2 = ${set2_p2},
+        set3_pareja1 = ${set3_p1},
+        set3_pareja2 = ${set3_p2},
         ganador_id = ${ganador_id},
-        completado = ${completado}
+        estado = ${estado}
       WHERE id = ${parseInt(partidoId)}
     `;
 
-    // Recalcular estadísticas de la zona
     await recalcularEstadisticasZona(p.zona_id);
 
     return NextResponse.json({ success: true });
@@ -103,47 +99,45 @@ export async function PUT(
 }
 
 async function recalcularEstadisticasZona(zonaId: number) {
-  // Obtener todas las parejas de la zona
   const parejasZona = await sql`SELECT pareja_id FROM parejas_zona WHERE zona_id = ${zonaId}`;
 
   for (const pz of parejasZona) {
     const parejaId = pz.pareja_id;
 
-    // Contar partidos ganados/perdidos y sets
     const estadisticas = await sql`
       SELECT 
-        COUNT(*) FILTER (WHERE ganador_id = ${parejaId} AND completado = true) as ganados,
-        COUNT(*) FILTER (WHERE ganador_id != ${parejaId} AND ganador_id IS NOT NULL AND completado = true) as perdidos,
+        COUNT(*) FILTER (WHERE ganador_id = ${parejaId} AND estado = 'finalizado') as ganados,
+        COUNT(*) FILTER (WHERE ganador_id != ${parejaId} AND ganador_id IS NOT NULL AND estado = 'finalizado') as perdidos,
         COALESCE(SUM(CASE WHEN pareja1_id = ${parejaId} THEN 
-          (CASE WHEN set1_p1 > set1_p2 THEN 1 ELSE 0 END) +
-          (CASE WHEN set2_p1 > set2_p2 THEN 1 ELSE 0 END) +
-          (CASE WHEN set3_p1 IS NOT NULL AND set3_p1 > set3_p2 THEN 1 ELSE 0 END)
+          (CASE WHEN COALESCE(set1_pareja1, 0) > COALESCE(set1_pareja2, 0) THEN 1 ELSE 0 END) +
+          (CASE WHEN COALESCE(set2_pareja1, 0) > COALESCE(set2_pareja2, 0) THEN 1 ELSE 0 END) +
+          (CASE WHEN set3_pareja1 IS NOT NULL AND set3_pareja1 > set3_pareja2 THEN 1 ELSE 0 END)
         ELSE 
-          (CASE WHEN set1_p2 > set1_p1 THEN 1 ELSE 0 END) +
-          (CASE WHEN set2_p2 > set2_p1 THEN 1 ELSE 0 END) +
-          (CASE WHEN set3_p2 IS NOT NULL AND set3_p2 > set3_p1 THEN 1 ELSE 0 END)
+          (CASE WHEN COALESCE(set1_pareja2, 0) > COALESCE(set1_pareja1, 0) THEN 1 ELSE 0 END) +
+          (CASE WHEN COALESCE(set2_pareja2, 0) > COALESCE(set2_pareja1, 0) THEN 1 ELSE 0 END) +
+          (CASE WHEN set3_pareja2 IS NOT NULL AND set3_pareja2 > set3_pareja1 THEN 1 ELSE 0 END)
         END), 0) as sets_ganados,
         COALESCE(SUM(CASE WHEN pareja1_id = ${parejaId} THEN 
-          (CASE WHEN set1_p1 < set1_p2 THEN 1 ELSE 0 END) +
-          (CASE WHEN set2_p1 < set2_p2 THEN 1 ELSE 0 END) +
-          (CASE WHEN set3_p1 IS NOT NULL AND set3_p1 < set3_p2 THEN 1 ELSE 0 END)
+          (CASE WHEN COALESCE(set1_pareja1, 0) < COALESCE(set1_pareja2, 0) THEN 1 ELSE 0 END) +
+          (CASE WHEN COALESCE(set2_pareja1, 0) < COALESCE(set2_pareja2, 0) THEN 1 ELSE 0 END) +
+          (CASE WHEN set3_pareja1 IS NOT NULL AND set3_pareja1 < set3_pareja2 THEN 1 ELSE 0 END)
         ELSE 
-          (CASE WHEN set1_p2 < set1_p1 THEN 1 ELSE 0 END) +
-          (CASE WHEN set2_p2 < set2_p1 THEN 1 ELSE 0 END) +
-          (CASE WHEN set3_p2 IS NOT NULL AND set3_p2 < set3_p1 THEN 1 ELSE 0 END)
+          (CASE WHEN COALESCE(set1_pareja2, 0) < COALESCE(set1_pareja1, 0) THEN 1 ELSE 0 END) +
+          (CASE WHEN COALESCE(set2_pareja2, 0) < COALESCE(set2_pareja1, 0) THEN 1 ELSE 0 END) +
+          (CASE WHEN set3_pareja2 IS NOT NULL AND set3_pareja2 < set3_pareja1 THEN 1 ELSE 0 END)
         END), 0) as sets_perdidos,
         COALESCE(SUM(CASE WHEN pareja1_id = ${parejaId} THEN 
-          COALESCE(set1_p1, 0) + COALESCE(set2_p1, 0) + COALESCE(set3_p1, 0)
+          COALESCE(set1_pareja1, 0) + COALESCE(set2_pareja1, 0) + COALESCE(set3_pareja1, 0)
         ELSE 
-          COALESCE(set1_p2, 0) + COALESCE(set2_p2, 0) + COALESCE(set3_p2, 0)
+          COALESCE(set1_pareja2, 0) + COALESCE(set2_pareja2, 0) + COALESCE(set3_pareja2, 0)
         END), 0) as games_ganados,
         COALESCE(SUM(CASE WHEN pareja1_id = ${parejaId} THEN 
-          COALESCE(set1_p2, 0) + COALESCE(set2_p2, 0) + COALESCE(set3_p2, 0)
+          COALESCE(set1_pareja2, 0) + COALESCE(set2_pareja2, 0) + COALESCE(set3_pareja2, 0)
         ELSE 
-          COALESCE(set1_p1, 0) + COALESCE(set2_p1, 0) + COALESCE(set3_p1, 0)
+          COALESCE(set1_pareja1, 0) + COALESCE(set2_pareja1, 0) + COALESCE(set3_pareja1, 0)
         END), 0) as games_perdidos
       FROM partidos_zona
-      WHERE zona_id = ${zonaId} AND (pareja1_id = ${parejaId} OR pareja2_id = ${parejaId})
+      WHERE zona_id = ${zonaId} AND (pareja1_id = ${parejaId} OR pareja2_id = ${parejaId}) AND estado = 'finalizado'
     `;
 
     const stats = estadisticas[0];

@@ -20,7 +20,7 @@ export async function POST(
   if (ZID_ORIG === ZID_DEST) {
     if (accion === 'reordenar' && SWAP_ID) {
        // Verify matches played check
-       const partidosJugados = await sql`
+      const partidosJugados = await sql`
         SELECT COUNT(*) as count FROM partidos_zona
         WHERE zona_id = ${ZID_ORIG}
           AND (pareja1_id = ${PID} OR pareja2_id = ${PID} OR pareja1_id = ${SWAP_ID} OR pareja2_id = ${SWAP_ID})
@@ -45,16 +45,44 @@ export async function POST(
                          END
         WHERE zona_id = ${ZID_ORIG} AND estado = 'pendiente'
       `;
-      // Reflect swap in parejas_zona positions (so UI order/posición refleje el cambio)
-      await sql`
-        UPDATE parejas_zona
-        SET pareja_id = CASE
-                          WHEN pareja_id = ${PID} THEN ${SWAP_ID}
-                          WHEN pareja_id = ${SWAP_ID} THEN ${PID}
-                          ELSE pareja_id
-                        END
-        WHERE zona_id = ${ZID_ORIG}
+      // Reflect swap in parejas_zona avoiding unique constraint conflicts:
+      // Capture stats for both rows, delete one, update the other, then re-insert with captured stats.
+      const rows = await sql`
+        SELECT id, posicion_final, partidos_ganados, partidos_perdidos, sets_ganados, sets_perdidos, games_ganados, games_perdidos, pareja_id
+        FROM parejas_zona
+        WHERE zona_id = ${ZID_ORIG} AND pareja_id IN (${PID}, ${SWAP_ID})
       `;
+      if (rows.length !== 2) {
+        return NextResponse.json({ error: "Parejas a reordenar no encontradas en la zona" }, { status: 404 });
+      }
+      const rowA = rows.find((r: any) => r.pareja_id === PID);
+      const rowB = rows.find((r: any) => r.pareja_id === SWAP_ID);
+      // Begin transaction
+      await sql`BEGIN`;
+      try {
+        // Delete A to free unique slot
+        await sql`DELETE FROM parejas_zona WHERE zona_id = ${ZID_ORIG} AND pareja_id = ${PID}`;
+        // Update B to PID (keeps B stats with PID)
+        await sql`
+          UPDATE parejas_zona
+          SET pareja_id = ${PID}
+          WHERE zona_id = ${ZID_ORIG} AND pareja_id = ${SWAP_ID}
+        `;
+        // Re-insert A as SWAP_ID preserving A stats
+        await sql`
+          INSERT INTO parejas_zona (zona_id, pareja_id, posicion_final, partidos_ganados, partidos_perdidos, sets_ganados, sets_perdidos, games_ganados, games_perdidos)
+          VALUES (
+            ${ZID_ORIG}, ${SWAP_ID},
+            ${rowA.posicion_final}, ${rowA.partidos_ganados}, ${rowA.partidos_perdidos},
+            ${rowA.sets_ganados}, ${rowA.sets_perdidos}, ${rowA.games_ganados}, ${rowA.games_perdidos}
+          )
+        `;
+        await sql`COMMIT`;
+      } catch (e) {
+        await sql`ROLLBACK`;
+        console.error("Swap parejas_zona failed:", e);
+        return NextResponse.json({ error: "Error reordenando parejas en la zona" }, { status: 500 });
+      }
 
       return NextResponse.json({ success: true });
     }
@@ -132,7 +160,7 @@ export async function POST(
 
         // 2. Swap in partidos_zona (Update IDs directly to preserve matches)
         // Zone A: P1 -> P2 (Target)
-        await sql`
+          await sql`
             UPDATE partidos_zona
             SET pareja1_id = CASE WHEN pareja1_id = ${PID} THEN ${targetId} ELSE pareja1_id END,
                 pareja2_id = CASE WHEN pareja2_id = ${PID} THEN ${targetId} ELSE pareja2_id END
@@ -140,7 +168,7 @@ export async function POST(
         `;
 
         // Zone B: P2 (Target) -> P1
-        await sql`
+          await sql`
             UPDATE partidos_zona
             SET pareja1_id = CASE WHEN pareja1_id = ${targetId} THEN ${PID} ELSE pareja1_id END,
                 pareja2_id = CASE WHEN pareja2_id = ${targetId} THEN ${PID} ELSE pareja2_id END
