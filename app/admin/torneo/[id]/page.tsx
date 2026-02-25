@@ -1523,6 +1523,8 @@ function ZonasTab({
                       <TableRow>
                         <TableHead>#</TableHead>
                         <TableHead>Pareja</TableHead>
+                        <TableHead className="w-32">Partidos</TableHead>
+                        <TableHead className="w-20">Puntos</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1589,6 +1591,16 @@ function ZonasTab({
                         >
                           <TableCell>{idx + 1}</TableCell>
                           <TableCell>{p.j1_nombre} {p.j1_apellido?.charAt(0)}. / {p.j2_nombre} {p.j2_apellido?.charAt(0)}.</TableCell>
+                          <TableCell>
+                            <span className="text-xs">
+                              {(p.partidos_ganados || 0)}G / {(p.partidos_perdidos || 0)}P
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs px-2 py-0.5">
+                              {(p.partidos_ganados || 0)}
+                            </Badge>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
