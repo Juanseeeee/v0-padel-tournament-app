@@ -1222,6 +1222,37 @@ function ZonasTab({
 }) {
   const [selectedZona, setSelectedZona] = useState<Zona | null>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [zoneDetails, setZoneDetails] = useState<Record<number, { parejas: ParejaZona[]; partidos: PartidoZona[] }>>({});
+  const [draggingPair, setDraggingPair] = useState<number | null>(null);
+  const [hoverDropZoneId, setHoverDropZoneId] = useState<number | null>(null);
+  const [hoverDropPairId, setHoverDropPairId] = useState<number | null>(null);
+
+  const loadZoneDetails = useCallback(async () => {
+    if (!zonas || zonas.length === 0) return;
+    try {
+      const results = await Promise.all(
+        zonas.map((z) =>
+          fetch(`/api/admin/torneo/${torneoId}/zonas/${z.id}`).then((r) => r.json().catch(() => null))
+        )
+      );
+      const map: Record<number, { parejas: ParejaZona[]; partidos: PartidoZona[] }> = {};
+      results.forEach((res, idx) => {
+        const zid = zonas[idx].id;
+        if (res && res.parejas && res.partidos) {
+          map[zid] = { parejas: res.parejas, partidos: res.partidos };
+        } else {
+          map[zid] = { parejas: [], partidos: [] };
+        }
+      });
+      setZoneDetails(map);
+    } catch (e) {
+      console.error(e);
+    }
+  }, [zonas, torneoId]);
+
+  useEffect(() => {
+    loadZoneDetails();
+  }, [loadZoneDetails]);
 
   if (!categoriaId) {
     return (
@@ -1290,12 +1321,59 @@ function ZonasTab({
         )}
       </div>
       
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1">
         {zonas.map((zona) => (
           <Card 
             key={zona.id} 
-            className="cursor-pointer transition-all hover:scale-[1.02] border-0 shadow-lg hover:shadow-xl backdrop-blur-sm bg-white/50 dark:bg-black/50"
-            onClick={() => setSelectedZona(zona)}
+            className={`transition-all hover:scale-[1.02] border-0 shadow-lg hover:shadow-xl backdrop-blur-sm bg-white/50 dark:bg-black/50 ${hoverDropZoneId === zona.id ? 'ring-2 ring-primary' : ''}`}
+            onDragOver={(e) => e.preventDefault()}
+            onDragEnter={() => setHoverDropZoneId(zona.id)}
+            onDragLeave={() => {
+               // Solo limpiar si no estamos sobre una fila (difícil de saber aquí, mejor dejar que el enter de otro limpie o el drop)
+               // Pero para feedback visual, si salimos de la card deberíamos limpiar.
+               setHoverDropZoneId(null);
+            }}
+            onDrop={async (e) => {
+              const data = e.dataTransfer.getData("text/plain");
+              if (!data) return;
+              try {
+                const parsed = JSON.parse(data);
+                const { pareja_torneo_id, zona_origen_id } = parsed;
+                if (!pareja_torneo_id || !zona_origen_id || zona_origen_id === zona.id) return;
+                
+                setHoverDropZoneId(null);
+                
+                // Determinar acción basada en si la zona está llena
+                const pairs = zoneDetails[zona.id]?.parejas || [];
+                const isFull = pairs.length >= 4;
+                
+                // Si la zona está llena, intercambiamos con la última pareja para mantener estructura.
+                // Si hay espacio, movemos la pareja (agregamos), lo que regenerará partidos (necesario por cambio de formato).
+                const accion = isFull ? 'intercambiar' : 'mover';
+
+                const res = await fetch(`/api/admin/torneo/${torneoId}/zonas/mover-pareja`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    pareja_torneo_id,
+                    zona_origen_id,
+                    zona_destino_id: zona.id,
+                    pareja_intercambio_id: null,
+                    accion,
+                  }),
+                });
+                if (!res.ok) {
+                  const err = await res.json();
+                  toast({ title: "No se pudo mover la pareja", description: err.error || "Error al mover", variant: "destructive" });
+                } else {
+                  onZonaUpdate();
+                  // Update local state optimistic
+                  // (Omitted for brevity, waiting for refresh)
+                }
+              } catch {
+                return;
+              }
+            }}
           >
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center justify-between text-lg">
@@ -1309,13 +1387,264 @@ function ZonasTab({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Click para ver detalles y partidos
-              </p>
-              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                VIE {horaInicioViernes}hs | SAB {horaInicioSabado}hs
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Arrastrá una pareja entre tarjetas para moverla
+                </p>
+                <Button variant="ghost" size="sm" onClick={() => setSelectedZona(zona)}>Ver más</Button>
+              </div>
+              <div className="grid grid-cols-1 gap-4 mt-2">
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setHoverDropZoneId(zona.id);
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                    setHoverDropZoneId(null);
+                  }}
+                  onDrop={async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setHoverDropZoneId(null);
+                    const data = e.dataTransfer.getData("text/plain");
+                    if (!data) return;
+                    try {
+                        const parsed = JSON.parse(data);
+                        const { pareja_torneo_id, zona_origen_id } = parsed;
+                        if (!pareja_torneo_id || !zona_origen_id) return;
+                        
+                        // Si se suelta en la misma zona pero no sobre una fila, no hacemos nada (o podríamos mover al final)
+                        if (zona_origen_id === zona.id) return; 
+
+                        // Intentar mover (si hay lugar) o intercambiar con la última si está llena?
+                        // Por ahora, mover simple. Si está llena dará error y el usuario deberá soltar sobre una pareja para intercambiar.
+                        // EXCEPTO si la zona está vacía, este es el único lugar donde soltar.
+                        
+                        const res = await fetch(`/api/admin/torneo/${torneoId}/zonas/mover-pareja`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                            pareja_torneo_id,
+                            zona_origen_id,
+                            zona_destino_id: zona.id,
+                            }),
+                        });
+                        if (!res.ok) {
+                            const err = await res.json();
+                            toast({ title: "No se pudo mover", description: err.error, variant: "destructive" });
+                        } else {
+                            onZonaUpdate();
+                            loadZoneDetails();
+                        }
+                    } catch {}
+                  }}
+                  className={`rounded-md transition-colors ${hoverDropZoneId === zona.id ? 'bg-muted/50' : ''}`}
+                >
+                  <h4 className="mb-2 font-semibold text-sm">Parejas</h4>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>#</TableHead>
+                        <TableHead>Pareja</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(zoneDetails[zona.id]?.parejas || []).map((p, idx) => (
+                        <TableRow key={p.pareja_torneo_id}
+                          draggable
+                          onDragStart={(e) => {
+                            setDraggingPair(p.pareja_torneo_id);
+                            e.dataTransfer.effectAllowed = "move";
+                            e.dataTransfer.setData("text/plain", JSON.stringify({ pareja_torneo_id: p.pareja_torneo_id, zona_origen_id: zona.id }));
+                          }}
+                          onDragEnd={() => setDraggingPair(null)}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }}
+                          onDragEnter={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setHoverDropPairId(p.pareja_torneo_id);
+                            setHoverDropZoneId(zona.id);
+                          }}
+                          onDragLeave={(e) => {
+                             // Optional: clear hover if leaving row
+                          }}
+                          onDrop={async (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const data = e.dataTransfer.getData("text/plain");
+                            if (!data) return;
+                            try {
+                                const parsed = JSON.parse(data);
+                                const { pareja_torneo_id, zona_origen_id } = parsed;
+                                if (!pareja_torneo_id || !zona_origen_id) return;
+                                
+                                if (pareja_torneo_id === p.pareja_torneo_id) return;
+                        
+                                setHoverDropZoneId(null);
+                                setHoverDropPairId(null);
+                        
+                                const accion = zona_origen_id === zona.id ? 'reordenar' : 'intercambiar';
+                                
+                                const res = await fetch(`/api/admin/torneo/${torneoId}/zonas/mover-pareja`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                    pareja_torneo_id,
+                                    zona_origen_id,
+                                    zona_destino_id: zona.id,
+                                    pareja_intercambio_id: p.pareja_torneo_id,
+                                    accion,
+                                    }),
+                                });
+                                if (!res.ok) {
+                                    const err = await res.json();
+                                    toast({ title: "No se pudo mover la pareja", description: err.error || "Error al mover", variant: "destructive" });
+                                } else {
+                                    onZonaUpdate();
+                                    loadZoneDetails();
+                                }
+                            } catch {}
+                          }}
+                          className={`cursor-grab active:cursor-grabbing ${draggingPair === p.pareja_torneo_id ? 'opacity-60' : ''} ${hoverDropPairId === p.pareja_torneo_id ? 'bg-primary/20' : ''}`}
+                        >
+                          <TableCell>{idx + 1}</TableCell>
+                          <TableCell>{p.j1_nombre} {p.j1_apellido?.charAt(0)}. / {p.j2_nombre} {p.j2_apellido?.charAt(0)}.</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                <div>
+                  <h4 className="mb-2 font-semibold text-sm">Partidos</h4>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Dia</TableHead>
+                        <TableHead>Hora</TableHead>
+                        <TableHead>Cancha</TableHead>
+                        <TableHead></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(zoneDetails[zona.id]?.partidos || []).map((m) => (
+                        <TableRow key={m.id}>
+                          <TableCell>
+                            {(() => {
+                              const len = (zoneDetails[zona.id]?.parejas || []).length;
+                              if (len === 4) {
+                                if (m.tipo_partido === "inicial_1") return "1 VS 2";
+                                if (m.tipo_partido === "inicial_2") return "3 VS 4";
+                                if (m.tipo_partido === "perdedores") return "P VS P";
+                                if (m.tipo_partido === "ganadores") return "G VS G";
+                              } else if (len === 3) {
+                                if (m.tipo_partido === "inicial" || m.tipo_partido === "incial" || m.tipo_partido === "inicial_1") return "1 VS 2";
+                                if (m.tipo_partido === "perdedor_vs_3" || m.tipo_partido === "perderdor_vs_3" || m.tipo_partido === "perdedores") return "P VS 3";
+                                if (m.tipo_partido === "ganador_vs_3" || m.tipo_partido === "ganadores") return "G VS 3";
+                              }
+                              return m.tipo_partido;
+                            })()}
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              key={`${m.id}-${m.dia_partido}`}
+                              value={(m.dia_partido as any) || ""}
+                              onValueChange={async (val) => {
+                                const res = await fetch(`/api/admin/torneo/${torneoId}/partidos/${m.id}`, {
+                                  method: "PUT",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ dia_partido: val }),
+                                });
+                                if (res.ok) {
+                                  setZoneDetails((prev) => {
+                                    const curr = prev[zona.id];
+                                    if (!curr) return prev;
+                                    return {
+                                      ...prev,
+                                      [zona.id]: {
+                                        parejas: curr.parejas,
+                                        partidos: curr.partidos.map((pm) => pm.id === m.id ? { ...pm, dia_partido: val } as any : pm),
+                                      },
+                                    };
+                                  });
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="h-8"><SelectValue placeholder="Día" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="viernes">Viernes</SelectItem>
+                                <SelectItem value="sabado">Sábado</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              key={`${m.id}-${m.fecha_hora_programada}`}
+                              defaultValue={m.fecha_hora_programada || ""}
+                              onBlur={async (e) => {
+                                const val = e.target.value;
+                                await fetch(`/api/admin/torneo/${torneoId}/partidos/${m.id}`, {
+                                  method: "PUT",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ fecha_hora_programada: val }),
+                                });
+                                setZoneDetails((prev) => {
+                                  const curr = prev[zona.id];
+                                  if (!curr) return prev;
+                                  return {
+                                    ...prev,
+                                    [zona.id]: {
+                                      parejas: curr.parejas,
+                                      partidos: curr.partidos.map((pm) => pm.id === m.id ? { ...pm, fecha_hora_programada: val } as any : pm),
+                                    },
+                                  };
+                                });
+                              }}
+                              className="h-8"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              key={`${m.id}-${m.cancha_numero}`}
+                              defaultValue={m.cancha_numero || ""}
+                              onBlur={async (e) => {
+                                const val = e.target.value ? parseInt(e.target.value) : null;
+                                await fetch(`/api/admin/torneo/${torneoId}/partidos/${m.id}`, {
+                                  method: "PUT",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ cancha_numero: val }),
+                                });
+                                setZoneDetails((prev) => {
+                                  const curr = prev[zona.id];
+                                  if (!curr) return prev;
+                                  return {
+                                    ...prev,
+                                    [zona.id]: {
+                                      parejas: curr.parejas,
+                                      partidos: curr.partidos.map((pm) => pm.id === m.id ? { ...pm, cancha_numero: val } as any : pm),
+                                    },
+                                  };
+                                });
+                              }}
+                              className="h-8"
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="outline" size="sm" onClick={() => setSelectedZona(zona)}>Editar</Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
             </CardContent>
           </Card>
         ))}

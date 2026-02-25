@@ -7,7 +7,7 @@ export async function PUT(
 ) {
   const { partidoId } = await params;
   const body = await request.json();
-  const { set1_p1, set1_p2, set2_p1, set2_p2, set3_p1, set3_p2 } = body;
+  const { set1_p1, set1_p2, set2_p1, set2_p2, set3_p1, set3_p2, dia_partido, cancha_numero, fecha_hora_programada, orden_partido } = body as any;
 
   try {
     // Obtener datos del partido
@@ -17,6 +17,18 @@ export async function PUT(
     }
 
     const p = partido[0];
+
+    if (dia_partido !== undefined || cancha_numero !== undefined || fecha_hora_programada !== undefined || orden_partido !== undefined) {
+      await sql`
+        UPDATE partidos_zona SET
+          dia_partido = ${dia_partido ?? p.dia_partido},
+          cancha_numero = ${cancha_numero ?? p.cancha_numero},
+          fecha_hora_programada = ${fecha_hora_programada ?? p.fecha_hora_programada},
+          orden_partido = ${orden_partido ?? p.orden_partido}
+        WHERE id = ${parseInt(partidoId)}
+      `;
+      return NextResponse.json({ success: true });
+    }
 
     // Validar si el partido ya está definido en 2 sets
     if (set1_p1 !== null && set1_p2 !== null && set2_p1 !== null && set2_p2 !== null) {
