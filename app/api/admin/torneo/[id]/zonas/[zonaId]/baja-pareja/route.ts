@@ -11,10 +11,14 @@ export async function POST(
     pareja_id,
     opcion,
     destinos, // { [parejaId]: zonaDestinoId } for reestructurar
+    traer_zona_id, // zona de 4 desde la cual traer
+    traer_pareja_id, // pareja específica a traer desde zona de 4
   } = body as {
     pareja_id: number;
     opcion: "vacante_final" | "reestructurar" | "organizar_3";
     destinos?: Record<number, number>;
+    traer_zona_id?: number;
+    traer_pareja_id?: number;
   };
 
   if (!pareja_id || !opcion) {
@@ -48,9 +52,10 @@ export async function POST(
     const ids = restantes.map((r: any) => r.pareja_id);
     const beforeCount = ids.length + 1;
 
-    // Auto-rebalance rule:
+    // Auto-rebalance or guided bring-from-4 rule:
     // Si la zona era de 3 y queda en 2, y existe alguna otra zona de 4 en el mismo torneo/categoría,
     // traer una pareja de esa zona de 4 para que ambas queden de 3.
+    // Si el cliente envía traer_zona_id y traer_pareja_id, usar esa pareja específica.
     if (beforeCount === 3 && ids.length === 2) {
       const zonasMismaCat = await sql`
         SELECT z.id,
@@ -64,24 +69,50 @@ export async function POST(
       const zonaDe4 = zonasMismaCat.find((z: any) => parseInt(z.parejas_count) === 4);
 
       if (zonaDe4) {
-        const z4Id = zonaDe4.id;
-        // Buscar una pareja candidata sin partidos finalizados en la zona de 4
-        const candidatas = await sql`
-          SELECT pz.pareja_id
-          FROM parejas_zona pz
-          WHERE pz.zona_id = ${z4Id}
-            AND NOT EXISTS (
-              SELECT 1 FROM partidos_zona p
-              WHERE p.zona_id = ${z4Id}
-                AND (p.pareja1_id = pz.pareja_id OR p.pareja2_id = pz.pareja_id)
-                AND p.estado = 'finalizado'
-            )
-          LIMIT 1
-        `;
-        if (candidatas.length === 0) {
-          return NextResponse.json({ error: "No se puede reequilibrar: todas las parejas de la zona de 4 tienen partidos finalizados" }, { status: 400 });
+        const z4Id = traer_zona_id || zonaDe4.id;
+        // Validar que la zona elegida sea realmente de 4
+        const z4Info = zonasMismaCat.find((z: any) => z.id === z4Id);
+        if (!z4Info || parseInt(z4Info.parejas_count) !== 4) {
+          return NextResponse.json({ error: "La zona seleccionada no es una zona de 4" }, { status: 400 });
         }
-        const parejaMover = candidatas[0].pareja_id;
+        let parejaMover: number | null = null;
+        if (traer_pareja_id) {
+          // Validar que la pareja seleccionada pertenece a la zona de 4 y que no tenga partidos finalizados
+          const valida = await sql`
+            SELECT pz.pareja_id
+            FROM parejas_zona pz
+            WHERE pz.zona_id = ${z4Id}
+              AND pz.pareja_id = ${traer_pareja_id}
+              AND NOT EXISTS (
+                SELECT 1 FROM partidos_zona p
+                WHERE p.zona_id = ${z4Id}
+                  AND (p.pareja1_id = ${traer_pareja_id} OR p.pareja2_id = ${traer_pareja_id})
+                  AND p.estado = 'finalizado'
+              )
+          `;
+          if (valida.length === 0) {
+            return NextResponse.json({ error: "La pareja seleccionada no es elegible para mover (tiene partidos finalizados o no pertenece a la zona)" }, { status: 400 });
+          }
+          parejaMover = traer_pareja_id;
+        } else {
+          // Buscar una pareja candidata sin partidos finalizados en la zona de 4 (auto)
+          const candidatas = await sql`
+            SELECT pz.pareja_id
+            FROM parejas_zona pz
+            WHERE pz.zona_id = ${z4Id}
+              AND NOT EXISTS (
+                SELECT 1 FROM partidos_zona p
+                WHERE p.zona_id = ${z4Id}
+                  AND (p.pareja1_id = pz.pareja_id OR p.pareja2_id = pz.pareja_id)
+                  AND p.estado = 'finalizado'
+              )
+            LIMIT 1
+          `;
+          if (candidatas.length === 0) {
+            return NextResponse.json({ error: "No se puede reequilibrar: todas las parejas de la zona de 4 tienen partidos finalizados" }, { status: 400 });
+          }
+          parejaMover = candidatas[0].pareja_id;
+        }
 
         // Remover de la zona de 4 y limpiar pendientes de esa pareja
         await sql`DELETE FROM parejas_zona WHERE zona_id = ${z4Id} AND pareja_id = ${parejaMover}`;
@@ -188,6 +219,9 @@ export async function POST(
         }
       }
     }
+
+    // Eliminar del listado de inscriptas del torneo la pareja dada de baja
+    await sql`DELETE FROM parejas_torneo WHERE id = ${pareja_id}`;
 
     // Regenerate round-robin matches for origin zone if it still has 3+ and opcion not reestructurar
     if (opcion !== "reestructurar") {
