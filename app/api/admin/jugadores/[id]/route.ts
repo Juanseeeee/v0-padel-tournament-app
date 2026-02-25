@@ -11,7 +11,11 @@ export async function GET(
       SELECT j.*, 
         COALESCE(pc.total_puntos, 0) as puntos_totales,
         jc.cat_names as categorias_nombres,
-        jc.cat_ids as categoria_ids
+        jc.cat_ids as categoria_ids,
+        u.id as usuario_id,
+        u.email as usuario_email,
+        u.dni as usuario_dni,
+        u.telefono as usuario_telefono
       FROM jugadores j
       LEFT JOIN (
         SELECT jugador_id, SUM(puntos_acumulados) as total_puntos
@@ -26,6 +30,7 @@ export async function GET(
         JOIN categorias c ON c.id = jc2.categoria_id
         GROUP BY jc2.jugador_id
       ) jc ON jc.jugador_id = j.id
+      LEFT JOIN usuarios u ON u.jugador_id = j.id
       WHERE j.id = ${id}
     `
     if (result.length === 0) {
@@ -45,7 +50,7 @@ export async function PUT(
   const { id } = await params
   try {
     const body = await request.json()
-    const { nombre, apellido, localidad, genero, categoria_actual_id, categoria_ids, estado } = body
+    const { nombre, apellido, localidad, genero, categoria_actual_id, categoria_ids, estado, telefono } = body
 
     const result = await sql`
       UPDATE jugadores 
@@ -77,6 +82,15 @@ export async function PUT(
       }
     }
     
+    // Update user's phone if exists and provided
+    if (telefono !== undefined) {
+      await sql`
+        UPDATE usuarios
+        SET telefono = ${telefono}
+        WHERE jugador_id = ${id}
+      `
+    }
+    
     return NextResponse.json({ jugador: result[0] })
   } catch (error) {
     console.error('Error updating jugador:', error)
@@ -96,10 +110,12 @@ export async function DELETE(
     
     if (Number(participaciones[0]?.count) > 0) {
       await sql`UPDATE jugadores SET estado = 'inactivo' WHERE id = ${id}`
+      await sql`DELETE FROM usuarios WHERE jugador_id = ${id}`
       return NextResponse.json({ success: true, message: 'Jugador marcado como inactivo' })
     }
     
     await sql`DELETE FROM jugador_categorias WHERE jugador_id = ${id}`
+    await sql`DELETE FROM usuarios WHERE jugador_id = ${id}`
     await sql`DELETE FROM jugadores WHERE id = ${id}`
     return NextResponse.json({ success: true })
   } catch (error) {

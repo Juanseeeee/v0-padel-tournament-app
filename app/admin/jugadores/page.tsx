@@ -45,6 +45,7 @@ export default function JugadoresAdminPage() {
     nombre: "",
     apellido: "",
     localidad: "",
+    telefono: "",
     genero: "masculino",
     categoria_ids: [] as number[],
     estado: "activo" as "activo" | "inactivo",
@@ -119,6 +120,7 @@ export default function JugadoresAdminPage() {
       nombre: jugador.nombre,
       apellido: jugador.apellido,
       localidad: jugador.localidad || "",
+      telefono: jugador.usuario_telefono || "",
       genero: jugador.genero,
       categoria_ids: catIds,
       estado: jugador.estado,
@@ -393,6 +395,30 @@ export default function JugadoresAdminPage() {
             </DialogHeader>
             <form onSubmit={handleSubmit}>
               <div className="grid gap-4 py-4">
+            {editingJugador?.usuario_id ? (
+              <div className="rounded-xl border border-border p-3 bg-muted/30">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="grid gap-1">
+                    <Label>Email</Label>
+                    <Input value={editingJugador.usuario_email || ""} readOnly className="rounded-xl bg-muted/20" />
+                  </div>
+                  <div className="grid gap-1">
+                    <Label>DNI</Label>
+                    <Input value={editingJugador.usuario_dni || ""} readOnly className="rounded-xl bg-muted/20" />
+                  </div>
+                  <div className="grid gap-1">
+                    <Label>Teléfono</Label>
+                    <Input
+                      value={formData.telefono}
+                      onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                      className="rounded-xl"
+                      placeholder="Ej: 2477-401234"
+                    />
+                  </div>
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">Datos ingresados por el jugador al registrarse</p>
+              </div>
+            ) : null}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label htmlFor="nombre">Nombre *</Label>

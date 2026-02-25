@@ -29,20 +29,49 @@ export async function POST(request: Request) {
 
     const passwordHash = await hashPassword(password);
 
-    // Create jugador first
-    const jugadores = await sql`
-      INSERT INTO jugadores (nombre, apellido, localidad, estado, categoria_actual_id, puntos_totales)
-      VALUES (${nombre.toUpperCase()}, ${apellido.toUpperCase()}, ${localidad || null}, 'activo', ${categoria_id}, 0)
-      RETURNING id
+    // Try to find an existing jugador created por admin (sin usuario) por nombre y apellido
+    const existingJugador = await sql`
+      SELECT j.id
+      FROM jugadores j
+      LEFT JOIN usuarios u ON u.jugador_id = j.id
+      WHERE UPPER(j.nombre) = ${nombre.toUpperCase()}
+        AND UPPER(j.apellido) = ${apellido.toUpperCase()}
+        AND u.id IS NULL
+      ORDER BY j.created_at ASC
+      LIMIT 1
     `;
-    const jugadorId = jugadores[0].id;
-
-    // Link to category
-    await sql`
-      INSERT INTO jugador_categorias (jugador_id, categoria_id)
-      VALUES (${jugadorId}, ${categoria_id})
-      ON CONFLICT DO NOTHING
-    `;
+    let jugadorId: number;
+    if (existingJugador.length > 0) {
+      jugadorId = existingJugador[0].id;
+      // Completar datos del jugador existente
+      await sql`
+        UPDATE jugadores
+        SET localidad = ${localidad || null},
+            estado = 'activo',
+            categoria_actual_id = ${categoria_id}
+        WHERE id = ${jugadorId}
+      `;
+      // Vincular a categoría si no existe aún
+      await sql`
+        INSERT INTO jugador_categorias (jugador_id, categoria_id)
+        VALUES (${jugadorId}, ${categoria_id})
+        ON CONFLICT DO NOTHING
+      `;
+    } else {
+      // Crear jugador nuevo
+      const jugadores = await sql`
+        INSERT INTO jugadores (nombre, apellido, localidad, estado, categoria_actual_id, puntos_totales)
+        VALUES (${nombre.toUpperCase()}, ${apellido.toUpperCase()}, ${localidad || null}, 'activo', ${categoria_id}, 0)
+        RETURNING id
+      `;
+      jugadorId = jugadores[0].id;
+      // Link to category
+      await sql`
+        INSERT INTO jugador_categorias (jugador_id, categoria_id)
+        VALUES (${jugadorId}, ${categoria_id})
+        ON CONFLICT DO NOTHING
+      `;
+    }
 
     // Create user account linked to jugador
     const users = await sql`
