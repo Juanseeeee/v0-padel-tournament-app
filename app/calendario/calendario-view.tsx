@@ -10,8 +10,13 @@ import { Calendar as MonthCalendar } from "@/components/ui/calendar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar as CalendarIcon, Clock, MapPin, ArrowRight, Users } from "lucide-react"
 
+function parseLocalDate(dateString: string) {
+  const [y, m, d] = dateString.split("-").map(Number)
+  return new Date(y, (m || 1) - 1, d || 1)
+}
+
 function formatLongDate(dateString: string) {
-  return new Date(dateString).toLocaleDateString("es-AR", {
+  return parseLocalDate(dateString).toLocaleDateString("es-AR", {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -20,7 +25,7 @@ function formatLongDate(dateString: string) {
 }
 
 function formatShortDate(dateString: string) {
-  return new Date(dateString).toLocaleDateString("es-AR", {
+  return parseLocalDate(dateString).toLocaleDateString("es-AR", {
     day: "numeric",
     month: "short",
   })
@@ -36,7 +41,7 @@ function getEstadoBadge(estado: FechaTorneo["estado"]) {
 }
 
 function DatePill({ dateString, muted }: { dateString: string; muted?: boolean }) {
-  const date = new Date(dateString)
+  const date = parseLocalDate(dateString)
   const day = date.getDate()
   const month = date.toLocaleDateString("es-AR", { month: "short" })
 
@@ -69,7 +74,7 @@ export function CalendarioView({
 
     for (const f of all) {
       if (!f?.fecha_calendario) continue
-      const d = new Date(f.fecha_calendario)
+      const d = parseLocalDate(f.fecha_calendario)
       d.setHours(12, 0, 0, 0)
       const key = d.toDateString()
       const estado = String((f as any).estado || "programada")
@@ -195,7 +200,7 @@ export function CalendarioView({
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {proximasFechas
                 .slice()
-                .sort((a, b) => new Date(a.fecha_calendario).getTime() - new Date(b.fecha_calendario).getTime())
+                .sort((a, b) => parseLocalDate(a.fecha_calendario).getTime() - parseLocalDate(b.fecha_calendario).getTime())
                 .map((fecha) => {
                   const badge = getEstadoBadge(fecha.estado)
                   return (
@@ -257,7 +262,7 @@ export function CalendarioView({
             <div className="space-y-3">
               {fechasPasadas
                 .slice()
-                .sort((a, b) => new Date(b.fecha_calendario).getTime() - new Date(a.fecha_calendario).getTime())
+                .sort((a, b) => parseLocalDate(b.fecha_calendario).getTime() - parseLocalDate(a.fecha_calendario).getTime())
                 .map((fecha) => {
                   const badge = getEstadoBadge(fecha.estado)
                   return (

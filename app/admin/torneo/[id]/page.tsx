@@ -572,12 +572,16 @@ export default function TorneoManagementPage() {
   return (
     <AdminWrapper
       title={`Fecha ${torneo.numero_fecha}`}
-      description={`${new Date(torneo.fecha_calendario).toLocaleDateString("es-AR", {
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })} - ${torneo.sede}`}
+      description={`${(() => {
+        const [y, m, d] = String(torneo.fecha_calendario).split("-").map(Number);
+        const fechaLocal = new Date(y, (m || 1) - 1, d || 1);
+        return fechaLocal.toLocaleDateString("es-AR", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+      })()} - ${torneo.sede}`}
       headerActions={
         <div className="flex items-center gap-2">
           <Badge
@@ -1393,9 +1397,36 @@ function ZonasTab({
                     return <span className="ml-2 text-xs text-muted-foreground">Inicio: {dia} {hora}{cancha}</span>;
                   })()}
                 </span>
-                <Badge variant={zona.estado === 'finalizada' ? 'default' : 'secondary'}>
-                  {zona.estado === 'finalizada' ? 'Cerrada' : 'En juego'}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant={zona.estado === 'finalizada' ? 'default' : 'secondary'}>
+                    {zona.estado === 'finalizada' ? 'Cerrada' : 'En juego'}
+                  </Badge>
+                  {(() => {
+                    const ps = (zoneDetails[zona.id]?.partidos || []);
+                    const pueden = ps.filter(p => p.pareja1_id && p.pareja2_id).length;
+                    const fin = ps.filter(p => p.estado === 'finalizado').length;
+                    const canClose = zona.estado !== 'finalizada' && pueden > 0 && fin === pueden;
+                    return canClose ? (
+                      <Button
+                        size="sm"
+                        onClick={async () => {
+                          const res = await fetch(`/api/admin/torneo/${torneoId}/zonas/${zona.id}`, {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ estado: 'finalizada' }),
+                          });
+                          if (res.ok) {
+                            onZonaUpdate();
+                          } else {
+                            toast({ title: "Error", description: "No se pudo cerrar la zona", variant: "destructive" });
+                          }
+                        }}
+                      >
+                        Cerrar Zona
+                      </Button>
+                    ) : null;
+                  })()}
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -1541,6 +1572,8 @@ function ZonasTab({
                         <TableHead>Dia</TableHead>
                         <TableHead>Hora</TableHead>
                         <TableHead>Cancha</TableHead>
+                        <TableHead>Ganador</TableHead>
+                        <TableHead>Resultado</TableHead>
                         <TableHead></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1647,21 +1680,43 @@ function ZonasTab({
                               className="h-8"
                             />
                           </TableCell>
+                          <TableCell>
+                            {m.estado === 'finalizado' && m.ganador_id ? (
+                              <span className="text-primary font-semibold">
+                                {(() => {
+                                  const ps = (zoneDetails[zona.id]?.parejas || []);
+                                  const w = ps.find(p => p.pareja_torneo_id === m.ganador_id);
+                                  return w ? `${w.j1_nombre} ${w.j1_apellido?.charAt(0)}. / ${w.j2_nombre} ${w.j2_apellido?.charAt(0)}.` : "—";
+                                })()}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {m.estado === 'finalizado' ? (
+                              <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
+                                {m.set1_pareja1}-{m.set1_pareja2} / {m.set2_pareja1}-{m.set2_pareja2}
+                                {(m.set3_pareja1 !== null && m.set3_pareja2 !== null) ? ` / ${m.set3_pareja1}-${m.set3_pareja2}` : ""}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">vs</span>
+                            )}
+                          </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
                               <Button variant="default" size="sm" onClick={() => {
                                 setResPartido(m);
                                 setResultadoZ({
-                                  set1_p1: m.set1_p1?.toString() || "",
-                                  set1_p2: m.set1_p2?.toString() || "",
-                                  set2_p1: m.set2_p1?.toString() || "",
-                                  set2_p2: m.set2_p2?.toString() || "",
-                                  set3_p1: m.set3_p1?.toString() || "",
-                                  set3_p2: m.set3_p2?.toString() || "",
+                                  set1_p1: m.set1_pareja1?.toString() || "",
+                                  set1_p2: m.set1_pareja2?.toString() || "",
+                                  set2_p1: m.set2_pareja1?.toString() || "",
+                                  set2_p2: m.set2_pareja2?.toString() || "",
+                                  set3_p1: m.set3_pareja1?.toString() || "",
+                                  set3_p2: m.set3_pareja2?.toString() || "",
                                 });
                                 setShowResDialog(true);
                               }}>Resultado</Button>
-                              <Button variant="outline" size="sm" onClick={() => setSelectedZona(zona)}>Editar</Button>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -1751,13 +1806,13 @@ function ZonasTab({
                     if (v !== "" && !/^\d+$/.test(v)) return;
                     if (v !== "" && parseInt(v) > (modalidad === '2_sets_6_tiebreak' ? 30 : 7)) return;
                     setResultadoZ(prev => ({ ...prev, set3_p1: v }));
-                  }} />
+                  }} disabled={isMatchDecided(resultadoZ)} />
                   <Input type="number" min="0" max={modalidad === '2_sets_6_tiebreak' ? 30 : 7} className="col-span-2" placeholder="P2 (opcional)" value={resultadoZ.set3_p2} onChange={(e) => {
                     const v = e.target.value;
                     if (v !== "" && !/^\d+$/.test(v)) return;
                     if (v !== "" && parseInt(v) > (modalidad === '2_sets_6_tiebreak' ? 30 : 7)) return;
                     setResultadoZ(prev => ({ ...prev, set3_p2: v }));
-                  }} />
+                  }} disabled={isMatchDecided(resultadoZ)} />
                 </div>
               </>
             )}
@@ -1780,9 +1835,45 @@ function ZonasTab({
                 body: JSON.stringify(body),
               });
               if (res.ok) {
+                // Optimistic UI update: reflejar resultado y ganador en zoneDetails
+                setZoneDetails((prev) => {
+                  const curr = prev[resPartido.zona_id!];
+                  if (!curr) return prev;
+                  // Calcular ganador localmente
+                  let setsP1 = 0; let setsP2 = 0;
+                  const s1p1 = body.set1_p1, s1p2 = body.set1_p2;
+                  const s2p1 = body.set2_p1, s2p2 = body.set2_p2;
+                  const s3p1 = body.set3_p1, s3p2 = body.set3_p2;
+                  if (s1p1 !== null && s1p2 !== null) { if (s1p1 > s1p2) setsP1++; else if (s1p2 > s1p1) setsP2++; }
+                  if (s2p1 !== null && s2p2 !== null) { if (s2p1 > s2p2) setsP1++; else if (s2p2 > s2p1) setsP2++; }
+                  if (s3p1 !== null && s3p2 !== null) { if (s3p1 > s3p2) setsP1++; else if (s3p2 > s3p1) setsP2++; }
+                  const ganador_id = setsP1 > setsP2 ? resPartido.pareja1_id : (setsP2 > setsP1 ? resPartido.pareja2_id : null);
+                  return {
+                    ...prev,
+                    [resPartido.zona_id!]: {
+                      parejas: curr.parejas,
+                      partidos: curr.partidos.map((pm) =>
+                        pm.id === resPartido.id
+                          ? {
+                              ...pm,
+                              set1_pareja1: s1p1,
+                              set1_pareja2: s1p2,
+                              set2_pareja1: s2p1,
+                              set2_pareja2: s2p2,
+                              set3_pareja1: s3p1,
+                              set3_pareja2: s3p2,
+                              ganador_id,
+                              estado: ganador_id ? 'finalizado' : 'pendiente',
+                            } as any
+                          : pm
+                      ),
+                    },
+                  };
+                });
                 setShowResDialog(false);
                 setResPartido(null);
                 setResultadoZ({ set1_p1: "", set1_p2: "", set2_p1: "", set2_p2: "", set3_p1: "", set3_p2: "" });
+                // Refrescar desde server para asegurar consistencia
                 loadZoneDetails();
               } else {
                 toast({ title: "Error", description: "No se pudo guardar el resultado", variant: "destructive" });
