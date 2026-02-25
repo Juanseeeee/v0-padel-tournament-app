@@ -1292,6 +1292,13 @@ function ZonasTab({
     return setsP1 > setsP2 ? m.pareja1_id : (setsP2 > setsP1 ? m.pareja2_id : null);
   };
 
+  const computePerdedorId = (m: any) => {
+    const gid = computeGanadorId(m);
+    if (!gid) return null;
+    if (!m.pareja1_id || !m.pareja2_id) return null;
+    return gid === m.pareja1_id ? m.pareja2_id : m.pareja1_id;
+  };
+
   if (!categoriaId) {
     return (
       <Card>
@@ -1726,12 +1733,19 @@ function ZonasTab({
                           <TableCell>
                             {(() => {
                               const gid = computeGanadorId(m);
-                              if (!gid) return <span className="text-xs text-muted-foreground">—</span>;
                               const ps = (zoneDetails[zona.id]?.parejas || []);
                               const w = ps.find(p => p.pareja_torneo_id === gid);
+                              if (!gid || !w) return <span className="text-xs text-muted-foreground">—</span>;
+                              const lid = computePerdedorId(m);
+                              const l = ps.find(p => p.pareja_torneo_id === lid);
                               return (
-                                <span className="text-primary font-semibold">
-                                  {w ? `${w.j1_nombre} ${w.j1_apellido?.charAt(0)}. / ${w.j2_nombre} ${w.j2_apellido?.charAt(0)}.` : "—"}
+                                <span className="font-semibold">
+                                  <span className="text-primary">
+                                    {`${w.j1_nombre} ${w.j1_apellido?.charAt(0)}. / ${w.j2_nombre} ${w.j2_apellido?.charAt(0)}.`}
+                                  </span>
+                                  {l ? (
+                                    <span className="text-muted-foreground"> {" • "} {`${l.j1_nombre} ${l.j1_apellido?.charAt(0)}. / ${l.j2_nombre} ${l.j2_apellido?.charAt(0)}.`}</span>
+                                  ) : null}
                                 </span>
                               );
                             })()}
