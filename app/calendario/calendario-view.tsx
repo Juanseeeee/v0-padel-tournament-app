@@ -10,12 +10,19 @@ import { Calendar as MonthCalendar } from "@/components/ui/calendar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar as CalendarIcon, Clock, MapPin, ArrowRight, Users } from "lucide-react"
 
-function parseLocalDate(dateString: string) {
-  const [y, m, d] = dateString.split("-").map(Number)
-  return new Date(y, (m || 1) - 1, d || 1)
+function parseLocalDate(input: string | Date) {
+  if (input instanceof Date) {
+    return new Date(input.getFullYear(), input.getMonth(), input.getDate())
+  }
+  const s = typeof input === "string" ? input : String(input ?? "")
+  const parts = s.split(/[-T ]/)
+  const y = Number(parts[0])
+  const m = Number(parts[1])
+  const d = Number(parts[2])
+  return new Date(y || new Date().getFullYear(), (m || 1) - 1, d || 1)
 }
 
-function formatLongDate(dateString: string) {
+function formatLongDate(dateString: string | Date) {
   return parseLocalDate(dateString).toLocaleDateString("es-AR", {
     weekday: "long",
     day: "numeric",
@@ -24,7 +31,7 @@ function formatLongDate(dateString: string) {
   })
 }
 
-function formatShortDate(dateString: string) {
+function formatShortDate(dateString: string | Date) {
   return parseLocalDate(dateString).toLocaleDateString("es-AR", {
     day: "numeric",
     month: "short",
@@ -40,7 +47,7 @@ function getEstadoBadge(estado: FechaTorneo["estado"]) {
   return variants[estado] ?? { label: estado, className: "bg-muted text-muted-foreground border-border" }
 }
 
-function DatePill({ dateString, muted }: { dateString: string; muted?: boolean }) {
+function DatePill({ dateString, muted }: { dateString: string | Date; muted?: boolean }) {
   const date = parseLocalDate(dateString)
   const day = date.getDate()
   const month = date.toLocaleDateString("es-AR", { month: "short" })
