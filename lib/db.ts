@@ -21,6 +21,10 @@ export type Jugador = {
   created_at: string;
   updated_at: string;
   categoria_nombre?: string;
+  usuario_id?: number | null;
+  usuario_email?: string | null;
+  usuario_dni?: string | null;
+  usuario_telefono?: string | null;
 };
 
 export type FechaTorneo = {

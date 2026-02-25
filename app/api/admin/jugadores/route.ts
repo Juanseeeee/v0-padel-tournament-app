@@ -7,7 +7,11 @@ export async function GET() {
       SELECT j.*, 
         COALESCE(pc.total_puntos, 0) as puntos_totales,
         jc.cat_names as categorias_nombres,
-        jc.cat_ids as categoria_ids
+        jc.cat_ids as categoria_ids,
+        u.id as usuario_id,
+        u.email as usuario_email,
+        u.dni as usuario_dni,
+        u.telefono as usuario_telefono
       FROM jugadores j
       LEFT JOIN (
         SELECT jugador_id, SUM(puntos_acumulados) as total_puntos
@@ -22,6 +26,7 @@ export async function GET() {
         JOIN categorias c ON c.id = jc2.categoria_id
         GROUP BY jc2.jugador_id
       ) jc ON jc.jugador_id = j.id
+      LEFT JOIN usuarios u ON u.jugador_id = j.id
       ORDER BY COALESCE(pc.total_puntos, 0) DESC, j.nombre ASC
     `
     return NextResponse.json({ jugadores })
@@ -34,7 +39,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { nombre, apellido, localidad, genero, categoria_actual_id, categoria_ids, estado } = body
+    const { nombre, apellido, localidad, genero, categoria_actual_id, categoria_ids, estado, telefono } = body
 
     const result = await sql`
       INSERT INTO jugadores (nombre, apellido, localidad, genero, categoria_actual_id, estado, puntos_totales)
@@ -54,6 +59,8 @@ export async function POST(request: Request) {
         `
       }
     }
+    
+    // If phone provided but no user, nothing to update here (telefono vive en usuarios)
     
     return NextResponse.json({ jugador: result[0] })
   } catch (error) {

@@ -1226,6 +1226,9 @@ function ZonasTab({
   const [draggingPair, setDraggingPair] = useState<number | null>(null);
   const [hoverDropZoneId, setHoverDropZoneId] = useState<number | null>(null);
   const [hoverDropPairId, setHoverDropPairId] = useState<number | null>(null);
+  const [showResDialog, setShowResDialog] = useState(false);
+  const [resPartido, setResPartido] = useState<PartidoZona | null>(null);
+  const [resultadoZ, setResultadoZ] = useState({ set1_p1: "", set1_p2: "", set2_p1: "", set2_p2: "", set3_p1: "", set3_p2: "" });
 
   const loadZoneDetails = useCallback(async () => {
     if (!zonas || zonas.length === 0) return;
@@ -1380,6 +1383,15 @@ function ZonasTab({
                 <span className="flex items-center gap-2">
                   <Grid3X3 className="h-4 w-4 text-primary" />
                   {zona.nombre}
+                  {(() => {
+                    const ps = (zoneDetails[zona.id]?.partidos || []).filter(p => !!p.fecha_hora_programada);
+                    if (ps.length === 0) return null;
+                    const earliest = ps.reduce((min, cur) => (min.fecha_hora_programada! <= cur.fecha_hora_programada! ? min : cur));
+                    const dia = earliest.dia_partido === 'viernes' ? 'Vie' : earliest.dia_partido === 'sabado' ? 'Sáb' : '';
+                    const hora = earliest.fecha_hora_programada || '';
+                    const cancha = earliest.cancha_numero ? ` C${earliest.cancha_numero}` : '';
+                    return <span className="ml-2 text-xs text-muted-foreground">Inicio: {dia} {hora}{cancha}</span>;
+                  })()}
                 </span>
                 <Badge variant={zona.estado === 'finalizada' ? 'default' : 'secondary'}>
                   {zona.estado === 'finalizada' ? 'Cerrada' : 'En juego'}
@@ -1391,7 +1403,6 @@ function ZonasTab({
                 <p className="text-sm text-muted-foreground">
                   Arrastrá una pareja entre tarjetas para moverla
                 </p>
-                <Button variant="ghost" size="sm" onClick={() => setSelectedZona(zona)}>Ver más</Button>
               </div>
               <div className="grid grid-cols-1 gap-4 mt-2">
                 <div
@@ -1637,7 +1648,21 @@ function ZonasTab({
                             />
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button variant="outline" size="sm" onClick={() => setSelectedZona(zona)}>Editar</Button>
+                            <div className="flex justify-end gap-2">
+                              <Button variant="default" size="sm" onClick={() => {
+                                setResPartido(m);
+                                setResultadoZ({
+                                  set1_p1: m.set1_p1?.toString() || "",
+                                  set1_p2: m.set1_p2?.toString() || "",
+                                  set2_p1: m.set2_p1?.toString() || "",
+                                  set2_p2: m.set2_p2?.toString() || "",
+                                  set3_p1: m.set3_p1?.toString() || "",
+                                  set3_p2: m.set3_p2?.toString() || "",
+                                });
+                                setShowResDialog(true);
+                              }}>Resultado</Button>
+                              <Button variant="outline" size="sm" onClick={() => setSelectedZona(zona)}>Editar</Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -1649,6 +1674,123 @@ function ZonasTab({
           </Card>
         ))}
       </div>
+
+      <Dialog open={showResDialog} onOpenChange={setShowResDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Resultado del Partido</DialogTitle>
+            <DialogDescription>
+              {resPartido && (
+                <span className="block mt-2">
+                  {(zoneDetails[resPartido.zona_id!]?.parejas || [])
+                    .find(p => p.pareja_torneo_id === resPartido.pareja1_id)
+                    ? `${(zoneDetails[resPartido.zona_id!]?.parejas || []).find(p => p.pareja_torneo_id === resPartido.pareja1_id)!.j1_nombre} ${(zoneDetails[resPartido.zona_id!]?.parejas || []).find(p => p.pareja_torneo_id === resPartido.pareja1_id)!.j1_apellido?.charAt(0)}. / ${(zoneDetails[resPartido.zona_id!]?.parejas || []).find(p => p.pareja_torneo_id === resPartido.pareja1_id)!.j2_nombre} ${(zoneDetails[resPartido.zona_id!]?.parejas || []).find(p => p.pareja_torneo_id === resPartido.pareja1_id)!.j2_apellido?.charAt(0)}.`
+                    : "Pareja 1"}{" "}
+                  vs{" "}
+                  {(zoneDetails[resPartido.zona_id!]?.parejas || [])
+                    .find(p => p.pareja_torneo_id === resPartido.pareja2_id)
+                    ? `${(zoneDetails[resPartido.zona_id!]?.parejas || []).find(p => p.pareja_torneo_id === resPartido.pareja2_id)!.j1_nombre} ${(zoneDetails[resPartido.zona_id!]?.parejas || []).find(p => p.pareja_torneo_id === resPartido.pareja2_id)!.j1_apellido?.charAt(0)}. / ${(zoneDetails[resPartido.zona_id!]?.parejas || []).find(p => p.pareja_torneo_id === resPartido.pareja2_id)!.j2_nombre} ${(zoneDetails[resPartido.zona_id!]?.parejas || []).find(p => p.pareja_torneo_id === resPartido.pareja2_id)!.j2_apellido?.charAt(0)}.`
+                    : "Pareja 2"}
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            {modalidad?.includes("americano") ? (
+              <div className="grid grid-cols-5 items-center gap-2">
+                <Label className="col-span-1">Games</Label>
+                <Input type="number" min="0" max="25" className="col-span-2" placeholder="P1" value={resultadoZ.set1_p1} onChange={(e) => {
+                  const v = e.target.value;
+                  if (v !== "" && !/^\d+$/.test(v)) return;
+                  if (v !== "" && parseInt(v) > 25) return;
+                  setResultadoZ(prev => ({ ...prev, set1_p1: v }));
+                }} />
+                <Input type="number" min="0" max="25" className="col-span-2" placeholder="P2" value={resultadoZ.set1_p2} onChange={(e) => {
+                  const v = e.target.value;
+                  if (v !== "" && !/^\d+$/.test(v)) return;
+                  if (v !== "" && parseInt(v) > 25) return;
+                  setResultadoZ(prev => ({ ...prev, set1_p2: v }));
+                }} />
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-5 items-center gap-2">
+                  <Label className="col-span-1">Set 1</Label>
+                  <Input type="number" min="0" max="7" className="col-span-2" placeholder="P1" value={resultadoZ.set1_p1} onChange={(e) => {
+                    const v = e.target.value;
+                    if (v !== "" && !/^\d+$/.test(v)) return;
+                    if (v !== "" && parseInt(v) > 7) return;
+                    setResultadoZ(prev => ({ ...prev, set1_p1: v }));
+                  }} />
+                  <Input type="number" min="0" max="7" className="col-span-2" placeholder="P2" value={resultadoZ.set1_p2} onChange={(e) => {
+                    const v = e.target.value;
+                    if (v !== "" && !/^\d+$/.test(v)) return;
+                    if (v !== "" && parseInt(v) > 7) return;
+                    setResultadoZ(prev => ({ ...prev, set1_p2: v }));
+                  }} />
+                </div>
+                <div className="grid grid-cols-5 items-center gap-2">
+                  <Label className="col-span-1">Set 2</Label>
+                  <Input type="number" min="0" max="7" className="col-span-2" placeholder="P1" value={resultadoZ.set2_p1} onChange={(e) => {
+                    const v = e.target.value;
+                    if (v !== "" && !/^\d+$/.test(v)) return;
+                    if (v !== "" && parseInt(v) > 7) return;
+                    setResultadoZ(prev => ({ ...prev, set2_p1: v }));
+                  }} />
+                  <Input type="number" min="0" max="7" className="col-span-2" placeholder="P2" value={resultadoZ.set2_p2} onChange={(e) => {
+                    const v = e.target.value;
+                    if (v !== "" && !/^\d+$/.test(v)) return;
+                    if (v !== "" && parseInt(v) > 7) return;
+                    setResultadoZ(prev => ({ ...prev, set2_p2: v }));
+                  }} />
+                </div>
+                <div className="grid grid-cols-5 items-center gap-2">
+                  <Label className="col-span-1 text-muted-foreground">{modalidad === '2_sets_6_tiebreak' ? 'Tiebreak' : 'Set 3'}</Label>
+                  <Input type="number" min="0" max={modalidad === '2_sets_6_tiebreak' ? 30 : 7} className="col-span-2" placeholder="P1 (opcional)" value={resultadoZ.set3_p1} onChange={(e) => {
+                    const v = e.target.value;
+                    if (v !== "" && !/^\d+$/.test(v)) return;
+                    if (v !== "" && parseInt(v) > (modalidad === '2_sets_6_tiebreak' ? 30 : 7)) return;
+                    setResultadoZ(prev => ({ ...prev, set3_p1: v }));
+                  }} />
+                  <Input type="number" min="0" max={modalidad === '2_sets_6_tiebreak' ? 30 : 7} className="col-span-2" placeholder="P2 (opcional)" value={resultadoZ.set3_p2} onChange={(e) => {
+                    const v = e.target.value;
+                    if (v !== "" && !/^\d+$/.test(v)) return;
+                    if (v !== "" && parseInt(v) > (modalidad === '2_sets_6_tiebreak' ? 30 : 7)) return;
+                    setResultadoZ(prev => ({ ...prev, set3_p2: v }));
+                  }} />
+                </div>
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowResDialog(false)}>Cancelar</Button>
+            <Button onClick={async () => {
+              if (!resPartido) return;
+              const body = {
+                set1_p1: resultadoZ.set1_p1 ? parseInt(resultadoZ.set1_p1) : null,
+                set1_p2: resultadoZ.set1_p2 ? parseInt(resultadoZ.set1_p2) : null,
+                set2_p1: resultadoZ.set2_p1 ? parseInt(resultadoZ.set2_p1) : null,
+                set2_p2: resultadoZ.set2_p2 ? parseInt(resultadoZ.set2_p2) : null,
+                set3_p1: resultadoZ.set3_p1 ? parseInt(resultadoZ.set3_p1) : null,
+                set3_p2: resultadoZ.set3_p2 ? parseInt(resultadoZ.set3_p2) : null,
+              };
+              const res = await fetch(`/api/admin/torneo/${torneoId}/partidos/${resPartido.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
+              });
+              if (res.ok) {
+                setShowResDialog(false);
+                setResPartido(null);
+                setResultadoZ({ set1_p1: "", set1_p2: "", set2_p1: "", set2_p2: "", set3_p1: "", set3_p2: "" });
+                loadZoneDetails();
+              } else {
+                toast({ title: "Error", description: "No se pudo guardar el resultado", variant: "destructive" });
+              }
+            }}>Guardar Resultado</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal de detalle de zona */}
       <Dialog open={!!selectedZona} onOpenChange={() => setSelectedZona(null)}>

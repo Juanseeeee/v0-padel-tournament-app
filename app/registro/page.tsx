@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, UserPlus, ArrowLeft } from "lucide-react";
+import { Loader2, UserPlus, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function RegistroPage() {
@@ -24,6 +24,8 @@ export default function RegistroPage() {
   const [error, setError] = useState("");
   const [categorias, setCategorias] = useState<any[]>([]);
   const [localidades, setLocalidades] = useState<any[]>([]);
+  const [sugerencias, setSugerencias] = useState<any[]>([]);
+  const [sugerenciaSeleccionada, setSugerenciaSeleccionada] = useState<string>("");
 
   const [form, setForm] = useState({
     nombre: "",
@@ -36,11 +38,24 @@ export default function RegistroPage() {
     localidad: "",
     categoria_id: "",
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPassword2, setShowPassword2] = useState(false);
 
   useEffect(() => {
     fetch("/api/public/categorias").then(r => r.json()).then(setCategorias).catch(() => {});
     fetch("/api/public/localidades").then(r => r.json()).then(setLocalidades).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const n = form.nombre.trim();
+    const a = form.apellido.trim();
+    if (!n || !a) {
+      setSugerencias([]);
+      return;
+    }
+    const url = `/api/public/jugadores/sugerencias?nombre=${encodeURIComponent(n)}&apellido=${encodeURIComponent(a)}`;
+    fetch(url).then(r => r.json()).then(d => setSugerencias(d.jugadores || [])).catch(() => setSugerencias([]));
+  }, [form.nombre, form.apellido]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -111,6 +126,44 @@ export default function RegistroPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {sugerencias.length > 0 && (
+              <div className="rounded-md border border-primary/30 bg-primary/10 p-3 text-sm">
+                <div className="font-medium">Encontramos {sugerencias.length} jugador(es) con este nombre cargados por admin</div>
+                <div className="mt-2 text-muted-foreground">Confirmá si sos uno de estos y completá DNI, teléfono y email para vincular tu cuenta.</div>
+                <ul className="mt-2 space-y-1">
+                  {sugerencias.map((s: any) => (
+                    <li key={s.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="soy-esta-persona"
+                          value={String(s.id)}
+                          checked={sugerenciaSeleccionada === String(s.id)}
+                          onChange={() => {
+                            setSugerenciaSeleccionada(String(s.id));
+                            setForm(f => ({
+                              ...f,
+                              localidad: s.localidad || f.localidad,
+                              categoria_id: (s.categoria_ids?.split(',')[0]) || f.categoria_id,
+                              nombre: s.nombre || f.nombre,
+                              apellido: s.apellido || f.apellido,
+                            }));
+                          }}
+                        />
+                        <span className="font-medium">{s.nombre} {s.apellido}</span>
+                      </label>
+                      <span className="text-xs text-muted-foreground">{s.localidad || "Sin localidad"}</span>
+                      <span className="text-xs">{s.categorias_nombres || "Sin categorías"}</span>
+                    </li>
+                  ))}
+                </ul>
+                {sugerenciaSeleccionada && (
+                  <div className="mt-2 text-xs text-primary">
+                    Autocompletamos localidad y categoría del registro admin. Completá DNI, teléfono y email para continuar.
+                  </div>
+                )}
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
                 <Label htmlFor="nombre">Nombre</Label>
@@ -174,11 +227,45 @@ export default function RegistroPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
                 <Label htmlFor="password">Contraseña</Label>
-                <Input id="password" type="password" required value={form.password} onChange={e => setForm({...form, password: e.target.value})} />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    required
+                    value={form.password}
+                    onChange={e => setForm({...form, password: e.target.value})}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                    onClick={() => setShowPassword(v => !v)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="password2">Confirmar</Label>
-                <Input id="password2" type="password" required value={form.password2} onChange={e => setForm({...form, password2: e.target.value})} />
+                <div className="relative">
+                  <Input
+                    id="password2"
+                    type={showPassword2 ? "text" : "password"}
+                    required
+                    value={form.password2}
+                    onChange={e => setForm({...form, password2: e.target.value})}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    aria-label={showPassword2 ? "Ocultar contraseña" : "Mostrar contraseña"}
+                    onClick={() => setShowPassword2(v => !v)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword2 ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
             </div>
 
