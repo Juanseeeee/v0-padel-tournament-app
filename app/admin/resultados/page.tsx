@@ -154,7 +154,13 @@ function ResultadosContent() {
                   <SelectContent>
                     {fechas.map((fecha) => (
                       <SelectItem key={fecha.id} value={String(fecha.id)}>
-                        {fecha.nombre}
+                        {[
+                          fecha.temporada ? `${fecha.temporada}` : "",
+                          fecha.numero_fecha ? `Fecha #${fecha.numero_fecha}` : "",
+                          fecha.categoria_nombre ? `${fecha.categoria_nombre}` : "",
+                          fecha.sede ? `${fecha.sede}` : "",
+                          fecha.fecha_calendario ? new Date(fecha.fecha_calendario).toLocaleDateString('es-AR') : ""
+                        ].filter(Boolean).join(" • ")}
                       </SelectItem>
                     ))}
                   </SelectContent>
