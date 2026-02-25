@@ -1261,6 +1261,44 @@ function ZonasTab({
     loadZoneDetails();
   }, [loadZoneDetails]);
 
+  const getResultString = (m: any) => {
+    const s1p1 = m.set1_pareja1 ?? m.set1_p1;
+    const s1p2 = m.set1_pareja2 ?? m.set1_p2;
+    const s2p1 = m.set2_pareja1 ?? m.set2_p1;
+    const s2p2 = m.set2_pareja2 ?? m.set2_p2;
+    const s3p1 = m.set3_pareja1 ?? m.set3_p1;
+    const s3p2 = m.set3_pareja2 ?? m.set3_p2;
+    const hasAny = [s1p1, s1p2, s2p1, s2p2, s3p1, s3p2].some((v) => v !== null && v !== undefined);
+    if (!hasAny) return null;
+    const base = `${s1p1 ?? ""}-${s1p2 ?? ""} / ${s2p1 ?? ""}-${s2p2 ?? ""}`;
+    const third = (s3p1 !== null && s3p2 !== null && s3p1 !== undefined && s3p2 !== undefined) ? ` / ${s3p1}-${s3p2}` : "";
+    return `${base}${third}`;
+  };
+
+  const computeGanadorId = (m: any) => {
+    if (m.ganador_id) return m.ganador_id;
+    const s1p1 = m.set1_pareja1 ?? m.set1_p1;
+    const s1p2 = m.set1_pareja2 ?? m.set1_p2;
+    const s2p1 = m.set2_pareja1 ?? m.set2_p1;
+    const s2p2 = m.set2_pareja2 ?? m.set2_p2;
+    const s3p1 = m.set3_pareja1 ?? m.set3_p1;
+    const s3p2 = m.set3_pareja2 ?? m.set3_p2;
+    let setsP1 = 0;
+    let setsP2 = 0;
+    if (s1p1 !== null && s1p1 !== undefined && s1p2 !== null && s1p2 !== undefined) { if (s1p1 > s1p2) setsP1++; else if (s1p2 > s1p1) setsP2++; }
+    if (s2p1 !== null && s2p1 !== undefined && s2p2 !== null && s2p2 !== undefined) { if (s2p1 > s2p2) setsP1++; else if (s2p2 > s2p1) setsP2++; }
+    if (s3p1 !== null && s3p1 !== undefined && s3p2 !== null && s3p2 !== undefined) { if (s3p1 > s3p2) setsP1++; else if (s3p2 > s3p1) setsP2++; }
+    if (setsP1 === 0 && setsP2 === 0) return null;
+    return setsP1 > setsP2 ? m.pareja1_id : (setsP2 > setsP1 ? m.pareja2_id : null);
+  };
+
+  const computePerdedorId = (m: any) => {
+    const gid = computeGanadorId(m);
+    if (!gid) return null;
+    if (!m.pareja1_id || !m.pareja2_id) return null;
+    return gid === m.pareja1_id ? m.pareja2_id : m.pareja1_id;
+  };
+
   if (!categoriaId) {
     return (
       <Card>
@@ -1492,6 +1530,8 @@ function ZonasTab({
                       <TableRow>
                         <TableHead>#</TableHead>
                         <TableHead>Pareja</TableHead>
+                        <TableHead className="w-32">Partidos</TableHead>
+                        <TableHead className="w-20">Puntos</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1558,6 +1598,16 @@ function ZonasTab({
                         >
                           <TableCell>{idx + 1}</TableCell>
                           <TableCell>{p.j1_nombre} {p.j1_apellido?.charAt(0)}. / {p.j2_nombre} {p.j2_apellido?.charAt(0)}.</TableCell>
+                          <TableCell>
+                            <span className="text-xs">
+                              {(p.partidos_ganados || 0)}G / {(p.partidos_perdidos || 0)}P
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs px-2 py-0.5">
+                              {(p.partidos_ganados || 0)}
+                            </Badge>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -1681,27 +1731,34 @@ function ZonasTab({
                             />
                           </TableCell>
                           <TableCell>
-                            {m.estado === 'finalizado' && m.ganador_id ? (
-                              <span className="text-primary font-semibold">
-                                {(() => {
-                                  const ps = (zoneDetails[zona.id]?.parejas || []);
-                                  const w = ps.find(p => p.pareja_torneo_id === m.ganador_id);
-                                  return w ? `${w.j1_nombre} ${w.j1_apellido?.charAt(0)}. / ${w.j2_nombre} ${w.j2_apellido?.charAt(0)}.` : "—";
-                                })()}
-                              </span>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">—</span>
-                            )}
+                            {(() => {
+                              const gid = computeGanadorId(m);
+                              const ps = (zoneDetails[zona.id]?.parejas || []);
+                              const w = ps.find(p => p.pareja_torneo_id === gid);
+                              if (!gid || !w) return <span className="text-xs text-muted-foreground">—</span>;
+                              const lid = computePerdedorId(m);
+                              const l = ps.find(p => p.pareja_torneo_id === lid);
+                              return (
+                                <span className="font-semibold">
+                                  <span className="text-primary">
+                                    {`${w.j1_nombre} ${w.j1_apellido?.charAt(0)}. / ${w.j2_nombre} ${w.j2_apellido?.charAt(0)}.`}
+                                  </span>
+                                  {l ? (
+                                    <span className="text-muted-foreground"> {" • "} {`${l.j1_nombre} ${l.j1_apellido?.charAt(0)}. / ${l.j2_nombre} ${l.j2_apellido?.charAt(0)}.`}</span>
+                                  ) : null}
+                                </span>
+                              );
+                            })()}
                           </TableCell>
                           <TableCell>
-                            {m.estado === 'finalizado' ? (
-                              <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
-                                {m.set1_pareja1}-{m.set1_pareja2} / {m.set2_pareja1}-{m.set2_pareja2}
-                                {(m.set3_pareja1 !== null && m.set3_pareja2 !== null) ? ` / ${m.set3_pareja1}-${m.set3_pareja2}` : ""}
-                              </span>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">vs</span>
-                            )}
+                            {(() => {
+                              const r = getResultString(m);
+                              return r ? (
+                                <span className="font-mono text-xs bg-muted px-2 py-1 rounded">{r}</span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">vs</span>
+                              );
+                            })()}
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
