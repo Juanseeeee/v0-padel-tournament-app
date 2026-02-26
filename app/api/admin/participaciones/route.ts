@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     const participaciones = await sql`
       SELECT * FROM participaciones 
       WHERE fecha_torneo_id = ${fechaId} AND categoria_id = ${categoriaId}
-      ORDER BY posicion ASC NULLS LAST
+      ORDER BY puntos_obtenidos DESC NULLS LAST, jugador_id ASC
     `
     return NextResponse.json({ participaciones })
   } catch (error) {

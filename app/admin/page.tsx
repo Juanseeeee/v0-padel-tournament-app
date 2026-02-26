@@ -118,7 +118,6 @@ export default async function AdminPage() {
             {[
                 { href: "/admin/jugadores", icon: UserPlus, label: "Nuevo Jugador" },
                 { href: "/admin/fechas", icon: CalendarPlus, label: "Nueva Fecha" },
-                { href: "/admin/resultados", icon: Medal, label: "Resultados" },
                 { href: "/admin/importar", icon: Upload, label: "Importar" },
                 { href: "/admin/noticias", icon: FileText, label: "Noticia" },
                 { href: "/admin/puntos", icon: Settings, label: "Puntos" },
