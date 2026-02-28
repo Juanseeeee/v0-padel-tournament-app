@@ -3,10 +3,15 @@ import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { CalendarioView } from "./calendario-view"
 
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
 async function getFechasTorneo(): Promise<FechaTorneo[]> {
   const result = await sql`
-    SELECT * FROM fechas_torneo 
-    ORDER BY fecha_calendario DESC
+    SELECT f.*, c.nombre as categoria_nombre
+    FROM fechas_torneo f
+    LEFT JOIN categorias c ON f.categoria_id = c.id
+    ORDER BY f.fecha_calendario DESC NULLS LAST, f.temporada DESC, f.numero_fecha DESC
   `
   return result as FechaTorneo[]
 }
