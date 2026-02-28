@@ -366,6 +366,9 @@ function parseJugadorLine(line: string): { nombre: string; apellido: string; loc
 
 export async function POST() {
   try {
+    if (process.env.ADMIN_IMPORT_VERANO_ENABLED !== "true") {
+      return NextResponse.json({ error: "No disponible" }, { status: 404 });
+    }
     console.log("[v0] Starting import process...");
     
     let categoriasInserted = 0;

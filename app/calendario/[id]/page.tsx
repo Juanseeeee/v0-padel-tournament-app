@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Calendar, MapPin, Trophy, Users } from "lucide-react"
+import { parseDateOnly } from "@/lib/utils"
 
 async function getFechaTorneo(id: string): Promise<FechaTorneo | null> {
   const result = await sql`
@@ -37,7 +38,8 @@ async function getCategorias(): Promise<Categoria[]> {
 }
 
 function formatDate(dateString: string) {
-  return new Date(dateString).toLocaleDateString('es-AR', {
+  const d = parseDateOnly(dateString)
+  return d.toLocaleDateString('es-AR', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
