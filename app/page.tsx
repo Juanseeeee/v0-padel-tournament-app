@@ -1,5 +1,5 @@
 import { sql, type FechaTorneo, type Jugador, type Informe } from "@/lib/db"
-import { cn } from "@/lib/utils"
+import { cn, parseDateOnly } from "@/lib/utils"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import Link from "next/link"
@@ -79,7 +79,8 @@ async function getEstadisticas() {
 }
 
 function formatDate(dateString: string) {
-  return new Date(dateString).toLocaleDateString('es-AR', {
+  const d = parseDateOnly(dateString)
+  return d.toLocaleDateString('es-AR', {
     day: 'numeric',
     month: 'short',
     year: 'numeric'

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, User, Trophy, Calendar, TrendingUp, ArrowUpRight, History } from "lucide-react"
+import { parseDateOnly } from "@/lib/utils"
 
 async function getJugador(id: string): Promise<Jugador | null> {
   const result = await sql`
@@ -87,7 +88,8 @@ async function getRankingPosicion(jugadorId: string, categoriaId: number | null)
 }
 
 function formatDate(dateString: string) {
-  return new Date(dateString).toLocaleDateString('es-AR', {
+  const d = parseDateOnly(dateString)
+  return d.toLocaleDateString('es-AR', {
     day: 'numeric',
     month: 'short',
     year: 'numeric'

@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/select"
 import { AdminWrapper } from "@/components/admin-wrapper"
 import type { FechaTorneo, Sede, Categoria } from "@/lib/db"
+import { parseDateOnly } from "@/lib/utils"
 
 type FechaExtendida = FechaTorneo & {
   categoria_id: number | null
@@ -68,7 +69,8 @@ function getEstadoBadge(estado: FechaTorneo['estado']) {
 }
 
 function formatDate(dateString: string) {
-  return new Date(dateString).toLocaleDateString('es-AR', {
+  const d = parseDateOnly(dateString)
+  return d.toLocaleDateString('es-AR', {
     day: 'numeric',
     month: 'short',
     year: 'numeric'
@@ -115,7 +117,7 @@ export default function FechasAdminPage() {
 
     for (const f of fechas) {
       if (!f?.fecha_calendario) continue
-      const d = new Date(f.fecha_calendario)
+      const d = parseDateOnly(f.fecha_calendario)
       d.setHours(12, 0, 0, 0)
       const key = d.toDateString()
       const estado = String(f.estado || "programada")
@@ -142,14 +144,14 @@ export default function FechasAdminPage() {
     return fechas
       .filter((f) => f.estado !== "finalizada")
       .slice()
-      .sort((a, b) => new Date(a.fecha_calendario).getTime() - new Date(b.fecha_calendario).getTime())
+      .sort((a, b) => parseDateOnly(a.fecha_calendario).getTime() - parseDateOnly(b.fecha_calendario).getTime())
   }, [fechas])
 
   const fechasAnteriores = useMemo(() => {
     return fechas
       .filter((f) => f.estado === "finalizada")
       .slice()
-      .sort((a, b) => new Date(b.fecha_calendario).getTime() - new Date(a.fecha_calendario).getTime())
+      .sort((a, b) => parseDateOnly(b.fecha_calendario).getTime() - parseDateOnly(a.fecha_calendario).getTime())
   }, [fechas])
 
   async function fetchData() {

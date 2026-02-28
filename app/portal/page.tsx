@@ -24,6 +24,7 @@ import {
   Users
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { parseDateOnly } from "@/lib/utils";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -33,7 +34,7 @@ type DayPill = { day: string; month: string };
 
 function dateToDayPill(dateString?: string | null): DayPill {
   if (!dateString) return { day: "-", month: "" };
-  const date = new Date(dateString);
+  const date = parseDateOnly(dateString);
   return {
     day: String(date.getDate()),
     month: date.toLocaleDateString("es-AR", { month: "short" }),
