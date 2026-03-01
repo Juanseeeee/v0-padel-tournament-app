@@ -11,9 +11,11 @@ import { Calendar, Trophy, Users, ArrowRight, MapPin, Clock, Activity, Newspaper
 async function getProximasFechas(): Promise<FechaTorneo[]> {
   try {
     const result = await sql`
-      SELECT * FROM fechas_torneo 
-      WHERE estado IN ('programada', 'en_juego')
-      ORDER BY fecha_calendario ASC
+      SELECT f.*, c.nombre AS categoria_nombre
+      FROM fechas_torneo f
+      LEFT JOIN categorias c ON f.categoria_id = c.id
+      WHERE f.estado IN ('programada', 'en_juego')
+      ORDER BY f.fecha_calendario ASC
       LIMIT 3
     `
     return result as FechaTorneo[]
@@ -198,7 +200,10 @@ export default async function HomePage() {
                                                 </span>
                                             </div>
                                             
-                                            <h3 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors">
+                                            <div className="font-[var(--font-display)] text-2xl sm:text-3xl font-extrabold tracking-tight text-primary">
+                                                {(fecha as any).categoria_nombre}
+                                            </div>
+                                            <h3 className="mt-1 text-xl font-bold text-foreground group-hover:text-primary transition-colors">
                                                 Fecha {fecha.numero_fecha}
                                             </h3>
                                             
