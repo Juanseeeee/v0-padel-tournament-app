@@ -3,26 +3,30 @@ import { sql } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
-  const session = await getSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+  const { searchParams } = new URL(request.url);
+  const categoriaFromQuery = searchParams.get("categoria_id");
+  let categoriaId: number | null = categoriaFromQuery ? Number(categoriaFromQuery) : null;
+  let miJugadorId: number | null = null;
 
-  // Get jugador's category
-  const user = await sql`SELECT jugador_id FROM usuarios WHERE id = ${session.userId}`;
-  if (!user[0]?.jugador_id) {
-    return NextResponse.json({ error: "Jugador no encontrado" }, { status: 404 });
+  // If no categoria_id provided, try to infer from session
+  if (!categoriaId) {
+    const session = await getSession(request);
+    if (!session) {
+      return NextResponse.json({ error: "categoria_id requerido" }, { status: 400 });
+    }
+    const user = await sql`SELECT jugador_id FROM usuarios WHERE id = ${session.userId}`;
+    if (!user[0]?.jugador_id) {
+      return NextResponse.json({ error: "Jugador no encontrado" }, { status: 404 });
+    }
+    miJugadorId = Number(user[0].jugador_id);
+    const jugadorCat = await sql`
+      SELECT categoria_id FROM jugador_categorias WHERE jugador_id = ${miJugadorId}
+    `;
+    if (!jugadorCat[0]) {
+      return NextResponse.json({ error: "Categoría no encontrada" }, { status: 404 });
+    }
+    categoriaId = Number(jugadorCat[0].categoria_id);
   }
-
-  const jugadorCat = await sql`
-    SELECT categoria_id FROM jugador_categorias WHERE jugador_id = ${user[0].jugador_id}
-  `;
-  
-  if (!jugadorCat[0]) {
-    return NextResponse.json({ error: "Categoría no encontrada" }, { status: 404 });
-  }
-
-  const categoriaId = jugadorCat[0].categoria_id;
 
   try {
     // Get all fechas (torneos) for this category
@@ -33,14 +37,16 @@ export async function GET(request: NextRequest) {
       ORDER BY numero_fecha ASC
     `;
 
-    // Get all jugadores in this category with their total points
+    // Get all jugadores in this category (including 0 points)
     const jugadores = await sql`
-      SELECT j.id, j.nombre, j.apellido, j.localidad,
-        COALESCE(pc.puntos_acumulados, 0) as puntos_totales
-      FROM jugador_categorias jc
-      JOIN jugadores j ON j.id = jc.jugador_id
-      LEFT JOIN puntos_categoria pc ON pc.jugador_id = j.id AND pc.categoria_id = ${categoriaId}
-      WHERE jc.categoria_id = ${categoriaId}
+      SELECT 
+        j.id, j.nombre, j.apellido, j.localidad,
+        COALESCE(pc.puntos_acumulados, 0) AS puntos_totales,
+        COALESCE(pc.torneos_jugados, 0) AS torneos_jugados
+      FROM jugadores j
+      LEFT JOIN puntos_categoria pc 
+        ON pc.jugador_id = j.id AND pc.categoria_id = ${categoriaId}
+      WHERE j.categoria_actual_id = ${categoriaId}
         AND j.estado = 'activo'
       ORDER BY COALESCE(pc.puntos_acumulados, 0) DESC, j.nombre ASC
     `;
@@ -84,7 +90,7 @@ export async function GET(request: NextRequest) {
       fechas,
       jugadores,
       puntosMap,
-      mi_jugador_id: user[0].jugador_id
+      mi_jugador_id: miJugadorId
     });
   } catch (error) {
     console.error("Error fetching ranking:", error);

@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Trophy, Calendar, MapPin, ArrowLeft, Users, GitBranch, Activity } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, parseDateOnly } from "@/lib/utils"
 
 type PartidoZona = {
   orden: number
@@ -95,7 +95,7 @@ export function TournamentView({
                     <div className="flex flex-wrap gap-4 text-white/80 text-sm font-medium">
                         <div className="flex items-center gap-1.5">
                             <Calendar className="h-4 w-4 text-primary" />
-                            {new Date(torneo.fecha_calendario).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                            {parseDateOnly(torneo.fecha_calendario).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}
                         </div>
                         <div className="flex items-center gap-1.5">
                             <MapPin className="h-4 w-4 text-primary" />
