@@ -113,14 +113,18 @@ export default function RegistroPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <div className="absolute top-4 left-4">
+        <Link href="/" aria-label="Volver al inicio">
+          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+        </Link>
+      </div>
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <Link href="/" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4 self-start">
-            <ArrowLeft className="h-4 w-4" /> Volver
-          </Link>
           <CardTitle className="text-2xl">Crear Cuenta</CardTitle>
           <CardDescription>Regístrate para inscribirte en torneos</CardDescription>
         </CardHeader>
