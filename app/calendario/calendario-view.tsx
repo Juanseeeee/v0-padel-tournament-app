@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useMemo, useState } from "react"
 import type { FechaTorneo } from "@/lib/db"
-import { cn } from "@/lib/utils"
+import { cn, parseDateOnly } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Calendar as MonthCalendar } from "@/components/ui/calendar"
@@ -11,15 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar as CalendarIcon, Clock, MapPin, ArrowRight, Users } from "lucide-react"
 
 function parseLocalDate(input: string | Date) {
-  if (input instanceof Date) {
-    return new Date(input.getFullYear(), input.getMonth(), input.getDate())
-  }
-  const s = typeof input === "string" ? input : String(input ?? "")
-  const parts = s.split(/[-T ]/)
-  const y = Number(parts[0])
-  const m = Number(parts[1])
-  const d = Number(parts[2])
-  return new Date(y || new Date().getFullYear(), (m || 1) - 1, d || 1)
+  return parseDateOnly(typeof input === "string" ? input : (input as Date)?.toISOString?.() || String(input ?? ""))
 }
 
 function formatLongDate(dateString: string | Date) {
