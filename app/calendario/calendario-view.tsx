@@ -221,7 +221,10 @@ export function CalendarioView({
                         </div>
 
                         <div className="mt-4">
-                          <div className="text-base font-bold text-foreground group-hover:text-primary transition-colors">
+                          <div className="font-[var(--font-display)] text-2xl sm:text-3xl font-extrabold tracking-tight text-primary">
+                            {(fecha as any).categoria_nombre}
+                          </div>
+                          <div className="mt-1 text-base font-bold text-foreground group-hover:text-primary transition-colors">
                             Fecha {fecha.numero_fecha} · Temporada {fecha.temporada}
                           </div>
                           <div className="mt-3 space-y-2 text-sm text-muted-foreground">

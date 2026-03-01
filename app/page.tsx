@@ -1,4 +1,4 @@
-import { sql, type FechaTorneo, type Jugador, type Informe } from "@/lib/db"
+import { sql, type FechaTorneo, type Informe } from "@/lib/db"
 import { cn, parseDateOnly } from "@/lib/utils"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
@@ -6,7 +6,7 @@ import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Calendar, Trophy, Users, ArrowRight, MapPin, Clock, Activity, TrendingUp, Newspaper } from "lucide-react"
+import { Calendar, Trophy, Users, ArrowRight, MapPin, Clock, Activity, Newspaper } from "lucide-react"
 
 async function getProximasFechas(): Promise<FechaTorneo[]> {
   try {
@@ -19,29 +19,6 @@ async function getProximasFechas(): Promise<FechaTorneo[]> {
     return result as FechaTorneo[]
   } catch (e) {
     console.error("[v0] Error fetching fechas:", e)
-    return []
-  }
-}
-
-async function getTopJugadores(): Promise<Jugador[]> {
-  try {
-    const result = await sql`
-      SELECT j.*, c.nombre as categoria_nombre,
-        COALESCE(pc.total_puntos, 0) as puntos_totales
-      FROM jugadores j
-      LEFT JOIN categorias c ON j.categoria_actual_id = c.id
-      LEFT JOIN (
-        SELECT jugador_id, SUM(puntos_acumulados) as total_puntos
-        FROM puntos_categoria
-        GROUP BY jugador_id
-      ) pc ON pc.jugador_id = j.id
-      WHERE j.estado = 'activo'
-      ORDER BY COALESCE(pc.total_puntos, 0) DESC
-      LIMIT 5
-    `
-    return result as Jugador[]
-  } catch (e) {
-    console.error("[v0] Error fetching top jugadores:", e)
     return []
   }
 }
@@ -97,9 +74,8 @@ function getEstadoBadge(estado: FechaTorneo['estado']) {
 }
 
 export default async function HomePage() {
-  const [proximasFechas, topJugadores, ultimosInformes, stats] = await Promise.all([
+  const [proximasFechas, ultimosInformes, stats] = await Promise.all([
     getProximasFechas(),
-    getTopJugadores(),
     getUltimosInformes(),
     getEstadisticas()
   ])
@@ -182,9 +158,9 @@ export default async function HomePage() {
               </Card>
             </div>
 
-            <div className="grid gap-8 lg:grid-cols-3">
+            <div className="grid gap-8">
                 {/* Próximas Fechas */}
-                <div className="lg:col-span-2 space-y-6">
+                <div className="space-y-6">
                     <div className="flex items-center justify-between">
                         <h2 className="flex items-center gap-2 text-2xl font-bold text-foreground">
                             <Calendar className="h-6 w-6 text-primary" />
@@ -251,67 +227,6 @@ export default async function HomePage() {
                         })
                         )}
                     </div>
-                </div>
-
-                {/* Top Ranking Sidebar */}
-                <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                        <h2 className="flex items-center gap-2 text-2xl font-bold text-foreground">
-                            <TrendingUp className="h-6 w-6 text-primary" />
-                            Top Ranking
-                        </h2>
-                        <Link href="/rankings">
-                             <Button variant="ghost" size="sm" className="text-primary hover:text-primary hover:bg-primary/10">
-                                Ver completo
-                             </Button>
-                        </Link>
-                    </div>
-
-                    <Card className="overflow-hidden border-none shadow-xl bg-card/95 backdrop-blur-sm rounded-[2rem] ring-1 ring-border/50">
-                        <CardHeader className="bg-gradient-to-r from-primary/10 to-transparent pb-4 border-b border-border/40">
-                             <CardTitle className="text-lg font-bold">Mejores Jugadores</CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                        {topJugadores.length === 0 ? (
-                            <div className="py-12 text-center text-muted-foreground">
-                            <Trophy className="mx-auto h-12 w-12 opacity-20 mb-4" />
-                            No hay jugadores registrados
-                            </div>
-                        ) : (
-                            <div className="divide-y divide-border/40">
-                            {topJugadores.map((jugador, index) => (
-                                <div key={jugador.id} className="flex items-center gap-4 p-4 hover:bg-muted/30 transition-colors group">
-                                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-base font-black shadow-sm ${
-                                    index === 0 ? 'bg-gradient-to-br from-yellow-300 to-yellow-500 text-yellow-900 ring-2 ring-yellow-500/30' :
-                                    index === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-400 text-gray-800 ring-2 ring-gray-400/30' :
-                                    index === 2 ? 'bg-gradient-to-br from-orange-300 to-orange-500 text-orange-900 ring-2 ring-orange-500/30' :
-                                    'bg-muted text-muted-foreground font-bold'
-                                }`}>
-                                    {index + 1}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <Link 
-                                    href={`/jugador/${jugador.id}`}
-                                    className="font-bold text-foreground hover:text-primary truncate block transition-colors text-sm sm:text-base"
-                                    >
-                                    {jugador.nombre} {jugador.apellido}
-                                    </Link>
-                                    <span className="text-xs font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                                    {jugador.categoria_nombre}
-                                    </span>
-                                </div>
-                                <div className="text-right">
-                                    <div className="font-[var(--font-display)] text-lg font-bold text-primary leading-none">
-                                        {jugador.puntos_totales}
-                                    </div>
-                                    <div className="text-[10px] font-bold text-muted-foreground uppercase">Pts</div>
-                                </div>
-                                </div>
-                            ))}
-                            </div>
-                        )}
-                        </CardContent>
-                    </Card>
                 </div>
             </div>
 
