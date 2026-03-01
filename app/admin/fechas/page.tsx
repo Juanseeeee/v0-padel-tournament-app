@@ -391,10 +391,10 @@ export default function FechasAdminPage() {
                             >
                             <div className="flex h-14 w-14 sm:h-16 sm:w-16 flex-col items-center justify-center rounded-2xl bg-primary/10 text-primary shrink-0">
                                 <span className="text-xl sm:text-2xl font-black leading-none tracking-tighter">
-                                {fecha.fecha_calendario ? new Date(fecha.fecha_calendario).getDate() : "-"}
+                                {fecha.fecha_calendario ? parseDateOnly(fecha.fecha_calendario).getDate() : "-"}
                                 </span>
                                 <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">
-                                {fecha.fecha_calendario ? new Date(fecha.fecha_calendario).toLocaleDateString('es-AR', { month: 'short' }) : ""}
+                                {fecha.fecha_calendario ? parseDateOnly(fecha.fecha_calendario).toLocaleDateString('es-AR', { month: 'short' }) : ""}
                                 </span>
                             </div>
                             <div className="min-w-0 flex-1 space-y-1">
@@ -479,10 +479,10 @@ export default function FechasAdminPage() {
                             >
                             <div className="flex h-14 w-14 sm:h-16 sm:w-16 flex-col items-center justify-center rounded-2xl bg-muted text-muted-foreground shrink-0">
                                 <span className="text-xl sm:text-2xl font-black leading-none tracking-tighter">
-                                {fecha.fecha_calendario ? new Date(fecha.fecha_calendario).getDate() : "-"}
+                                {fecha.fecha_calendario ? parseDateOnly(fecha.fecha_calendario).getDate() : "-"}
                                 </span>
                                 <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">
-                                {fecha.fecha_calendario ? new Date(fecha.fecha_calendario).toLocaleDateString('es-AR', { month: 'short' }) : ""}
+                                {fecha.fecha_calendario ? parseDateOnly(fecha.fecha_calendario).toLocaleDateString('es-AR', { month: 'short' }) : ""}
                                 </span>
                             </div>
                             <div className="min-w-0 flex-1 space-y-1">

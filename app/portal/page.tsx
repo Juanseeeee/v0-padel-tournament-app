@@ -319,8 +319,8 @@ export default function PortalPage() {
                          <Card key={i} className="border-none shadow-sm bg-card rounded-2xl overflow-hidden hover:bg-accent/5 transition-colors">
                             <div className="flex items-center p-4 gap-4">
                                 <div className="h-12 w-12 rounded-2xl bg-primary/10 flex flex-col items-center justify-center text-primary font-bold shrink-0">
-                                    <span className="text-lg leading-none">{new Date(fecha.fecha_calendario).getDate()}</span>
-                                    <span className="text-[10px] uppercase">{new Date(fecha.fecha_calendario).toLocaleDateString('es-AR', {month: 'short'})}</span>
+                                    <span className="text-lg leading-none">{parseDateOnly(fecha.fecha_calendario).getDate()}</span>
+                                    <span className="text-[10px] uppercase">{parseDateOnly(fecha.fecha_calendario).toLocaleDateString('es-AR', {month: 'short'})}</span>
                                 </div>
                                 <div className="flex-1">
                                     <h4 className="font-bold text-sm">Fecha {fecha.numero_fecha}</h4>

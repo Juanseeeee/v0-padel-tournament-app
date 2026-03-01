@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/db";
+import { parseDateOnly } from "@/lib/utils";
 
 export async function GET(
   request: NextRequest,
@@ -97,7 +98,7 @@ export async function GET(
     };
 
     const fechaStr = torneo.fecha_calendario
-      ? new Date(torneo.fecha_calendario).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
+      ? parseDateOnly(torneo.fecha_calendario).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
       : "";
 
     // --- BUILD ZONAS HTML ---
