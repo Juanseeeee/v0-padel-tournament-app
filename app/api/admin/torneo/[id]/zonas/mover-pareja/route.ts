@@ -45,8 +45,8 @@ export async function POST(
                          END
         WHERE zona_id = ${ZID_ORIG} AND estado = 'pendiente'
       `;
-      // Reflect swap in parejas_zona avoiding unique constraint conflicts:
-      // Capture stats for both rows, delete one, update the other, then re-insert with captured stats.
+      // Reflect swap in parejas_zona preserving row IDs (to maintain visual order)
+      // We need to swap content (pareja_id AND stats) between the two rows.
       const rows = await sql`
         SELECT id, posicion_final, partidos_ganados, partidos_perdidos, sets_ganados, sets_perdidos, games_ganados, games_perdidos, pareja_id
         FROM parejas_zona
@@ -55,28 +55,55 @@ export async function POST(
       if (rows.length !== 2) {
         return NextResponse.json({ error: "Parejas a reordenar no encontradas en la zona" }, { status: 404 });
       }
-      const rowA = rows.find((r: any) => r.pareja_id === PID);
-      const rowB = rows.find((r: any) => r.pareja_id === SWAP_ID);
-      // Begin transaction
+      
+      const rowA = rows.find((r: any) => r.pareja_id === PID); // The one being dragged
+      const rowB = rows.find((r: any) => r.pareja_id === SWAP_ID); // The target
+      
+      // We want to swap their contents effectively.
+      // rowA.id should contain rowB data
+      // rowB.id should contain rowA data
+      // But since we are "moving A to B's position", we actually just want to SWAP them.
+      
+      // Use a negative placeholder to avoid UNIQUE constraint violation during swap
+      const TEMP_ID = -1 * PID; 
+
       await sql`BEGIN`;
       try {
-        // Delete A to free unique slot
-        await sql`DELETE FROM parejas_zona WHERE zona_id = ${ZID_ORIG} AND pareja_id = ${PID}`;
-        // Update B to PID (keeps B stats with PID)
+        // 1. Update rowA to temp ID to free up PID
         await sql`
-          UPDATE parejas_zona
-          SET pareja_id = ${PID}
-          WHERE zona_id = ${ZID_ORIG} AND pareja_id = ${SWAP_ID}
+            UPDATE parejas_zona 
+            SET pareja_id = ${TEMP_ID}
+            WHERE id = ${rowA.id}
         `;
-        // Re-insert A as SWAP_ID preserving A stats
+
+        // 2. Put PID data into rowB (Target position)
         await sql`
-          INSERT INTO parejas_zona (zona_id, pareja_id, posicion_final, partidos_ganados, partidos_perdidos, sets_ganados, sets_perdidos, games_ganados, games_perdidos)
-          VALUES (
-            ${ZID_ORIG}, ${SWAP_ID},
-            ${rowA.posicion_final}, ${rowA.partidos_ganados}, ${rowA.partidos_perdidos},
-            ${rowA.sets_ganados}, ${rowA.sets_perdidos}, ${rowA.games_ganados}, ${rowA.games_perdidos}
-          )
+            UPDATE parejas_zona
+            SET pareja_id = ${PID},
+                posicion_final = ${rowA.posicion_final},
+                partidos_ganados = ${rowA.partidos_ganados},
+                partidos_perdidos = ${rowA.partidos_perdidos},
+                sets_ganados = ${rowA.sets_ganados},
+                sets_perdidos = ${rowA.sets_perdidos},
+                games_ganados = ${rowA.games_ganados},
+                games_perdidos = ${rowA.games_perdidos}
+            WHERE id = ${rowB.id}
         `;
+
+        // 3. Put SWAP_ID data into rowA (Original position)
+        await sql`
+            UPDATE parejas_zona
+            SET pareja_id = ${SWAP_ID},
+                posicion_final = ${rowB.posicion_final},
+                partidos_ganados = ${rowB.partidos_ganados},
+                partidos_perdidos = ${rowB.partidos_perdidos},
+                sets_ganados = ${rowB.sets_ganados},
+                sets_perdidos = ${rowB.sets_perdidos},
+                games_ganados = ${rowB.games_ganados},
+                games_perdidos = ${rowB.games_perdidos}
+            WHERE id = ${rowA.id}
+        `;
+
         await sql`COMMIT`;
       } catch (e) {
         await sql`ROLLBACK`;

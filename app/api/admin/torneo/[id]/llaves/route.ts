@@ -1,5 +1,8 @@
+
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/db";
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(
   request: NextRequest,
@@ -9,9 +12,19 @@ export async function GET(
   const { searchParams } = new URL(request.url);
   const categoriaId = searchParams.get("categoria");
 
+  // Validación básica
+  if (!id || isNaN(parseInt(id))) {
+    return NextResponse.json({ error: "Invalid torneo ID" }, { status: 400 });
+  }
+
   try {
     let llaves;
     if (categoriaId && categoriaId !== "todas") {
+      const catId = parseInt(categoriaId);
+      if (isNaN(catId)) {
+        return NextResponse.json({ error: "Invalid categoria ID" }, { status: 400 });
+      }
+
       llaves = await sql`
         SELECT 
           l.*,
@@ -26,7 +39,7 @@ export async function GET(
         LEFT JOIN jugadores j1b ON pt1.jugador2_id = j1b.id
         LEFT JOIN jugadores j2a ON pt2.jugador1_id = j2a.id
         LEFT JOIN jugadores j2b ON pt2.jugador2_id = j2b.id
-        WHERE l.fecha_torneo_id = ${parseInt(id)} AND l.categoria_id = ${parseInt(categoriaId)}
+        WHERE l.fecha_torneo_id = ${parseInt(id)} AND l.categoria_id = ${catId}
         ORDER BY 
           CASE l.ronda 
             WHEN '16avos' THEN 1 
@@ -34,6 +47,7 @@ export async function GET(
             WHEN '4tos' THEN 3 
             WHEN 'semis' THEN 4 
             WHEN 'final' THEN 5 
+            ELSE 6
           END,
           l.posicion
       `;
@@ -46,8 +60,8 @@ export async function GET(
     }
 
     return NextResponse.json(llaves);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching llaves:", error);
-    return NextResponse.json({ error: "Error al obtener llaves" }, { status: 500 });
+    return NextResponse.json({ error: "Error al obtener llaves", details: error.message }, { status: 500 });
   }
 }
