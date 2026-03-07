@@ -139,6 +139,9 @@ export default function TorneoManagementPage() {
   const [assignZonaId, setAssignZonaId] = useState("");
   const [previewZonaPairs, setPreviewZonaPairs] = useState<ParejaZona[]>([]);
   const [loadingZonaPreview, setLoadingZonaPreview] = useState(false);
+  const [movingPair, setMovingPair] = useState<{ id: number, zonaId: number, nombre: string } | null>(null);
+  const [targetZoneId, setTargetZoneId] = useState<string>("");
+  const [targetPairId, setTargetPairId] = useState<string>("");
 
   const [configDias, setConfigDias] = useState("3");
   const [configTipoZona, setConfigTipoZona] = useState<"grupos_3" | "grupos_4">("grupos_3");
@@ -1228,6 +1231,7 @@ function ZonasTab({
   const [exportingPdf, setExportingPdf] = useState(false);
   const [zoneDetails, setZoneDetails] = useState<Record<number, { parejas: ParejaZona[]; partidos: PartidoZona[] }>>({});
   const [draggingPair, setDraggingPair] = useState<number | null>(null);
+  const [draggingZoneId, setDraggingZoneId] = useState<number | null>(null);
   const [hoverDropZoneId, setHoverDropZoneId] = useState<number | null>(null);
   const [hoverDropPairId, setHoverDropPairId] = useState<number | null>(null);
   const [showResDialog, setShowResDialog] = useState(false);
@@ -1370,7 +1374,7 @@ function ZonasTab({
         {zonas.map((zona) => (
           <Card 
             key={zona.id} 
-            className={`transition-all hover:scale-[1.02] border-0 shadow-lg hover:shadow-xl backdrop-blur-sm bg-white/50 dark:bg-black/50 ${hoverDropZoneId === zona.id ? 'ring-2 ring-primary' : ''}`}
+            className={`transition-all hover:scale-[1.02] border-0 shadow-lg hover:shadow-xl backdrop-blur-sm bg-white/50 dark:bg-black/50 relative ${hoverDropZoneId === zona.id ? 'ring-2 ring-primary' : ''}`}
             onDragOver={(e) => e.preventDefault()}
             onDragEnter={() => setHoverDropZoneId(zona.id)}
             onDragLeave={() => {
@@ -1394,7 +1398,17 @@ function ZonasTab({
                 
                 // Si la zona está llena, intercambiamos con la última pareja para mantener estructura.
                 // Si hay espacio, movemos la pareja (agregamos), lo que regenerará partidos (necesario por cambio de formato).
-                const accion = isFull ? 'intercambiar' : 'mover';
+                
+                if (isFull) {
+                    toast({ 
+                        title: "Zona completa", 
+                        description: "Para intercambiar, soltá la pareja sobre otra pareja específica de esta zona.", 
+                        variant: "default" 
+                    });
+                    return;
+                }
+
+                const accion = 'mover';
 
                 const res = await fetch(`/api/admin/torneo/${torneoId}/zonas/mover-pareja`, {
                   method: "POST",
@@ -1421,6 +1435,13 @@ function ZonasTab({
             }}
           >
             <CardHeader className="pb-2">
+              {hoverDropZoneId === zona.id && !hoverDropPairId && (
+                <div className="absolute inset-0 bg-primary/5 flex items-center justify-center rounded-lg pointer-events-none z-10 border-2 border-primary border-dashed">
+                    <span className="bg-background/90 px-4 py-2 rounded-full shadow-sm font-medium text-primary animate-bounce">
+                        Mover a esta zona
+                    </span>
+                </div>
+              )}
               <CardTitle className="flex items-center justify-between text-lg">
                 <span className="flex items-center gap-2">
                   <Grid3X3 className="h-4 w-4 text-primary" />
@@ -1540,10 +1561,18 @@ function ZonasTab({
                           draggable
                           onDragStart={(e) => {
                             setDraggingPair(p.pareja_torneo_id);
+                            setDraggingZoneId(zona.id);
                             e.dataTransfer.effectAllowed = "move";
-                            e.dataTransfer.setData("text/plain", JSON.stringify({ pareja_torneo_id: p.pareja_torneo_id, zona_origen_id: zona.id }));
+                            // Store simple data
+                            e.dataTransfer.setData("text/plain", JSON.stringify({ 
+                                pareja_torneo_id: p.pareja_torneo_id, 
+                                zona_origen_id: zona.id 
+                            }));
                           }}
-                          onDragEnd={() => setDraggingPair(null)}
+                          onDragEnd={() => {
+                            setDraggingPair(null);
+                            setDraggingZoneId(null);
+                          }}
                           onDragOver={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
@@ -1551,15 +1580,26 @@ function ZonasTab({
                           onDragEnter={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            setHoverDropPairId(p.pareja_torneo_id);
-                            setHoverDropZoneId(zona.id);
+                            if (draggingPair !== p.pareja_torneo_id) {
+                                setHoverDropPairId(p.pareja_torneo_id);
+                                setHoverDropZoneId(zona.id);
+                            }
                           }}
                           onDragLeave={(e) => {
-                             // Optional: clear hover if leaving row
+                            e.preventDefault();
+                            e.stopPropagation();
+                            // Prevent flickering when moving over children
+                            if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                            if (hoverDropPairId === p.pareja_torneo_id) {
+                                setHoverDropPairId(null);
+                            }
                           }}
                           onDrop={async (e) => {
                             e.preventDefault();
                             e.stopPropagation();
+                            setHoverDropZoneId(null);
+                            setHoverDropPairId(null);
+                            
                             const data = e.dataTransfer.getData("text/plain");
                             if (!data) return;
                             try {
@@ -1569,10 +1609,8 @@ function ZonasTab({
                                 
                                 if (pareja_torneo_id === p.pareja_torneo_id) return;
                         
-                                setHoverDropZoneId(null);
-                                setHoverDropPairId(null);
-                        
-                                const accion = zona_origen_id === zona.id ? 'reordenar' : 'intercambiar';
+                                const isSameZone = String(zona_origen_id) === String(zona.id);
+                                const accion = 'intercambiar'; // Siempre intercambiar si cae sobre otra pareja
                                 
                                 const res = await fetch(`/api/admin/torneo/${torneoId}/zonas/mover-pareja`, {
                                     method: "POST",
@@ -1589,14 +1627,29 @@ function ZonasTab({
                                     const err = await res.json();
                                     toast({ title: "No se pudo mover la pareja", description: err.error || "Error al mover", variant: "destructive" });
                                 } else {
+                                    toast({ title: "Movimiento exitoso", description: "La pareja se ha movido correctamente" });
                                     onZonaUpdate();
                                     loadZoneDetails();
                                 }
-                            } catch {}
+                            } catch (error) {
+                                console.error("Drop error:", error);
+                                toast({ title: "Error", description: "Ocurrió un error inesperado al mover", variant: "destructive" });
+                            }
                           }}
-                          className={`cursor-grab active:cursor-grabbing ${draggingPair === p.pareja_torneo_id ? 'opacity-60' : ''} ${hoverDropPairId === p.pareja_torneo_id ? 'bg-primary/20' : ''}`}
+                          className={`cursor-grab active:cursor-grabbing relative group transition-colors duration-200 
+                            ${draggingPair === p.pareja_torneo_id ? 'opacity-40 bg-muted/50' : ''} 
+                            ${hoverDropPairId === p.pareja_torneo_id && draggingPair && draggingPair !== p.pareja_torneo_id ? 'bg-primary/20 ring-2 ring-primary ring-inset' : ''}`}
                         >
-                          <TableCell>{idx + 1}</TableCell>
+                          <TableCell>
+                            {idx + 1}
+                            {hoverDropPairId === p.pareja_torneo_id && draggingPair && draggingPair !== p.pareja_torneo_id && (
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
+                                    <Badge className="shadow-lg animate-in zoom-in duration-200 text-sm py-1 px-3">
+                                      {draggingZoneId === zona.id ? "Intercambiar" : "Intercambiar"}
+                                    </Badge>
+                                </div>
+                            )}
+                          </TableCell>
                           <TableCell>{p.j1_nombre} {p.j1_apellido?.charAt(0)}. / {p.j2_nombre} {p.j2_apellido?.charAt(0)}.</TableCell>
                           <TableCell>
                             <span className="text-xs">

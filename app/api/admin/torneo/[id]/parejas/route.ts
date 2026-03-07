@@ -129,7 +129,7 @@ export async function POST(
 }
 
 async function regenerateZoneMatches(zonaId: number, torneoId: number) {
-  const parejasZona = await sql`SELECT pareja_id FROM parejas_zona WHERE zona_id = ${zonaId}`;
+  const parejasZona = await sql`SELECT pareja_id FROM parejas_zona WHERE zona_id = ${zonaId} ORDER BY posicion_final ASC, id ASC`;
   if (parejasZona.length < 2) return;
   await sql`DELETE FROM partidos_zona WHERE zona_id = ${zonaId} AND estado = 'pendiente'`;
   const existentes = await sql`
