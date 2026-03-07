@@ -18,7 +18,7 @@ export async function POST(
 
   // Handle reordering within the same zone
   if (ZID_ORIG === ZID_DEST) {
-    if (accion === 'reordenar' && SWAP_ID) {
+    if ((accion === 'reordenar' || accion === 'intercambiar') && SWAP_ID) {
        // Verify matches played check
       const partidosJugados = await sql`
         SELECT COUNT(*) as count FROM partidos_zona
@@ -31,6 +31,7 @@ export async function POST(
       }
 
       // Swap IDs in pending matches (single pass without violating FKs)
+      /* DEPRECATED: We will regenerate matches instead
       await sql`
         UPDATE partidos_zona
         SET pareja1_id = CASE 
@@ -45,6 +46,8 @@ export async function POST(
                          END
         WHERE zona_id = ${ZID_ORIG} AND estado = 'pendiente'
       `;
+      */
+
       // Reflect swap in parejas_zona preserving row IDs (to maintain visual order)
       // We need to swap content (pareja_id AND stats) between the two rows.
       const rows = await sql`
@@ -64,51 +67,38 @@ export async function POST(
       // rowB.id should contain rowA data
       // But since we are "moving A to B's position", we actually just want to SWAP them.
       
-      // Use a negative placeholder to avoid UNIQUE constraint violation during swap
-      const TEMP_ID = -1 * PID; 
-
-      await sql`BEGIN`;
+      // 2. We want to swap visual positions (posicion_final) ONLY.
+      // We do NOT swap 'pareja_id' or stats, because we want Row A (ID 1) to still contain Pair 1,
+      // and Row B (ID 2) to still contain Pair 2. This ensures that 'ORDER BY id' (used in match generation)
+      // preserves the original match pairings (Pair 1 vs Pair 2), while 'ORDER BY posicion_final' (used in table)
+      // reflects the new visual order.
+      
+      // Swap posicion_final between the two rows
       try {
-        // 1. Update rowA to temp ID to free up PID
         await sql`
-            UPDATE parejas_zona 
-            SET pareja_id = ${TEMP_ID}
+            UPDATE parejas_zona
+            SET posicion_final = ${rowB.posicion_final}
             WHERE id = ${rowA.id}
         `;
 
-        // 2. Put PID data into rowB (Target position)
         await sql`
             UPDATE parejas_zona
-            SET pareja_id = ${PID},
-                posicion_final = ${rowA.posicion_final},
-                partidos_ganados = ${rowA.partidos_ganados},
-                partidos_perdidos = ${rowA.partidos_perdidos},
-                sets_ganados = ${rowA.sets_ganados},
-                sets_perdidos = ${rowA.sets_perdidos},
-                games_ganados = ${rowA.games_ganados},
-                games_perdidos = ${rowA.games_perdidos}
+            SET posicion_final = ${rowA.posicion_final}
             WHERE id = ${rowB.id}
         `;
-
-        // 3. Put SWAP_ID data into rowA (Original position)
-        await sql`
-            UPDATE parejas_zona
-            SET pareja_id = ${SWAP_ID},
-                posicion_final = ${rowB.posicion_final},
-                partidos_ganados = ${rowB.partidos_ganados},
-                partidos_perdidos = ${rowB.partidos_perdidos},
-                sets_ganados = ${rowB.sets_ganados},
-                sets_perdidos = ${rowB.sets_perdidos},
-                games_ganados = ${rowB.games_ganados},
-                games_perdidos = ${rowB.games_perdidos}
-            WHERE id = ${rowA.id}
-        `;
-
-        await sql`COMMIT`;
-      } catch (e) {
-        await sql`ROLLBACK`;
+      } catch (e: any) {
         console.error("Swap parejas_zona failed:", e);
-        return NextResponse.json({ error: "Error reordenando parejas en la zona" }, { status: 500 });
+        return NextResponse.json({ error: "Error reordenando parejas: " + e.message }, { status: 500 });
+      }
+
+      // Regenerate matches for this zone to ensure correct ordering/structure (especially for Zone of 3)
+      try {
+        await regenerateZoneMatches(ZID_ORIG, parseInt(torneoId));
+        await scheduleZoneMatches(ZID_ORIG, parseInt(torneoId));
+        await logAudit(parseInt(torneoId), 'reordenar_zona', `Reordenar parejas ${PID} y ${SWAP_ID} en Zona ${ZID_ORIG}`);
+      } catch (e) {
+        console.error("Regenerate after swap failed:", e);
+        // Even if regeneration fails, the swap is committed. User can retry or manual fix.
       }
 
       return NextResponse.json({ success: true });
@@ -186,6 +176,8 @@ export async function POST(
         await sql`INSERT INTO parejas_zona (zona_id, pareja_id) VALUES (${ZID_ORIG}, ${targetId})`;
 
         // 2. Swap in partidos_zona (Update IDs directly to preserve matches)
+        // DEPRECATED: We will regenerate matches instead to ensure consistency
+        /*
         // Zone A: P1 -> P2 (Target)
           await sql`
             UPDATE partidos_zona
@@ -201,6 +193,15 @@ export async function POST(
                 pareja2_id = CASE WHEN pareja2_id = ${targetId} THEN ${PID} ELSE pareja2_id END
             WHERE zona_id = ${ZID_DEST} AND estado = 'pendiente'
         `;
+        */
+       
+        // Regenerate matches for both zones to ensure correct ordering/structure
+        await regenerateZoneMatches(ZID_ORIG, parseInt(torneoId));
+        await regenerateZoneMatches(ZID_DEST, parseInt(torneoId));
+        await scheduleZoneMatches(ZID_ORIG, parseInt(torneoId));
+        await scheduleZoneMatches(ZID_DEST, parseInt(torneoId));
+
+        await logAudit(parseInt(torneoId), 'intercambio_zonas', `Intercambio pareja ${PID} (Zona ${ZID_ORIG}) con ${targetId} (Zona ${ZID_DEST})`);
 
         return NextResponse.json({ success: true });
       }
@@ -217,47 +218,67 @@ export async function POST(
     }
 
     // Standard Move
-    // Remove pareja from origin zone
-    await sql`
-      DELETE FROM parejas_zona WHERE pareja_id = ${PID} AND zona_id = ${ZID_ORIG}
-    `;
+    // Note: Removed BEGIN/COMMIT because Neon serverless HTTP driver doesn't support interactive transactions
+    try {
+        // Remove pareja from origin zone
+        await sql`
+        DELETE FROM parejas_zona WHERE pareja_id = ${PID} AND zona_id = ${ZID_ORIG}
+        `;
 
-    // Delete pending matches involving this pareja in origin zone
-    await sql`
-      DELETE FROM partidos_zona 
-      WHERE zona_id = ${ZID_ORIG}
-        AND (pareja1_id = ${PID} OR pareja2_id = ${PID})
-        AND estado = 'pendiente'
-    `;
+        // Delete pending matches involving this pareja in origin zone
+        // (Regenerate will handle this, but explicit cleanup is safer)
+        await sql`
+        DELETE FROM partidos_zona 
+        WHERE zona_id = ${ZID_ORIG}
+            AND (pareja1_id = ${PID} OR pareja2_id = ${PID})
+            AND estado = 'pendiente'
+        `;
 
-    // Add pareja to destination zone
-    await sql`
-      INSERT INTO parejas_zona (zona_id, pareja_id)
-      VALUES (${ZID_DEST}, ${PID})
-      ON CONFLICT DO NOTHING
-    `;
+        // Add pareja to destination zone
+        await sql`
+        INSERT INTO parejas_zona (zona_id, pareja_id)
+        VALUES (${ZID_DEST}, ${PID})
+        ON CONFLICT DO NOTHING
+        `;
 
-    // Regenerate round-robin matches for both zones
-    await regenerateZoneMatches(ZID_ORIG, parseInt(torneoId));
-    await regenerateZoneMatches(ZID_DEST, parseInt(torneoId));
-    
-    // Recalcular horarios para ambas zonas (pendientes)
-    await scheduleZoneMatches(ZID_ORIG, parseInt(torneoId));
-    await scheduleZoneMatches(ZID_DEST, parseInt(torneoId));
+        // Regenerate round-robin matches for both zones
+        await regenerateZoneMatches(ZID_ORIG, parseInt(torneoId));
+        await regenerateZoneMatches(ZID_DEST, parseInt(torneoId));
+        
+        // Recalcular horarios para ambas zonas (pendientes)
+        await scheduleZoneMatches(ZID_ORIG, parseInt(torneoId));
+        await scheduleZoneMatches(ZID_DEST, parseInt(torneoId));
 
-    return NextResponse.json({ success: true });
-  } catch (error) {
+        await logAudit(parseInt(torneoId), 'mover_zona', `Mover pareja ${PID} de Zona ${ZID_ORIG} a Zona ${ZID_DEST}`);
+
+        return NextResponse.json({ success: true });
+    } catch (e: any) {
+        // await sql`ROLLBACK`; // Cannot rollback in stateless connection
+        throw e;
+    }
+  } catch (error: any) {
     console.error("Error moviendo pareja:", error);
-    return NextResponse.json({ error: "Error moviendo pareja" }, { status: 500 });
+    return NextResponse.json({ error: "Error moviendo pareja: " + error.message }, { status: 500 });
   }
 }
 
+async function logAudit(torneoId: number, accion: string, detalle: string) {
+    try {
+        // Simple console log for now, but structured for future DB insertion
+        console.log(`[AUDIT] Torneo: ${torneoId} | Acción: ${accion} | Detalle: ${detalle} | Timestamp: ${new Date().toISOString()}`);
+        // If an audit table existed, we would insert here:
+        // await sql`INSERT INTO auditoria (torneo_id, accion, detalle, created_at) VALUES (${torneoId}, ${accion}, ${detalle}, NOW())`;
+    } catch (e) {
+        console.error("Audit log failed", e);
+    }
+}
+
 async function regenerateZoneMatches(zonaId: number, torneoId: number) {
-  // Get current parejas in this zone
+  // Get current parejas in this zone, ordered by posicion_final (visual order) to ensure matches match the table
   const parejasZona = await sql`
     SELECT pareja_id FROM parejas_zona 
     WHERE zona_id = ${zonaId}
-    ORDER BY id
+    ORDER BY posicion_final ASC, id ASC
   `;
 
   if (parejasZona.length < 2) return;
@@ -279,46 +300,40 @@ async function regenerateZoneMatches(zonaId: number, torneoId: number) {
 
   const ids = parejasZona.map(p => p.pareja_id);
   
-  if (ids.length === 3) {
+  if (ids.length === 3 && playedPairs.size === 0) {
     // Zona de 3: inicial, perdedor_vs_3, ganador_vs_3
     // We only insert if matches don't conflict with played ones, but for 3-zone template, 
     // structure is fixed. If played matches exist, we might have partial state.
     // If no matches played, we regenerate all.
-    if (playedPairs.size === 0) {
-        await sql`
-        INSERT INTO partidos_zona (zona_id, fecha_torneo_id, pareja1_id, pareja2_id, tipo_partido, estado, orden_partido)
-        VALUES
-            (${zonaId}, ${torneoId}, ${ids[0]}, ${ids[1]}, 'inicial', 'pendiente', 1),
-            (${zonaId}, ${torneoId}, NULL, ${ids[2]}, 'perdedor_vs_3', 'pendiente', 2),
-            (${zonaId}, ${torneoId}, NULL, ${ids[2]}, 'ganador_vs_3', 'pendiente', 3)
-        `;
-    } else {
-        // Fallback to round robin if structure is broken by played matches
-        // Or try to fill gaps? 
-        // For simplicity, if played matches exist in 3-zone, we don't regenerate template to avoid duplicates.
-        // User should reset manually if needed.
-    }
-  } else if (ids.length === 4) {
+    await sql`
+    INSERT INTO partidos_zona (zona_id, pareja1_id, pareja2_id, tipo_partido, estado, orden_partido)
+    VALUES
+        (${zonaId}, ${ids[0]}, ${ids[1]}, 'inicial', 'pendiente', 1),
+        (${zonaId}, NULL, ${ids[2]}, 'perdedor_vs_3', 'pendiente', 2),
+        (${zonaId}, NULL, ${ids[2]}, 'ganador_vs_3', 'pendiente', 3)
+    `;
+  } else if (ids.length === 4 && playedPairs.size === 0) {
     // Zona de 4: semifinales, 3er puesto y final
-    if (playedPairs.size === 0) {
-        await sql`
-        INSERT INTO partidos_zona (zona_id, fecha_torneo_id, pareja1_id, pareja2_id, tipo_partido, estado, orden_partido)
-        VALUES
-            (${zonaId}, ${torneoId}, ${ids[0]}, ${ids[1]}, 'inicial_1', 'pendiente', 1),
-            (${zonaId}, ${torneoId}, ${ids[2]}, ${ids[3]}, 'inicial_2', 'pendiente', 2),
-            (${zonaId}, ${torneoId}, NULL, NULL, 'perdedores', 'pendiente', 3),
-            (${zonaId}, ${torneoId}, NULL, NULL, 'ganadores', 'pendiente', 4)
-        `;
-    }
+    await sql`
+    INSERT INTO partidos_zona (zona_id, pareja1_id, pareja2_id, tipo_partido, estado, orden_partido)
+    VALUES
+        (${zonaId}, ${ids[0]}, ${ids[1]}, 'inicial_1', 'pendiente', 1),
+        (${zonaId}, ${ids[2]}, ${ids[3]}, 'inicial_2', 'pendiente', 2),
+        (${zonaId}, NULL, NULL, 'perdedores', 'pendiente', 3),
+        (${zonaId}, NULL, NULL, 'ganadores', 'pendiente', 4)
+    `;
   } else {
-    // Para otras cantidades (o fallback), generar round-robin básico checking played
+    // Para otras cantidades, o si ya hay partidos jugados en zonas de 3/4 (estado parcial),
+    // generamos round-robin básico para completar los cruces faltantes.
     for (let i = 0; i < ids.length; i++) {
       for (let j = i + 1; j < ids.length; j++) {
         const key = `${Math.min(ids[i], ids[j])}-${Math.max(ids[i], ids[j])}`;
         if (!playedPairs.has(key)) {
+            // Check if this match already exists as pending?
+            // We deleted pending matches above, so we are safe to insert.
             await sql`
-            INSERT INTO partidos_zona (zona_id, fecha_torneo_id, pareja1_id, pareja2_id, tipo_partido, estado)
-            VALUES (${zonaId}, ${torneoId}, ${ids[i]}, ${ids[j]}, 'round_robin', 'pendiente')
+            INSERT INTO partidos_zona (zona_id, pareja1_id, pareja2_id, tipo_partido, estado)
+            VALUES (${zonaId}, ${ids[i]}, ${ids[j]}, 'round_robin', 'pendiente')
             `;
         }
       }
