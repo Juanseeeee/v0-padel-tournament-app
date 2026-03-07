@@ -90,28 +90,30 @@ export async function GET(
       if (len === 3) {
         const m1 = byKey["inicial"] || byKey["incial"] || byKey["inicial_1"];
         const allParejaIds = (parejas as any[]).map(p => p.pareja_torneo_id);
-        const id3 = (m1 && allParejaIds.length === 3) ? allParejaIds.find((pid: number) => pid !== m1.pareja1_id && pid !== m1.pareja2_id) : null;
+        const id3 = (m1 && allParejaIds.length === 3) 
+          ? allParejaIds.find((pid: any) => String(pid) !== String(m1.pareja1_id) && String(pid) !== String(m1.pareja2_id)) 
+          : null;
         if (m1) {
           const ganadorInicial = m1.ganador_id || computeWinnerId(m1);
           const perdedorInicial = (ganadorInicial && m1.pareja1_id && m1.pareja2_id)
-            ? (ganadorInicial === m1.pareja1_id ? m1.pareja2_id : m1.pareja1_id)
+            ? (String(ganadorInicial) === String(m1.pareja1_id) ? m1.pareja2_id : m1.pareja1_id)
             : null;
           const perdMatch = byKey["perdedor_vs_3"] || byKey["perderdor_vs_3"] || byKey["perdedores"];
           const ganMatch  = byKey["ganador_vs_3"] || byKey["ganadores"];
 
           if (perdMatch) {
-            if (!perdMatch.pareja1_id && perdedorInicial) {
+            if (perdedorInicial && (!perdMatch.pareja1_id || String(perdMatch.pareja1_id) !== String(perdedorInicial))) {
               updateOps.push(sql`UPDATE partidos_zona SET pareja1_id = ${perdedorInicial} WHERE id = ${perdMatch.id}`);
             }
-            if (!perdMatch.pareja2_id && id3) {
+            if (id3 && (!perdMatch.pareja2_id || String(perdMatch.pareja2_id) !== String(id3))) {
               updateOps.push(sql`UPDATE partidos_zona SET pareja2_id = ${id3} WHERE id = ${perdMatch.id}`);
             }
           }
           if (ganMatch) {
-            if (!ganMatch.pareja1_id && ganadorInicial) {
+            if (ganadorInicial && (!ganMatch.pareja1_id || String(ganMatch.pareja1_id) !== String(ganadorInicial))) {
               updateOps.push(sql`UPDATE partidos_zona SET pareja1_id = ${ganadorInicial} WHERE id = ${ganMatch.id}`);
             }
-            if (!ganMatch.pareja2_id && id3) {
+            if (id3 && (!ganMatch.pareja2_id || String(ganMatch.pareja2_id) !== String(id3))) {
               updateOps.push(sql`UPDATE partidos_zona SET pareja2_id = ${id3} WHERE id = ${ganMatch.id}`);
             }
           }
@@ -119,16 +121,32 @@ export async function GET(
       }
 
       if (len === 4) {
-        const m1 = byTipo["inicial_1"];
-        const m2 = byTipo["inicial_2"];
-        if (m1 && m2 && m1.estado === 'finalizado' && m2.estado === 'finalizado' && m1.ganador_id && m2.ganador_id) {
-          const perd1 = m1.pareja1_id === m1.ganador_id ? m1.pareja2_id : m1.pareja1_id;
-          const perd2 = m2.pareja1_id === m2.ganador_id ? m2.pareja2_id : m2.pareja1_id;
-          if (byTipo["perdedores"] && (!byTipo["perdedores"].pareja1_id || !byTipo["perdedores"].pareja2_id)) {
-            updateOps.push(sql`UPDATE partidos_zona SET pareja1_id = ${perd1}, pareja2_id = ${perd2} WHERE zona_id = ${parseInt(zonaId)} AND tipo_partido = 'perdedores'`);
+        const m1 = byKey["inicial_1"];
+        const m2 = byKey["inicial_2"];
+        const m3 = byKey["perdedores"];
+        const m4 = byKey["ganadores"];
+
+        if (m1 && m2 && m1.ganador_id && m2.ganador_id) {
+          const perd1 = String(m1.ganador_id) === String(m1.pareja1_id) ? m1.pareja2_id : m1.pareja1_id;
+          const perd2 = String(m2.ganador_id) === String(m2.pareja1_id) ? m2.pareja2_id : m2.pareja1_id;
+          const gan1  = m1.ganador_id;
+          const gan2  = m2.ganador_id;
+
+          if (m3) {
+            if (!m3.pareja1_id || String(m3.pareja1_id) !== String(perd1)) {
+               updateOps.push(sql`UPDATE partidos_zona SET pareja1_id = ${perd1} WHERE id = ${m3.id}`);
+            }
+            if (!m3.pareja2_id || String(m3.pareja2_id) !== String(perd2)) {
+               updateOps.push(sql`UPDATE partidos_zona SET pareja2_id = ${perd2} WHERE id = ${m3.id}`);
+            }
           }
-          if (byTipo["ganadores"] && (!byTipo["ganadores"].pareja1_id || !byTipo["ganadores"].pareja2_id)) {
-            updateOps.push(sql`UPDATE partidos_zona SET pareja1_id = ${m1.ganador_id}, pareja2_id = ${m2.ganador_id} WHERE zona_id = ${parseInt(zonaId)} AND tipo_partido = 'ganadores'`);
+          if (m4) {
+            if (!m4.pareja1_id || String(m4.pareja1_id) !== String(gan1)) {
+               updateOps.push(sql`UPDATE partidos_zona SET pareja1_id = ${gan1} WHERE id = ${m4.id}`);
+            }
+            if (!m4.pareja2_id || String(m4.pareja2_id) !== String(gan2)) {
+               updateOps.push(sql`UPDATE partidos_zona SET pareja2_id = ${gan2} WHERE id = ${m4.id}`);
+            }
           }
         }
       }

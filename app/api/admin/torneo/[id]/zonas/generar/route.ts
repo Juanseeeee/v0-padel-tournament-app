@@ -115,6 +115,15 @@ export async function POST(
     }
 
     const zonaSizes = config.zonas;
+    
+    // Safety check: NO zone can have > 4 couples
+    if (zonaSizes.some(s => s > 4)) {
+      return NextResponse.json(
+        { error: `Configuracion invalida: Las zonas no pueden tener mas de 4 parejas (encontrado: ${Math.max(...zonaSizes)})` },
+        { status: 500 }
+      );
+    }
+
     const numZonas  = zonaSizes.length;
 
     /* ── 3. Cleanup ──────────────────────────────────── */

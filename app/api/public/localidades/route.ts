@@ -6,6 +6,10 @@ export async function GET() {
     const jugadoresLocs = await sql`SELECT DISTINCT localidad FROM jugadores WHERE localidad IS NOT NULL AND TRIM(localidad) <> ''`;
     const sedesLocs = await sql`SELECT DISTINCT localidad FROM sedes WHERE localidad IS NOT NULL AND TRIM(localidad) <> ''`;
     const set = new Set<string>();
+    // Agregar localidades requeridas por defecto
+    set.add("Teodelina, Santa Fe");
+    set.add("Santa Isabel, Santa Fe");
+    
     for (const r of jugadoresLocs as any[]) {
       if (r.localidad && typeof r.localidad === "string") set.add(r.localidad.trim());
     }
