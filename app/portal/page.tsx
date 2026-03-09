@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Calendar as CalendarIcon,
   CalendarDays,
@@ -20,6 +21,7 @@ import {
   Medal,
   Loader2,
   ChevronRight,
+  ChevronLeft,
   Trophy,
   Users
 } from "lucide-react";
@@ -41,15 +43,112 @@ function dateToDayPill(dateString?: string | null): DayPill {
   };
 }
 
+function MonthCalendar({ monthStr, events }: { monthStr: string, events: any[] }) {
+  const [year, month] = monthStr.split('-').map(Number);
+  const date = new Date(year, month - 1, 1);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const firstDayOfWeek = date.getDay(); // 0 = Sunday
+  
+  const days = [];
+  for (let i = 0; i < firstDayOfWeek; i++) {
+    days.push(null);
+  }
+  for (let i = 1; i <= daysInMonth; i++) {
+    days.push(i);
+  }
+
+  const getEventsForDay = (day: number) => {
+    return events.filter(e => {
+        const d = parseDateOnly(e.fecha_calendario);
+        return d.getDate() === day && d.getMonth() === (month - 1) && d.getFullYear() === year;
+    });
+  };
+
+  return (
+    <div className="bg-card/80 backdrop-blur-sm rounded-2xl p-3 shadow-sm ring-1 ring-border/50 max-w-sm mx-auto">
+        <div className="grid grid-cols-7 gap-1 text-center mb-1">
+            {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((d, i) => (
+                <div key={i} className="text-[9px] font-bold text-muted-foreground">{d}</div>
+            ))}
+        </div>
+        <div className="grid grid-cols-7 gap-1">
+            {days.map((day, idx) => {
+                if (day === null) return <div key={idx} className="aspect-square" />;
+                const dayEvents = getEventsForDay(day);
+                const hasEvent = dayEvents.length > 0;
+                
+                let dotClass = "";
+                if (hasEvent) {
+                     if (dayEvents.some(e => e.estado === 'en_juego')) dotClass = "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]";
+                     else if (dayEvents.some(e => e.estado === 'programada')) dotClass = "bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]";
+                     else dotClass = "bg-gray-400";
+                }
+                
+                return (
+                    <div key={idx} className={`aspect-square flex flex-col items-center justify-center rounded-lg text-[10px] transition-all ${hasEvent ? 'bg-primary/5 font-bold text-foreground ring-1 ring-primary/20' : 'text-muted-foreground hover:bg-muted/50'}`}>
+                        {day}
+                        {hasEvent && (
+                            <div className={`mt-0.5 w-1 h-1 rounded-full ${dotClass}`} />
+                        )}
+                    </div>
+                );
+            })}
+        </div>
+        <div className="flex justify-center gap-3 mt-3 pt-2 border-t border-border/50">
+            <div className="flex items-center gap-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.6)]" />
+                <span className="text-[9px] text-muted-foreground font-medium">En curso</span>
+            </div>
+            <div className="flex items-center gap-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.6)]" />
+                <span className="text-[9px] text-muted-foreground font-medium">Próximo</span>
+            </div>
+            <div className="flex items-center gap-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                <span className="text-[9px] text-muted-foreground font-medium">Finalizado</span>
+            </div>
+        </div>
+    </div>
+  );
+}
+
 export default function PortalPage() {
   const router = useRouter();
   const { data: me } = useSWR("/api/auth/me", fetcher);
-  const { data: torneos } = useSWR("/api/portal/torneos", fetcher);
-  const { data: calendarioFechas } = useSWR("/api/portal/calendario", fetcher);
-  const { data: misInscripciones, mutate: mutateInscripciones } = useSWR("/api/portal/mis-inscripciones", fetcher);
-  const { data: rankingData } = useSWR("/api/portal/ranking", fetcher);
+  const { data: categories } = useSWR("/api/public/categorias", fetcher);
   
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [activeTab, setActiveTab] = useState<PortalTab>("torneos");
+  const [page, setPage] = useState(1);
+  const [calendarMonth, setCalendarMonth] = useState<string>(new Date().toISOString().slice(0, 7));
+
+  // Auto-select category logic
+  useEffect(() => {
+    if (!me) return;
+    
+    // If user is in ranking tab and has "all" selected, auto-select their main category
+    if (activeTab === "ranking" && selectedCategory === "all" && me.categoria_id) {
+      setSelectedCategory(String(me.categoria_id));
+    }
+  }, [me, activeTab, selectedCategory]);
+
+  // Reset page when category changes
+  useEffect(() => {
+    setPage(1);
+  }, [selectedCategory]);
+
+  const apiCategory = selectedCategory === "all" ? "" : selectedCategory;
+  const torneosUrl = `/api/portal/torneos?page=${page}&limit=10${apiCategory ? `&categoria_id=${apiCategory}` : ""}`;
+  const { data: torneosData, isLoading: isLoadingTorneos } = useSWR(torneosUrl, fetcher);
+  
+  const calendarioUrl = `/api/portal/calendario?month=${calendarMonth}${apiCategory ? `&categoria_id=${apiCategory}` : ""}`;
+  const { data: calendarioFechas, isLoading: isLoadingCalendario } = useSWR(calendarioUrl, fetcher);
+
+  const { data: misInscripciones, isLoading: isLoadingInscripciones, mutate: mutateInscripciones } = useSWR("/api/portal/mis-inscripciones", fetcher);
+  
+  const rankingUrl = apiCategory ? `/api/portal/ranking?categoria_id=${apiCategory}` : null;
+  const { data: rankingData, isLoading: isLoadingRanking } = useSWR(rankingUrl, fetcher);
+  
   const [enrollDialog, setEnrollDialog] = useState<any>(null);
   const [enrolling, setEnrolling] = useState(false);
   const [enrollError, setEnrollError] = useState("");
@@ -62,10 +161,51 @@ export default function PortalPage() {
   const [jugadoresCategoria, setJugadoresCategoria] = useState<any[]>([]);
   const [loadingJugadores, setLoadingJugadores] = useState(false);
 
-  const torneosList = useMemo(() => Array.isArray(torneos) ? torneos : [], [torneos]);
+  const torneosList = useMemo(() => Array.isArray(torneosData?.data) ? torneosData.data : [], [torneosData]);
+  const torneosPagination = useMemo(() => torneosData?.pagination || {}, [torneosData]);
+  const calendarioList = useMemo(() => Array.isArray(calendarioFechas) ? calendarioFechas : [], [calendarioFechas]);
   const inscriptoFechaIds = useMemo(() => new Set<number>((Array.isArray(misInscripciones) ? misInscripciones : []).map((i: any) => Number(i.fecha_torneo_id))), [misInscripciones]);
-  const rankingList = useMemo(() => Array.isArray(rankingData) ? rankingData : [], [rankingData]);
+  const rankingList = useMemo(() => Array.isArray(rankingData?.jugadores) ? rankingData.jugadores : [], [rankingData]);
   const inscripcionesList = useMemo(() => Array.isArray(misInscripciones) ? misInscripciones : [], [misInscripciones]);
+
+  // Determine available categories for selector
+  const availableCategories = useMemo(() => {
+    if (activeTab === "ranking" && me?.categorias?.length > 0) {
+      return me.categorias;
+    }
+    return categories || [];
+  }, [activeTab, me, categories]);
+
+  // Get selected category name
+  const selectedCategoryName = useMemo(() => {
+    if (!availableCategories || !selectedCategory) return "";
+    const cat = availableCategories.find((c: any) => String(c.id) === selectedCategory);
+    return cat ? cat.nombre : "";
+  }, [availableCategories, selectedCategory]);
+
+  const handleMonthChange = (direction: 'prev' | 'next') => {
+    const date = new Date(calendarMonth + "-01");
+    date.setMonth(date.getMonth() + (direction === 'next' ? 1 : -1));
+    setCalendarMonth(date.toISOString().slice(0, 7));
+  };
+
+  const getStatusColor = (estado: string) => {
+    switch(estado) {
+      case 'en_juego': return 'border-green-500/50 bg-green-500/5';
+      case 'programada': return 'border-blue-500/50 bg-blue-500/5';
+      case 'finalizada': return 'border-gray-500/50 bg-gray-500/5';
+      default: return 'border-border/50 bg-card';
+    }
+  };
+
+  const getStatusBadge = (estado: string) => {
+    switch(estado) {
+      case 'en_juego': return <Badge className="bg-green-500 hover:bg-green-600">En Curso</Badge>;
+      case 'programada': return <Badge className="bg-blue-500 hover:bg-blue-600">Próximo</Badge>;
+      case 'finalizada': return <Badge variant="secondary">Finalizado</Badge>;
+      default: return null;
+    }
+  };
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -230,22 +370,47 @@ export default function PortalPage() {
       {/* Main Content Area - Overlapping */}
       <div className="relative z-20 -mt-16 px-5 space-y-6 pb-10">
         
+        {/* Category Selector */}
+        {(activeTab === "ranking" || activeTab === "torneos" || activeTab === "calendario") && availableCategories.length > 0 && (
+          <div className="bg-card/95 backdrop-blur-sm shadow-lg rounded-2xl p-4 ring-1 ring-border/50 animate-in fade-in slide-in-from-top-4 duration-500">
+             <div className="flex items-center gap-3">
+               <Users className="h-4 w-4 text-muted-foreground" />
+               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                 <SelectTrigger className="w-full bg-transparent border-0 ring-0 focus:ring-0 px-0 h-auto font-bold text-foreground">
+                   <SelectValue placeholder="Seleccionar categoría" />
+                 </SelectTrigger>
+                 <SelectContent>
+                  {activeTab !== "ranking" && (
+                    <SelectItem value="all">Todas las categorías</SelectItem>
+                  )}
+                  {availableCategories.map((c: any) => (
+                    <SelectItem key={c.id} value={String(c.id)}>{c.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+               </Select>
+             </div>
+          </div>
+        )}
+
         {/* Torneos View */}
         {activeTab === "torneos" && (
             <div className="space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-700">
                 <div className="flex items-center justify-between px-2 pt-2">
                     <h3 className="text-lg font-bold text-foreground drop-shadow-sm">Próximos Torneos</h3>
-                    <Button variant="link" className="text-xs text-muted-foreground font-medium h-auto p-0">Ver todos</Button>
                 </div>
 
-                {torneosList.length === 0 ? (
+                {isLoadingTorneos ? (
+                    <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                ) : torneosList.length === 0 ? (
                      <Card className="border-none shadow-lg bg-card/50 backdrop-blur-sm"><CardContent className="p-8 text-center text-muted-foreground">No hay torneos disponibles</CardContent></Card>
                 ) : (
-                    torneosList.map((t: any) => {
+                    <>
+                    {torneosList.map((t: any) => {
                         const yaInscripto = inscriptoFechaIds.has(Number(t.id));
                         const pill = dateToDayPill(t.fecha_calendario);
+                        const statusColor = getStatusColor(t.estado);
                         return (
-                            <Card key={t.id} className="group overflow-hidden border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-card rounded-[1.5rem] transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] ring-1 ring-border/50">
+                            <Card key={t.id} className={`group overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-[1.5rem] transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] ring-1 ${statusColor}`}>
                                 <CardContent className="p-0">
                                     <div className="flex items-stretch min-h-[110px]">
                                         {/* Left Side - Date */}
@@ -260,14 +425,20 @@ export default function PortalPage() {
                                         {/* Right Side - Info */}
                                         <div className="flex-1 p-4 flex flex-col justify-center gap-3 relative">
                                             <div className="flex justify-between items-start">
-                                                <div>
-                                                    <h4 className="font-bold text-foreground text-sm line-clamp-1">Fecha {t.numero_fecha}</h4>
-                                                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1 font-medium">
+                                                <div className="flex-1 mr-2">
+                                                    <div className="flex flex-col gap-0.5 mb-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <h4 className="font-bold text-foreground text-sm line-clamp-1">Fecha {t.numero_fecha}</h4>
+                                                            {getStatusBadge(t.estado)}
+                                                        </div>
+                                                        <span className="text-xs font-black text-primary uppercase tracking-widest">{t.categoria_nombre}</span>
+                                                    </div>
+                                                    <p className="text-xs text-muted-foreground flex items-center gap-1 font-medium">
                                                         <MapPin className="h-3 w-3 text-primary" /> {t.sede || "A confirmar"}
                                                     </p>
                                                 </div>
                                                 {yaInscripto && (
-                                                    <Badge variant="secondary" className="bg-green-500/10 text-green-600 border-0 text-[10px] font-extrabold px-2 py-0.5 rounded-md">
+                                                    <Badge variant="secondary" className="bg-green-500/10 text-green-600 border-0 text-[10px] font-extrabold px-2 py-0.5 rounded-md shrink-0">
                                                         INSCRIPTO
                                                     </Badge>
                                                 )}
@@ -280,16 +451,40 @@ export default function PortalPage() {
                                                 </div>
                                                 
                                                 {!yaInscripto ? (
-                                                    <Button 
-                                                        size="sm" 
-                                                        className="h-8 rounded-xl px-5 text-xs font-bold shadow-sm hover:shadow-md transition-all active:scale-95"
-                                                        onClick={() => setEnrollDialog(t)}
-                                                    >
-                                                        Inscribirse
-                                                    </Button>
+                                                    <div className="flex gap-2">
+                                                      <Link href={`/portal/torneo/${t.id}`}>
+                                                        <Button 
+                                                            size="sm" 
+                                                            variant="outline"
+                                                            className="h-8 rounded-xl px-3 text-xs font-bold shadow-sm"
+                                                        >
+                                                            Ver
+                                                        </Button>
+                                                      </Link>
+                                                      {t.estado === 'programada' && (
+                                                          <Button 
+                                                              size="sm" 
+                                                              className="h-8 rounded-xl px-5 text-xs font-bold shadow-sm hover:shadow-md transition-all active:scale-95"
+                                                              onClick={() => setEnrollDialog(t)}
+                                                          >
+                                                              Inscribirse
+                                                          </Button>
+                                                      )}
+                                                    </div>
                                                 ) : (
-                                                    <div className="h-8 w-8 rounded-full bg-green-500/20 grid place-items-center animate-in zoom-in">
-                                                        <span className="text-green-600 text-sm font-bold">✓</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <Link href={`/portal/torneo/${t.id}`}>
+                                                            <Button 
+                                                                size="sm" 
+                                                                variant="outline"
+                                                                className="h-8 rounded-xl px-3 text-xs font-bold shadow-sm"
+                                                            >
+                                                                Ver
+                                                            </Button>
+                                                        </Link>
+                                                        <div className="h-8 w-8 rounded-full bg-green-500/20 grid place-items-center animate-in zoom-in">
+                                                            <span className="text-green-600 text-sm font-bold">✓</span>
+                                                        </div>
                                                     </div>
                                                 )}
                                             </div>
@@ -298,7 +493,35 @@ export default function PortalPage() {
                                 </CardContent>
                             </Card>
                         );
-                    })
+                    })}
+                    
+                    {/* Pagination Controls */}
+                    {torneosPagination.total > 10 && (
+                        <div className="flex justify-center items-center gap-4 mt-4 pb-4">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                disabled={page === 1}
+                                className="rounded-full w-8 h-8 p-0"
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <span className="text-sm text-muted-foreground font-medium">
+                                Página {page} de {Math.ceil(torneosPagination.total / torneosPagination.limit)}
+                            </span>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPage(p => p + 1)}
+                                disabled={page >= Math.ceil(torneosPagination.total / torneosPagination.limit)}
+                                className="rounded-full w-8 h-8 p-0"
+                            >
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    )}
+                    </>
                 )}
             </div>
         )}
@@ -306,30 +529,52 @@ export default function PortalPage() {
         {/* Calendario View */}
         {activeTab === "calendario" && (
              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-700">
-                <div className="flex items-center justify-between px-2 pt-2">
-                    <h3 className="text-lg font-bold text-foreground drop-shadow-sm">Calendario de Partidos</h3>
+                <div className="flex items-center justify-between px-2 pt-2 bg-card/50 p-3 rounded-2xl backdrop-blur-sm">
+                    <Button variant="ghost" size="icon" onClick={() => handleMonthChange('prev')}>
+                        <ChevronLeft className="h-5 w-5" />
+                    </Button>
+                    <h3 className="text-lg font-bold text-foreground drop-shadow-sm capitalize">
+                        {new Date(calendarMonth + "-01").toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}
+                    </h3>
+                    <Button variant="ghost" size="icon" onClick={() => handleMonthChange('next')}>
+                        <ChevronRight className="h-5 w-5" />
+                    </Button>
                 </div>
-                {(!calendarioFechas || calendarioFechas.length === 0) ? (
+
+                <MonthCalendar monthStr={calendarMonth} events={calendarioList} />
+
+                {isLoadingCalendario ? (
+                    <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                ) : (!calendarioFechas || calendarioFechas.length === 0) ? (
                     <Card className="border-none shadow-sm bg-card rounded-2xl p-8 text-center text-muted-foreground">
                         <CalendarDays className="h-10 w-10 mx-auto mb-3 opacity-20" />
-                        <p>No hay fechas programadas</p>
+                        <p>No hay fechas programadas para este mes</p>
                     </Card>
                 ) : (
-                    calendarioFechas.map((fecha: any, i: number) => (
-                         <Card key={i} className="border-none shadow-sm bg-card rounded-2xl overflow-hidden hover:bg-accent/5 transition-colors">
-                            <div className="flex items-center p-4 gap-4">
-                                <div className="h-12 w-12 rounded-2xl bg-primary/10 flex flex-col items-center justify-center text-primary font-bold shrink-0">
-                                    <span className="text-lg leading-none">{parseDateOnly(fecha.fecha_calendario).getDate()}</span>
-                                    <span className="text-[10px] uppercase">{parseDateOnly(fecha.fecha_calendario).toLocaleDateString('es-AR', {month: 'short'})}</span>
+                    calendarioFechas.map((fecha: any, i: number) => {
+                         const statusColor = getStatusColor(fecha.estado);
+                         return (
+                             <Card key={i} className={`border-none shadow-sm rounded-2xl overflow-hidden hover:bg-accent/5 transition-colors ring-1 ${statusColor}`}>
+                                <div className="flex items-center p-4 gap-4">
+                                    <div className="h-12 w-12 rounded-2xl bg-primary/10 flex flex-col items-center justify-center text-primary font-bold shrink-0">
+                                        <span className="text-lg leading-none">{parseDateOnly(fecha.fecha_calendario).getDate()}</span>
+                                        <span className="text-[10px] uppercase">{parseDateOnly(fecha.fecha_calendario).toLocaleDateString('es-AR', {month: 'short'})}</span>
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="flex flex-col gap-0.5 mb-1">
+                                            <div className="flex items-center gap-2">
+                                                <h4 className="font-bold text-sm">Fecha {fecha.numero_fecha}</h4>
+                                                {getStatusBadge(fecha.estado)}
+                                            </div>
+                                            <span className="text-xs font-black text-primary uppercase tracking-widest">{fecha.categoria_nombre}</span>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">{fecha.sede || "Sede por definir"}</p>
+                                    </div>
+                                    <ChevronRight className="h-5 w-5 text-muted-foreground/50" />
                                 </div>
-                                <div className="flex-1">
-                                    <h4 className="font-bold text-sm">Fecha {fecha.numero_fecha}</h4>
-                                    <p className="text-xs text-muted-foreground">{fecha.sede || "Sede por definir"}</p>
-                                </div>
-                                <ChevronRight className="h-5 w-5 text-muted-foreground/50" />
-                            </div>
-                        </Card>
-                    ))
+                            </Card>
+                        );
+                    })
                 )}
              </div>
         )}
@@ -340,7 +585,9 @@ export default function PortalPage() {
                 <div className="flex items-center justify-between px-2 pt-2">
                     <h3 className="text-lg font-bold text-foreground drop-shadow-sm">Mis Inscripciones</h3>
                 </div>
-                {inscripcionesList.length === 0 ? (
+                {isLoadingInscripciones ? (
+                     <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                ) : inscripcionesList.length === 0 ? (
                      <Card className="border-none shadow-sm bg-card rounded-2xl p-8 text-center text-muted-foreground">
                          <UserPlus className="h-10 w-10 mx-auto mb-3 opacity-20" />
                          <p>No estás inscripto en ningún torneo</p>
@@ -395,11 +642,13 @@ export default function PortalPage() {
          {activeTab === "ranking" && (
              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-700">
                  <div className="flex items-center justify-between px-2 pt-2">
-                    <h3 className="text-lg font-bold text-foreground drop-shadow-sm">Ranking {me.categoria_nombre}</h3>
+                    <h3 className="text-lg font-bold text-foreground drop-shadow-sm">Ranking {selectedCategoryName || me.categoria_nombre}</h3>
                 </div>
                  <Card className="border-none shadow-sm bg-card rounded-3xl overflow-hidden">
                     <div className="p-0">
-                        {rankingList.length === 0 ? (
+                        {isLoadingRanking ? (
+                             <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                        ) : rankingList.length === 0 ? (
                             <div className="p-8 text-center text-muted-foreground">Ranking no disponible</div>
                         ) : (
                             <div className="divide-y divide-border/40">
@@ -416,10 +665,10 @@ export default function PortalPage() {
                                             <p className={`text-sm font-bold ${player.id === me.id ? "text-primary" : "text-foreground"}`}>
                                                 {player.nombre} {player.apellido} {player.id === me.id && "(Tú)"}
                                             </p>
-                                            <p className="text-[10px] text-muted-foreground">{player.partidos_jugados || 0} Partidos jugados</p>
+                                            <p className="text-[10px] text-muted-foreground">{player.torneos_jugados || 0} Torneos jugados</p>
                                         </div>
                                         <div className="text-right">
-                                            <span className="text-lg font-black text-primary">{player.puntos || 0}</span>
+                                            <span className="text-lg font-black text-primary">{player.puntos_totales || 0}</span>
                                             <p className="text-[9px] text-muted-foreground uppercase font-bold">Puntos</p>
                                         </div>
                                     </div>
