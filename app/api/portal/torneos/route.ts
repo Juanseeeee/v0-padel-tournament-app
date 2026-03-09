@@ -1,54 +1,45 @@
 import { sql } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { buildTorneosQuery } from "@/lib/logic/torneos";
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getSession();
   if (!session || session.rol !== "jugador") {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
-  // Get the player's categoria
-  const user = await sql`
-    SELECT u.jugador_id, jc.categoria_id
-    FROM usuarios u
-    JOIN jugador_categorias jc ON jc.jugador_id = u.jugador_id
-    WHERE u.id = ${session.userId}
-    LIMIT 1
-  `;
+  // Get query params
+  const { searchParams } = new URL(request.url);
+  const catParam = searchParams.get("categoria_id");
+  const page = parseInt(searchParams.get("page") || "1");
+  const limit = parseInt(searchParams.get("limit") || "20");
 
-  if (!user[0]?.categoria_id) {
-    return NextResponse.json([]);
-  }
+  const targetCategoriaId = catParam ? parseInt(catParam) : null;
 
-  const categoriaId = user[0].categoria_id;
+  const { query, countQuery, params, countParams } = buildTorneosQuery({ 
+    categoryId: targetCategoriaId, 
+    page, 
+    limit 
+  });
 
-  // Get open tournaments for this category
-  const torneos = await sql`
-    SELECT 
-      f.id,
-      f.numero_fecha,
-      f.temporada,
-      f.estado,
-      f.fecha_calendario,
-      f.sede,
-      f.direccion,
-      f.hora_inicio_viernes,
-      f.hora_inicio_sabado,
-      f.duracion_partido_min,
-      f.categoria_id,
-      c.nombre as categoria_nombre,
-      (
-        SELECT COUNT(*)
-        FROM parejas_torneo pt
-        WHERE pt.fecha_torneo_id = f.id AND pt.categoria_id = f.categoria_id
-      ) as parejas_count
-    FROM fechas_torneo f
-    JOIN categorias c ON c.id = f.categoria_id
-    WHERE f.estado = 'programada'
-      AND f.categoria_id = ${categoriaId}
-    ORDER BY f.fecha_calendario ASC
-  `;
+  // Count query
+  // We must use countParams which excludes limit/offset, matching the countQuery placeholders
+  
+  // Use sql.query for dynamic queries constructed as strings
+  const countResult = await (sql as any).query(countQuery, countParams);
+  const total = parseInt((countResult.rows || countResult)[0].count);
 
-  return NextResponse.json(torneos);
+  const torneosResult = await (sql as any).query(query, params);
+  const torneos = torneosResult.rows || torneosResult;
+
+  return NextResponse.json({
+    data: torneos,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit)
+    }
+  });
 }

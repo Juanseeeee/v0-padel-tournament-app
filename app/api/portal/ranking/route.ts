@@ -8,24 +8,29 @@ export async function GET(request: NextRequest) {
   let categoriaId: number | null = categoriaFromQuery ? Number(categoriaFromQuery) : null;
   let miJugadorId: number | null = null;
 
-  // If no categoria_id provided, try to infer from session
+  // Try to get session for highlighting "me"
+  const session = await getSession(request);
+  if (session) {
+      const user = await sql`SELECT jugador_id FROM usuarios WHERE id = ${session.userId}`;
+      if (user[0]?.jugador_id) {
+          miJugadorId = Number(user[0].jugador_id);
+          
+          // If no category provided, default to user's category
+          if (!categoriaId) {
+               const jugadorCat = await sql`
+                 SELECT categoria_actual_id FROM jugadores WHERE id = ${miJugadorId}
+               `;
+               if (jugadorCat[0]) {
+                   categoriaId = Number(jugadorCat[0].categoria_actual_id);
+               }
+          }
+      }
+  }
+
+  // If still no category, and strict public access is allowed, we might default to something or error
+  // But for now, let's require category if not logged in (or if logged in user has no category?)
   if (!categoriaId) {
-    const session = await getSession(request);
-    if (!session) {
-      return NextResponse.json({ error: "categoria_id requerido" }, { status: 400 });
-    }
-    const user = await sql`SELECT jugador_id FROM usuarios WHERE id = ${session.userId}`;
-    if (!user[0]?.jugador_id) {
-      return NextResponse.json({ error: "Jugador no encontrado" }, { status: 404 });
-    }
-    miJugadorId = Number(user[0].jugador_id);
-    const jugadorCat = await sql`
-      SELECT categoria_id FROM jugador_categorias WHERE jugador_id = ${miJugadorId}
-    `;
-    if (!jugadorCat[0]) {
-      return NextResponse.json({ error: "Categoría no encontrada" }, { status: 404 });
-    }
-    categoriaId = Number(jugadorCat[0].categoria_id);
+      return NextResponse.json({ error: "Categoría requerida" }, { status: 400 });
   }
 
   try {

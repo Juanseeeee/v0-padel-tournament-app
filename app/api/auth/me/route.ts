@@ -9,26 +9,55 @@ export async function GET() {
   }
 
   if (session.rol === "jugador") {
-    const info = await sql`
-      SELECT u.jugador_id, j.nombre, j.apellido, j.puntos_totales, c.nombre as categoria_nombre,
-             (SELECT COUNT(*) + 1 FROM jugadores j2 
-              JOIN jugador_categorias jc2 ON jc2.jugador_id = j2.id 
-              WHERE jc2.categoria_id = jc.categoria_id AND j2.puntos_totales > j.puntos_totales) as ranking
+    // First get basic player info including main category
+    const playerInfo = await sql`
+      SELECT u.jugador_id, j.nombre, j.apellido, j.puntos_totales, j.categoria_actual_id, c.nombre as categoria_actual_nombre
       FROM usuarios u
       LEFT JOIN jugadores j ON j.id = u.jugador_id
-      LEFT JOIN jugador_categorias jc ON jc.jugador_id = u.jugador_id
-      LEFT JOIN categorias c ON c.id = jc.categoria_id
+      LEFT JOIN categorias c ON c.id = j.categoria_actual_id
       WHERE u.id = ${session.userId}
-      LIMIT 1
     `;
+
+    if (playerInfo.length === 0) {
+       return NextResponse.json(session);
+    }
+    
+    const player = playerInfo[0];
+    
+    // Get all categories for this player (including main category)
+    const categories = await sql`
+      SELECT DISTINCT c.id, c.nombre, c.orden_nivel
+      FROM categorias c
+      LEFT JOIN jugador_categorias jc ON jc.categoria_id = c.id AND jc.jugador_id = ${player.jugador_id}
+      WHERE jc.jugador_id IS NOT NULL OR c.id = ${player.categoria_actual_id}
+      ORDER BY c.orden_nivel ASC
+    `;
+
+    // Calculate ranking for the main category (categoria_actual_id)
+    let ranking = null;
+    if (player.categoria_actual_id) {
+       const rankResult = await sql`
+         SELECT COUNT(*) + 1 as rank
+         FROM jugadores j
+         WHERE j.categoria_actual_id = ${player.categoria_actual_id}
+         AND j.puntos_totales > ${player.puntos_totales}
+         AND j.estado = 'activo'
+       `;
+       if (rankResult.length > 0) {
+         ranking = parseInt(rankResult[0].rank);
+       }
+    }
+
     return NextResponse.json({
       ...session,
-      nombre: info[0]?.nombre || session.nombre,
-      apellido: info[0]?.apellido || "",
-      categoria_nombre: info[0]?.categoria_nombre || null,
-      jugador_id: info[0]?.jugador_id || null,
-      ranking: info[0]?.ranking || null,
-      puntos_totales: info[0]?.puntos_totales || 0,
+      nombre: player.nombre || session.nombre,
+      apellido: player.apellido || "",
+      categoria_id: player.categoria_actual_id,
+      categoria_nombre: player.categoria_actual_nombre,
+      categorias: categories, // Array of {id, nombre}
+      jugador_id: player.jugador_id,
+      ranking: ranking,
+      puntos_totales: player.puntos_totales || 0,
     });
   }
 
