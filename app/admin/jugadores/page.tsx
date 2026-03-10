@@ -593,11 +593,21 @@ export default function JugadoresAdminPage() {
                                     if (!recatJugador) return true;
                                     const catGenero = (cat.genero || '').toUpperCase();
                                     const nombre = cat.nombre.toLowerCase();
-                                    const jugGenero = recatJugador.genero || 'masculino';
+                                    // Detectar genero del jugador de forma segura
+                                    const jugGenero = (recatJugador.genero || 'masculino').toLowerCase();
+                                    
                                     if (jugGenero === "masculino") {
                                         return catGenero === "MASCULINO" || nombre.includes("masculino") || nombre.includes("caballero") || nombre.includes("mixto") || nombre.includes("suma");
                                     } else {
-                                        return catGenero === "FEMENINO" || nombre.includes("damas") || nombre.includes("femenino") || nombre.includes("dama") || nombre.includes("mixto") || nombre.includes("suma");
+                                        // Filtro mejorado para categorías femeninas
+                                        return catGenero === "FEMENINO" || 
+                                               nombre.includes("damas") || 
+                                               nombre.includes("femenino") || 
+                                               nombre.includes("dama") || 
+                                               nombre.includes("mujer") ||
+                                               nombre.includes("ladies") ||
+                                               nombre.includes("mixto") || 
+                                               nombre.includes("suma");
                                     }
                                 }).map(c => (
                                     <SelectItem key={c.id} value={String(c.id)}>{c.nombre}</SelectItem>

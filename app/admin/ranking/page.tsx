@@ -57,6 +57,27 @@ export default function RankingPage() {
   const [puntosMap, setPuntosMap] = useState<Record<number, Record<number, { puntos: number; instancia: string }>>>({})
   const [loading, setLoading] = useState(true)
   const [loadingRanking, setLoadingRanking] = useState(false)
+  const [auditResult, setAuditResult] = useState<any[] | null>(null)
+  const [loadingAudit, setLoadingAudit] = useState(false)
+
+  const handleAudit = async () => {
+    if (!selectedCategoria) return
+    setLoadingAudit(true)
+    setAuditResult(null)
+    try {
+      const res = await fetch("/api/admin/ranking/audit", {
+        method: "POST",
+        body: JSON.stringify({ categoria_id: selectedCategoria }),
+        headers: { "Content-Type": "application/json" }
+      })
+      const data = await res.json()
+      setAuditResult(data.discrepancies || [])
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoadingAudit(false)
+    }
+  }
 
   useEffect(() => {
     fetch("/api/admin/categorias")
@@ -107,9 +128,55 @@ export default function RankingPage() {
                   ))}
                 </SelectContent>
               </Select>
+              
+              <Button 
+                variant="outline" 
+                onClick={handleAudit} 
+                disabled={!selectedCategoria || loadingAudit}
+                className="ml-auto"
+              >
+                {loadingAudit ? "Auditando..." : "Validar Puntos"}
+              </Button>
             </div>
           </CardContent>
         </Card>
+
+        {auditResult && (
+          <Card className="mb-6 border-red-200 bg-red-50 dark:bg-red-900/10">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-red-700 dark:text-red-400">
+                <AlertCircle className="h-5 w-5" />
+                Discrepancias Detectadas ({auditResult.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {auditResult.length === 0 ? (
+                <p className="text-green-600 dark:text-green-400 font-medium">Todos los puntos coinciden con los resultados esperados.</p>
+              ) : (
+                <div className="space-y-4">
+                  {auditResult.map((d) => (
+                    <div key={d.jugador_id} className="p-4 bg-white dark:bg-card rounded-lg shadow-sm border text-sm">
+                      <div className="font-bold text-lg mb-1">{d.nombre}</div>
+                      <div className="grid grid-cols-2 gap-2 mb-2">
+                        <div>Puntos Actuales: <span className="font-mono">{d.actual}</span></div>
+                        <div>Puntos Esperados: <span className="font-mono text-blue-600">{d.esperado}</span></div>
+                        <div className="col-span-2 text-red-600 font-bold">Diferencia: {d.diferencia > 0 ? `+${d.diferencia}` : d.diferencia}</div>
+                      </div>
+                      <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
+                        <strong>Detalle Esperado:</strong>
+                        <ul className="list-disc list-inside mt-1">
+                          {d.detalles.map((det: string, i: number) => (
+                            <li key={i}>{det}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {!selectedCategoria ? (
           <Card className="border-none shadow-lg bg-card/95 backdrop-blur-sm">

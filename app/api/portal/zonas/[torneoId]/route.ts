@@ -31,7 +31,12 @@ export async function GET(
              'set1_j1', pz.set1_pareja1,
              'set1_j2', pz.set1_pareja2,
              'set2_j1', pz.set2_pareja1,
-             'set2_j2', pz.set2_pareja2
+             'set2_j2', pz.set2_pareja2,
+             'set3_j1', pz.set3_pareja1,
+             'set3_j2', pz.set3_pareja2,
+             'set1_tiebreak', pz.set1_tiebreak,
+             'set2_tiebreak', pz.set2_tiebreak,
+             'set3_tiebreak', pz.set3_tiebreak
            ) ORDER BY pz.orden_partido) as partidos
     FROM zonas z
     LEFT JOIN partidos_zona pz ON pz.zona_id = z.id

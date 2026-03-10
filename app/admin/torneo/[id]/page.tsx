@@ -154,11 +154,33 @@ export default function TorneoManagementPage() {
     set2_p2: "",
     set3_p1: "",
     set3_p2: "",
+    set1_tiebreak: "",
+    set2_tiebreak: "",
+    set3_tiebreak: "",
   });
 
   // Helper para validar y clampear el valor de games (max dinámico según modalidad)
   const handleSetChange = (field: string, value: string) => {
-    if (value !== "" && !/^\d+$/.test(value)) return;
+    // Permitir vacío
+    if (value === "") {
+      setResultado(prev => ({ ...prev, [field]: "" }));
+      return;
+    }
+
+    // Para tiebreaks, permitir números y guiones (ej: 7-5)
+    if (field.includes('tiebreak')) {
+      // Permitir borrar
+      if (value === "") {
+        setResultado(prev => ({ ...prev, [field]: "" }));
+        return;
+      }
+      // Permitir dígitos y guión
+      if (!/^\d*-?\d*$/.test(value)) return;
+      setResultado(prev => ({ ...prev, [field]: value }));
+      return;
+    }
+
+    if (!/^\d+$/.test(value)) return;
     
     let max = 7;
     if (torneo?.modalidad?.includes("americano")) {
@@ -167,7 +189,7 @@ export default function TorneoManagementPage() {
         max = 30; // Super tiebreak
     }
 
-    if (value !== "" && parseInt(value) > max) return;
+    if (parseInt(value) > max) return;
 
     setResultado(prev => {
         const newRes = { ...prev, [field]: value };
@@ -384,6 +406,15 @@ export default function TorneoManagementPage() {
   const handleGuardarResultado = async () => {
     if (!selectedPartido) return;
 
+    // Validar formato de tiebreaks
+    const isValidTiebreak = (tb: string | undefined | null) => !tb || /^\d+-\d+$/.test(tb);
+    if (!isValidTiebreak(resultado.set1_tiebreak) || 
+        !isValidTiebreak(resultado.set2_tiebreak) || 
+        !isValidTiebreak(resultado.set3_tiebreak)) {
+      toast({ title: "Formato incorrecto", description: "Los tiebreaks deben ser 'N-N' (ej: 7-5)", variant: "destructive" });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const res = await fetch(`/api/admin/torneo/${torneoId}/partidos/${selectedPartido.id}`, {
@@ -396,6 +427,9 @@ export default function TorneoManagementPage() {
           set2_p2: resultado.set2_p2 ? parseInt(resultado.set2_p2) : null,
           set3_p1: resultado.set3_p1 ? parseInt(resultado.set3_p1) : null,
           set3_p2: resultado.set3_p2 ? parseInt(resultado.set3_p2) : null,
+          set1_tiebreak: resultado.set1_tiebreak || null,
+          set2_tiebreak: resultado.set2_tiebreak || null,
+          set3_tiebreak: resultado.set3_tiebreak || null,
         }),
       });
 
@@ -404,7 +438,10 @@ export default function TorneoManagementPage() {
       mutateZonas();
       setShowResultadoDialog(false);
       setSelectedPartido(null);
-      setResultado({ set1_p1: "", set1_p2: "", set2_p1: "", set2_p2: "", set3_p1: "", set3_p2: "" });
+      setResultado({ 
+        set1_p1: "", set1_p2: "", set2_p1: "", set2_p2: "", set3_p1: "", set3_p2: "",
+        set1_tiebreak: "", set2_tiebreak: "", set3_tiebreak: "" 
+      });
     } catch (error) {
       toast({ title: "Error", description: "No se pudo guardar el resultado", variant: "destructive" });
     } finally {
@@ -450,6 +487,15 @@ export default function TorneoManagementPage() {
   const handleGuardarResultadoLlave = async () => {
     if (!selectedLlave) return;
 
+    // Validar formato de tiebreaks
+    const isValidTiebreak = (tb: string | undefined | null) => !tb || /^\d+-\d+$/.test(tb);
+    if (!isValidTiebreak(resultado.set1_tiebreak) || 
+        !isValidTiebreak(resultado.set2_tiebreak) || 
+        !isValidTiebreak(resultado.set3_tiebreak)) {
+      toast({ title: "Formato incorrecto", description: "Los tiebreaks deben ser 'N-N' (ej: 7-5)", variant: "destructive" });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const res = await fetch(`/api/admin/torneo/${torneoId}/llaves/${selectedLlave.id}`, {
@@ -466,7 +512,10 @@ export default function TorneoManagementPage() {
       mutateLlaves();
       setShowLlaveResultadoDialog(false);
       setSelectedLlave(null);
-      setResultado({ set1_p1: "", set1_p2: "", set2_p1: "", set2_p2: "", set3_p1: "", set3_p2: "" });
+      setResultado({ 
+        set1_p1: "", set1_p2: "", set2_p1: "", set2_p2: "", set3_p1: "", set3_p2: "",
+        set1_tiebreak: "", set2_tiebreak: "", set3_tiebreak: "" 
+      });
     } catch (error) {
       toast({ title: "Error", description: "No se pudo guardar el resultado", variant: "destructive" });
     } finally {
@@ -539,6 +588,9 @@ export default function TorneoManagementPage() {
       set2_p2: partido.set2_p2?.toString() || "",
       set3_p1: partido.set3_p1?.toString() || "",
       set3_p2: partido.set3_p2?.toString() || "",
+      set1_tiebreak: partido.set1_tiebreak || "",
+      set2_tiebreak: partido.set2_tiebreak || "",
+      set3_tiebreak: partido.set3_tiebreak || "",
     });
     setShowResultadoDialog(true);
   };
@@ -552,6 +604,9 @@ export default function TorneoManagementPage() {
       set2_p2: llave.set2_pareja2?.toString() || "",
       set3_p1: llave.set3_pareja1?.toString() || "",
       set3_p2: llave.set3_pareja2?.toString() || "",
+      set1_tiebreak: llave.set1_tiebreak || "",
+      set2_tiebreak: llave.set2_tiebreak || "",
+      set3_tiebreak: llave.set3_tiebreak || "",
     });
     setShowLlaveResultadoDialog(true);
   };
@@ -1146,7 +1201,7 @@ export default function TorneoManagementPage() {
               ) : (
                   // Modalidad Normal o 2 sets + tiebreak
                   <>
-                    <div className="grid grid-cols-5 items-center gap-2">
+                    <div className="grid grid-cols-7 items-center gap-2">
                         <Label className="col-span-1">Set 1</Label>
                         <Input
                         type="number" min="0" max="7" className="col-span-2" placeholder="P1"
@@ -1156,8 +1211,18 @@ export default function TorneoManagementPage() {
                         type="number" min="0" max="7" className="col-span-2" placeholder="P2"
                         value={resultado.set1_p2} onChange={(e) => handleSetChange('set1_p2', e.target.value)}
                         />
+                        <div className="col-span-2 flex items-center gap-1">
+                            <span className="text-[10px] text-muted-foreground uppercase">TB</span>
+                            <Input 
+                                type="text" 
+                                className="h-9" 
+                                placeholder="Puntos" 
+                                value={resultado.set1_tiebreak || ""} 
+                                onChange={(e) => handleSetChange('set1_tiebreak', e.target.value)} 
+                            />
+                        </div>
                     </div>
-                    <div className="grid grid-cols-5 items-center gap-2">
+                    <div className="grid grid-cols-7 items-center gap-2">
                         <Label className="col-span-1">Set 2</Label>
                         <Input
                         type="number" min="0" max="7" className="col-span-2" placeholder="P1"
@@ -1167,8 +1232,18 @@ export default function TorneoManagementPage() {
                         type="number" min="0" max="7" className="col-span-2" placeholder="P2"
                         value={resultado.set2_p2} onChange={(e) => handleSetChange('set2_p2', e.target.value)}
                         />
+                        <div className="col-span-2 flex items-center gap-1">
+                            <span className="text-[10px] text-muted-foreground uppercase">TB</span>
+                            <Input 
+                                type="text" 
+                                className="h-9" 
+                                placeholder="Puntos" 
+                                value={resultado.set2_tiebreak || ""} 
+                                onChange={(e) => handleSetChange('set2_tiebreak', e.target.value)} 
+                            />
+                        </div>
                     </div>
-                    <div className="grid grid-cols-5 items-center gap-2">
+                    <div className="grid grid-cols-7 items-center gap-2">
                         <Label className="col-span-1 text-muted-foreground">
                             {torneo?.modalidad === '2_sets_6_tiebreak' ? 'Tiebreak' : 'Set 3'}
                         </Label>
@@ -1182,6 +1257,17 @@ export default function TorneoManagementPage() {
                         value={resultado.set3_p2} onChange={(e) => handleSetChange('set3_p2', e.target.value)}
                         disabled={isMatchDecided(resultado)}
                         />
+                        <div className="col-span-2 flex items-center gap-1">
+                            <span className="text-[10px] text-muted-foreground uppercase">TB</span>
+                            <Input 
+                                type="text" 
+                                className="h-9" 
+                                placeholder="Puntos" 
+                                value={resultado.set3_tiebreak || ""} 
+                                onChange={(e) => handleSetChange('set3_tiebreak', e.target.value)}
+                                disabled={isMatchDecided(resultado) || torneo?.modalidad === '2_sets_6_tiebreak'} 
+                            />
+                        </div>
                     </div>
                   </>
               )}
@@ -1236,7 +1322,10 @@ function ZonasTab({
   const [hoverDropPairId, setHoverDropPairId] = useState<number | null>(null);
   const [showResDialog, setShowResDialog] = useState(false);
   const [resPartido, setResPartido] = useState<PartidoZona | null>(null);
-  const [resultadoZ, setResultadoZ] = useState({ set1_p1: "", set1_p2: "", set2_p1: "", set2_p2: "", set3_p1: "", set3_p2: "" });
+  const [resultadoZ, setResultadoZ] = useState({ 
+    set1_p1: "", set1_p2: "", set2_p1: "", set2_p2: "", set3_p1: "", set3_p2: "",
+    set1_tiebreak: "", set2_tiebreak: "", set3_tiebreak: "" 
+  });
 
   const loadZoneDetails = useCallback(async () => {
     if (!zonas || zonas.length === 0) return;
@@ -1824,6 +1913,9 @@ function ZonasTab({
                                   set2_p2: m.set2_pareja2?.toString() || "",
                                   set3_p1: m.set3_pareja1?.toString() || "",
                                   set3_p2: m.set3_pareja2?.toString() || "",
+                                  set1_tiebreak: m.set1_tiebreak || "",
+                                  set2_tiebreak: m.set2_tiebreak || "",
+                                  set3_tiebreak: m.set3_tiebreak || "",
                                 });
                                 setShowResDialog(true);
                               }}>Resultado</Button>
@@ -1879,7 +1971,7 @@ function ZonasTab({
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-5 items-center gap-2">
+                <div className="grid grid-cols-7 items-center gap-2">
                   <Label className="col-span-1">Set 1</Label>
                   <Input type="number" min="0" max="7" className="col-span-2" placeholder="P1" value={resultadoZ.set1_p1} onChange={(e) => {
                     const v = e.target.value;
@@ -1893,8 +1985,13 @@ function ZonasTab({
                     if (v !== "" && parseInt(v) > 7) return;
                     setResultadoZ(prev => ({ ...prev, set1_p2: v }));
                   }} />
+                  <Input className="col-span-2" placeholder="TB" value={resultadoZ.set1_tiebreak || ""} onChange={(e) => {
+                    const v = e.target.value;
+                    if (v !== "" && !/^\d*-?\d*$/.test(v)) return;
+                    setResultadoZ(prev => ({ ...prev, set1_tiebreak: v }));
+                  }} />
                 </div>
-                <div className="grid grid-cols-5 items-center gap-2">
+                <div className="grid grid-cols-7 items-center gap-2">
                   <Label className="col-span-1">Set 2</Label>
                   <Input type="number" min="0" max="7" className="col-span-2" placeholder="P1" value={resultadoZ.set2_p1} onChange={(e) => {
                     const v = e.target.value;
@@ -1908,21 +2005,31 @@ function ZonasTab({
                     if (v !== "" && parseInt(v) > 7) return;
                     setResultadoZ(prev => ({ ...prev, set2_p2: v }));
                   }} />
+                  <Input className="col-span-2" placeholder="TB" value={resultadoZ.set2_tiebreak || ""} onChange={(e) => {
+                    const v = e.target.value;
+                    if (v !== "" && !/^\d*-?\d*$/.test(v)) return;
+                    setResultadoZ(prev => ({ ...prev, set2_tiebreak: v }));
+                  }} />
                 </div>
-                <div className="grid grid-cols-5 items-center gap-2">
+                <div className="grid grid-cols-7 items-center gap-2">
                   <Label className="col-span-1 text-muted-foreground">{modalidad === '2_sets_6_tiebreak' ? 'Tiebreak' : 'Set 3'}</Label>
-                  <Input type="number" min="0" max={modalidad === '2_sets_6_tiebreak' ? 30 : 7} className="col-span-2" placeholder="P1 (opcional)" value={resultadoZ.set3_p1} onChange={(e) => {
+                  <Input type="number" min="0" max={modalidad === '2_sets_6_tiebreak' ? 30 : 7} className="col-span-2" placeholder="P1" value={resultadoZ.set3_p1} onChange={(e) => {
                     const v = e.target.value;
                     if (v !== "" && !/^\d+$/.test(v)) return;
                     if (v !== "" && parseInt(v) > (modalidad === '2_sets_6_tiebreak' ? 30 : 7)) return;
                     setResultadoZ(prev => ({ ...prev, set3_p1: v }));
                   }} disabled={isMatchDecided(resultadoZ)} />
-                  <Input type="number" min="0" max={modalidad === '2_sets_6_tiebreak' ? 30 : 7} className="col-span-2" placeholder="P2 (opcional)" value={resultadoZ.set3_p2} onChange={(e) => {
+                  <Input type="number" min="0" max={modalidad === '2_sets_6_tiebreak' ? 30 : 7} className="col-span-2" placeholder="P2" value={resultadoZ.set3_p2} onChange={(e) => {
                     const v = e.target.value;
                     if (v !== "" && !/^\d+$/.test(v)) return;
                     if (v !== "" && parseInt(v) > (modalidad === '2_sets_6_tiebreak' ? 30 : 7)) return;
                     setResultadoZ(prev => ({ ...prev, set3_p2: v }));
                   }} disabled={isMatchDecided(resultadoZ)} />
+                  <Input className="col-span-2" placeholder="TB" value={resultadoZ.set3_tiebreak || ""} onChange={(e) => {
+                    const v = e.target.value;
+                    if (v !== "" && !/^\d*-?\d*$/.test(v)) return;
+                    setResultadoZ(prev => ({ ...prev, set3_tiebreak: v }));
+                  }} disabled={isMatchDecided(resultadoZ) || modalidad === '2_sets_6_tiebreak'} />
                 </div>
               </>
             )}
@@ -1931,6 +2038,13 @@ function ZonasTab({
             <Button variant="outline" onClick={() => setShowResDialog(false)}>Cancelar</Button>
             <Button onClick={async () => {
               if (!resPartido) return;
+              const isValidTiebreak = (tb: string | undefined | null) => !tb || /^\d+-\d+$/.test(tb);
+              if (!isValidTiebreak(resultadoZ.set1_tiebreak) || 
+                  !isValidTiebreak(resultadoZ.set2_tiebreak) || 
+                  !isValidTiebreak(resultadoZ.set3_tiebreak)) {
+                toast({ title: "Formato incorrecto", description: "Los tiebreaks deben ser 'N-N' (ej: 7-5)", variant: "destructive" });
+                return;
+              }
               const body = {
                 set1_p1: resultadoZ.set1_p1 ? parseInt(resultadoZ.set1_p1) : null,
                 set1_p2: resultadoZ.set1_p2 ? parseInt(resultadoZ.set1_p2) : null,
@@ -1938,6 +2052,9 @@ function ZonasTab({
                 set2_p2: resultadoZ.set2_p2 ? parseInt(resultadoZ.set2_p2) : null,
                 set3_p1: resultadoZ.set3_p1 ? parseInt(resultadoZ.set3_p1) : null,
                 set3_p2: resultadoZ.set3_p2 ? parseInt(resultadoZ.set3_p2) : null,
+                set1_tiebreak: resultadoZ.set1_tiebreak || null,
+                set2_tiebreak: resultadoZ.set2_tiebreak || null,
+                set3_tiebreak: resultadoZ.set3_tiebreak || null,
               };
               const res = await fetch(`/api/admin/torneo/${torneoId}/partidos/${resPartido.id}`, {
                 method: "PUT",
@@ -1972,6 +2089,9 @@ function ZonasTab({
                               set2_pareja2: s2p2,
                               set3_pareja1: s3p1,
                               set3_pareja2: s3p2,
+                              set1_tiebreak: body.set1_tiebreak,
+                              set2_tiebreak: body.set2_tiebreak,
+                              set3_tiebreak: body.set3_tiebreak,
                               ganador_id,
                               estado: ganador_id ? 'finalizado' : 'pendiente',
                             } as any
@@ -1982,7 +2102,7 @@ function ZonasTab({
                 });
                 setShowResDialog(false);
                 setResPartido(null);
-                setResultadoZ({ set1_p1: "", set1_p2: "", set2_p1: "", set2_p2: "", set3_p1: "", set3_p2: "" });
+                setResultadoZ({ set1_p1: "", set1_p2: "", set2_p1: "", set2_p2: "", set3_p1: "", set3_p2: "", set1_tiebreak: "", set2_tiebreak: "", set3_tiebreak: "" });
                 // Refrescar desde server para asegurar consistencia
                 loadZoneDetails();
               } else {
@@ -2051,7 +2171,8 @@ function ZonaDetailContent({
   const [targetZonePairs, setTargetZonePairs] = useState<ParejaZona[]>([]);
   const [swapPairId, setSwapPairId] = useState<string>("");
   const [resultado, setResultado] = useState({
-    set1_p1: "", set1_p2: "", set2_p1: "", set2_p2: "", set3_p1: "", set3_p2: ""
+    set1_p1: "", set1_p2: "", set2_p1: "", set2_p2: "", set3_p1: "", set3_p2: "",
+    set1_tiebreak: "", set2_tiebreak: "", set3_tiebreak: ""
   });
   const [dropPairId, setDropPairId] = useState<number | null>(null);
   const [showDropDialog, setShowDropDialog] = useState(false);
@@ -2097,7 +2218,20 @@ function ZonaDetailContent({
   }, [traerZonaId, torneoId]);
 
   const handleSetChange = (field: string, value: string) => {
-    if (value !== "" && !/^\d+$/.test(value)) return;
+    // Permitir vacío
+    if (value === "") {
+        setResultado(prev => ({ ...prev, [field]: "" }));
+        return;
+    }
+
+    // Para tiebreaks, permitir números y guiones (ej: 7-5)
+    if (field.includes('tiebreak')) {
+        if (!/^\d*-?\d*$/.test(value)) return;
+        setResultado(prev => ({ ...prev, [field]: value }));
+        return;
+    }
+
+    if (!/^\d+$/.test(value)) return;
     
     let max = 7;
     if (modalidad?.includes("americano")) {
@@ -2106,7 +2240,7 @@ function ZonaDetailContent({
         max = 30; // Super tiebreak
     }
 
-    if (value !== "" && parseInt(value) > max) return;
+    if (parseInt(value) > max) return;
 
     setResultado(prev => {
         const newRes = { ...prev, [field]: value };
@@ -2159,6 +2293,15 @@ function ZonaDetailContent({
 
   const handleSaveResultado = async () => {
     if (!editingPartido) return;
+
+    const isValidTiebreak = (tb: string | undefined | null) => !tb || /^\d+-\d+$/.test(tb);
+    if (!isValidTiebreak(resultado.set1_tiebreak) || 
+        !isValidTiebreak(resultado.set2_tiebreak) || 
+        !isValidTiebreak(resultado.set3_tiebreak)) {
+      toast({ title: "Formato incorrecto", description: "Los tiebreaks deben ser 'N-N' (ej: 7-5)", variant: "destructive" });
+      return;
+    }
+
     setSaving(true);
     try {
       const res = await fetch(
@@ -2171,7 +2314,10 @@ function ZonaDetailContent({
       );
       if (res.ok) {
         setEditingPartido(null);
-        setResultado({ set1_p1: "", set1_p2: "", set2_p1: "", set2_p2: "", set3_p1: "", set3_p2: "" });
+        setResultado({ 
+          set1_p1: "", set1_p2: "", set2_p1: "", set2_p2: "", set3_p1: "", set3_p2: "",
+          set1_tiebreak: "", set2_tiebreak: "", set3_tiebreak: "" 
+        });
         mutate();
         onUpdate();
       } else {
@@ -2530,16 +2676,17 @@ function ZonaDetailContent({
                         className="ml-2"
                         onClick={() => {
                           setEditingPartido(partido);
-                          if (partido.estado === 'finalizado') {
-                            setResultado({
-                              set1_p1: partido.set1_pareja1?.toString() || "",
-                              set1_p2: partido.set1_pareja2?.toString() || "",
-                              set2_p1: partido.set2_pareja1?.toString() || "",
-                              set2_p2: partido.set2_pareja2?.toString() || "",
-                              set3_p1: partido.set3_pareja1?.toString() || "",
-                              set3_p2: partido.set3_pareja2?.toString() || "",
-                            });
-                          }
+                          setResultado({
+                            set1_p1: partido.set1_pareja1?.toString() || "",
+                            set1_p2: partido.set1_pareja2?.toString() || "",
+                            set2_p1: partido.set2_pareja1?.toString() || "",
+                            set2_p2: partido.set2_pareja2?.toString() || "",
+                            set3_p1: partido.set3_pareja1?.toString() || "",
+                            set3_p2: partido.set3_pareja2?.toString() || "",
+                            set1_tiebreak: partido.set1_tiebreak || "",
+                            set2_tiebreak: partido.set2_tiebreak || "",
+                            set3_tiebreak: partido.set3_tiebreak || "",
+                          });
                         }}
                       >
                         {partido.estado === 'finalizado' ? <Edit className="h-4 w-4" /> : <Play className="h-4 w-4" />}
@@ -2593,7 +2740,7 @@ function ZonaDetailContent({
             ) : (
                 <>
                   {/* Set 1 */}
-                  <div className="grid grid-cols-5 items-center gap-2">
+                  <div className="grid grid-cols-7 items-center gap-2">
                     <Label className="col-span-1">Set 1</Label>
                     <Input
                       type="number" min="0" max="7" className="col-span-2" placeholder="P1"
@@ -2603,9 +2750,19 @@ function ZonaDetailContent({
                       type="number" min="0" max="7" className="col-span-2" placeholder="P2"
                       value={resultado.set1_p2} onChange={(e) => handleSetChange('set1_p2', e.target.value)}
                     />
+                    <div className="col-span-2 flex items-center gap-1">
+                        <span className="text-[10px] text-muted-foreground uppercase">TB</span>
+                        <Input 
+                            type="text" 
+                            className="h-9" 
+                            placeholder="Puntos" 
+                            value={resultado.set1_tiebreak || ""} 
+                            onChange={(e) => handleSetChange('set1_tiebreak', e.target.value)} 
+                        />
+                    </div>
                   </div>
                   {/* Set 2 */}
-                  <div className="grid grid-cols-5 items-center gap-2">
+                  <div className="grid grid-cols-7 items-center gap-2">
                     <Label className="col-span-1">Set 2</Label>
                     <Input
                       type="number" min="0" max="7" className="col-span-2" placeholder="P1"
@@ -2615,9 +2772,19 @@ function ZonaDetailContent({
                       type="number" min="0" max="7" className="col-span-2" placeholder="P2"
                       value={resultado.set2_p2} onChange={(e) => handleSetChange('set2_p2', e.target.value)}
                     />
+                    <div className="col-span-2 flex items-center gap-1">
+                        <span className="text-[10px] text-muted-foreground uppercase">TB</span>
+                        <Input 
+                            type="text" 
+                            className="h-9" 
+                            placeholder="Puntos" 
+                            value={resultado.set2_tiebreak || ""} 
+                            onChange={(e) => handleSetChange('set2_tiebreak', e.target.value)} 
+                        />
+                    </div>
                   </div>
                   {/* Set 3 */}
-                  <div className="grid grid-cols-5 items-center gap-2">
+                  <div className="grid grid-cols-7 items-center gap-2">
                     <Label className="col-span-1 text-muted-foreground">
                         {modalidad === '2_sets_6_tiebreak' ? 'Tiebreak' : 'Set 3'}
                     </Label>
@@ -2631,6 +2798,17 @@ function ZonaDetailContent({
                       value={resultado.set3_p2} onChange={(e) => handleSetChange('set3_p2', e.target.value)}
                       disabled={isMatchDecided(resultado)}
                     />
+                    <div className="col-span-2 flex items-center gap-1">
+                        <span className="text-[10px] text-muted-foreground uppercase">TB</span>
+                        <Input 
+                            type="text" 
+                            className="h-9" 
+                            placeholder="Puntos" 
+                            value={resultado.set3_tiebreak || ""} 
+                            onChange={(e) => handleSetChange('set3_tiebreak', e.target.value)}
+                            disabled={isMatchDecided(resultado) || modalidad === '2_sets_6_tiebreak'} 
+                        />
+                    </div>
                   </div>
                 </>
             )}
