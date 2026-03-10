@@ -29,6 +29,60 @@ export async function POST(request: Request) {
 
     // Remove old category association if exists
     if (categoria_anterior_id) {
+      // 1. Get current points before deleting relation
+      // Usamos puntos_categoria si existe, o calculamos basado en historial/participaciones si no.
+      // Asumimos que puntos_categoria es la fuente de verdad actual.
+      const puntosStats = await sql`
+        SELECT puntos_acumulados 
+        FROM puntos_categoria 
+        WHERE jugador_id = ${jugador_id} AND categoria_id = ${categoria_anterior_id}
+      `;
+      
+      const puntosActuales = puntosStats.length > 0 ? puntosStats[0].puntos_acumulados : 0;
+      
+      // Logic for Ascenso with Points Transfer
+      if (tipo === "ascenso" && puntosActuales > 0) {
+        const puntosTransferir = Math.floor(puntosActuales * 0.5); // 50%
+        
+        // Log in ascensos table
+        await sql`
+          INSERT INTO ascensos (
+            jugador_id, fecha_ascenso, categoria_origen_id, categoria_destino_id, 
+            puntos_origen, puntos_transferidos
+          ) VALUES (
+            ${jugador_id}, NOW(), ${categoria_anterior_id}, ${categoria_nueva_id}, 
+            ${puntosActuales}, ${puntosTransferir}
+          )
+        `;
+        
+        // Add points to new category
+        // Check if entry exists in puntos_categoria for new category
+        const statsNuevaCat = await sql`
+          SELECT id, puntos_acumulados FROM puntos_categoria 
+          WHERE jugador_id = ${jugador_id} AND categoria_id = ${categoria_nueva_id}
+        `;
+        
+        if (statsNuevaCat.length > 0) {
+           await sql`
+             UPDATE puntos_categoria 
+             SET puntos_acumulados = puntos_acumulados + ${puntosTransferir},
+                 updated_at = NOW()
+             WHERE id = ${statsNuevaCat[0].id}
+           `;
+        } else {
+           await sql`
+             INSERT INTO puntos_categoria (jugador_id, categoria_id, puntos_acumulados)
+             VALUES (${jugador_id}, ${categoria_nueva_id}, ${puntosTransferir})
+           `;
+        }
+        
+        // Registrar en historial_puntos también para trazabilidad completa
+        await sql`
+          INSERT INTO historial_puntos (jugador_id, categoria_id, puntos_acumulados, motivo)
+          VALUES (${jugador_id}, ${categoria_nueva_id}, ${puntosTransferir}, 'Transferencia 50% por ascenso')
+        `;
+      }
+
       await sql`
         DELETE FROM jugador_categorias 
         WHERE jugador_id = ${jugador_id} AND categoria_id = ${categoria_anterior_id}

@@ -98,6 +98,9 @@ export type Informe = {
   etiquetas: string | null;
   publicado: boolean;
   created_at: string;
+  autor: string | null;
+  imagen_url: string | null;
+  destacado: boolean;
 };
 
 export type Sede = {
@@ -167,6 +170,9 @@ export type PartidoZona = {
   set2_pareja2: number | null;
   set3_pareja1: number | null;
   set3_pareja2: number | null;
+  set1_tiebreak: string | null;
+  set2_tiebreak: string | null;
+  set3_tiebreak: string | null;
   ganador_id: number | null;
   fecha_partido: string | null;
   hora_estimada: string | null;
@@ -193,6 +199,9 @@ export type Llave = {
   set2_pareja2: number | null;
   set3_pareja1: number | null;
   set3_pareja2: number | null;
+  set1_tiebreak: string | null;
+  set2_tiebreak: string | null;
+  set3_tiebreak: string | null;
   ganador_id: number | null;
   estado: string;
   p1_seed: string | null;

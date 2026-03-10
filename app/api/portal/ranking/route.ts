@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
   try {
     // Get all fechas (torneos) for this category
     const fechas = await sql`
-      SELECT id, numero_fecha, fecha_calendario, estado
+      SELECT id, numero_fecha, fecha_calendario, estado, sede
       FROM fechas_torneo
       WHERE categoria_id = ${categoriaId}
       ORDER BY numero_fecha ASC
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       FROM jugadores j
       LEFT JOIN puntos_categoria pc 
         ON pc.jugador_id = j.id AND pc.categoria_id = ${categoriaId}
-      WHERE j.categoria_actual_id = ${categoriaId}
+      WHERE (j.categoria_actual_id = ${categoriaId} OR pc.puntos_acumulados > 0)
         AND j.estado = 'activo'
       ORDER BY COALESCE(pc.puntos_acumulados, 0) DESC, j.nombre ASC
     `;

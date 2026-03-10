@@ -55,7 +55,12 @@ export default async function TournamentPage({
              'set1_j1', pz.set1_pareja1,
              'set1_j2', pz.set1_pareja2,
              'set2_j1', pz.set2_pareja1,
-             'set2_j2', pz.set2_pareja2
+             'set2_j2', pz.set2_pareja2,
+             'set3_j1', pz.set3_pareja1,
+             'set3_j2', pz.set3_pareja2,
+             'set1_tiebreak', pz.set1_tiebreak,
+             'set2_tiebreak', pz.set2_tiebreak,
+             'set3_tiebreak', pz.set3_tiebreak
            ) ORDER BY pz.orden_partido) FILTER (WHERE pz.id IS NOT NULL) as partidos
     FROM zonas z
     LEFT JOIN partidos_zona pz ON pz.zona_id = z.id
@@ -75,6 +80,7 @@ export default async function TournamentPage({
     SELECT 
       l.*,
       l.pareja1_id, l.pareja2_id, l.ganador_id,
+      l.set1_tiebreak, l.set2_tiebreak, l.set3_tiebreak,
       pt1.numero_pareja as pareja1_numero,
       pt2.numero_pareja as pareja2_numero,
       CONCAT(j1a.nombre, ' ', LEFT(j1a.apellido, 1), '. / ', j1b.nombre, ' ', LEFT(j1b.apellido, 1), '.') as pareja1_jugadores,

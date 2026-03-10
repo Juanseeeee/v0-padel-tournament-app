@@ -7,7 +7,7 @@ export async function PUT(
 ) {
   const { partidoId } = await params;
   const body = await request.json();
-  const { set1_p1, set1_p2, set2_p1, set2_p2, set3_p1, set3_p2, dia_partido, cancha_numero, fecha_hora_programada, orden_partido } = body as any;
+  const { set1_p1, set1_p2, set2_p1, set2_p2, set3_p1, set3_p2, set1_tiebreak, set2_tiebreak, set3_tiebreak, dia_partido, cancha_numero, fecha_hora_programada, orden_partido } = body as any;
 
   try {
     // Obtener datos del partido
@@ -84,6 +84,9 @@ export async function PUT(
         set2_pareja2 = ${set2_p2},
         set3_pareja1 = ${set3_p1},
         set3_pareja2 = ${set3_p2},
+        set1_tiebreak = ${set1_tiebreak || null},
+        set2_tiebreak = ${set2_tiebreak || null},
+        set3_tiebreak = ${set3_tiebreak || null},
         ganador_id = ${ganador_id},
         estado = ${estado}
       WHERE id = ${parseInt(partidoId)}

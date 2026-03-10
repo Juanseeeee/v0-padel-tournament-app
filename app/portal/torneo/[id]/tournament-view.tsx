@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Trophy, Calendar, MapPin, ArrowLeft, Users, GitBranch, Activity } from "lucide-react"
+import { Calendar, MapPin, ArrowLeft, Users, GitBranch, Activity } from "lucide-react"
 import { cn, parseDateOnly } from "@/lib/utils"
 
 type PartidoZona = {
@@ -19,6 +19,11 @@ type PartidoZona = {
   set1_j2: number | null
   set2_j1: number | null
   set2_j2: number | null
+  set3_j1: number | null
+  set3_j2: number | null
+  set1_tiebreak: string | null
+  set2_tiebreak: string | null
+  set3_tiebreak: string | null
 }
 
 type Zona = {
@@ -39,7 +44,14 @@ type Llave = {
   set2_pareja2: number | null
   set3_pareja1: number | null
   set3_pareja2: number | null
+  set1_tiebreak: string | null
+  set2_tiebreak: string | null
+  set3_tiebreak: string | null
   ganador_id: number | null
+  pareja1_numero?: number
+  pareja2_numero?: number
+  pareja1_id: number | null
+  pareja2_id: number | null
 }
 
 export function TournamentView({ 
@@ -53,6 +65,25 @@ export function TournamentView({
 }) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("zonas")
+
+  const renderSetScore = (score: number | null, tiebreak: string | null) => {
+    if (score === null) return '-';
+    
+    // Solo mostrar tiebreak si el score es 6 o 7 (sets cerrados por tiebreak o 7-5)
+    // Y si existe un valor de tiebreak
+    const showTiebreak = tiebreak && (score === 6 || score === 7);
+
+    return (
+      <div className="flex items-center justify-center gap-0.5 relative">
+        <span>{score}</span>
+        {showTiebreak && (
+          <span className="text-[8px] text-muted-foreground absolute -top-2 -right-3 font-normal whitespace-nowrap">
+            ({tiebreak})
+          </span>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background relative overflow-x-hidden font-sans">
@@ -159,9 +190,12 @@ export function TournamentView({
                                                                 )}>
                                                                     {partido.jugador1}
                                                                 </span>
-                                                                <div className="flex gap-2 ml-2 font-mono text-sm font-bold">
-                                                                    <span className="w-6 text-center">{partido.set1_j1 ?? '-'}</span>
-                                                                    <span className="w-6 text-center">{partido.set2_j1 ?? '-'}</span>
+                                                                <div className="flex gap-4 ml-2 font-mono text-sm font-bold">
+                                                                    <span className="w-8 text-center">{renderSetScore(partido.set1_j1, partido.set1_tiebreak)}</span>
+                                                                    <span className="w-8 text-center">{renderSetScore(partido.set2_j1, partido.set2_tiebreak)}</span>
+                                                                    {(partido.set3_j1 !== null || partido.set3_j2 !== null) && (
+                                                                        <span className="w-8 text-center">{renderSetScore(partido.set3_j1, partido.set3_tiebreak)}</span>
+                                                                    )}
                                                                 </div>
                                                             </div>
 
@@ -176,9 +210,12 @@ export function TournamentView({
                                                                 )}>
                                                                     {partido.jugador2}
                                                                 </span>
-                                                                <div className="flex gap-2 ml-2 font-mono text-sm font-bold">
-                                                                    <span className="w-6 text-center">{partido.set1_j2 ?? '-'}</span>
-                                                                    <span className="w-6 text-center">{partido.set2_j2 ?? '-'}</span>
+                                                                <div className="flex gap-4 ml-2 font-mono text-sm font-bold">
+                                                                    <span className="w-8 text-center">{renderSetScore(partido.set1_j2, partido.set1_tiebreak)}</span>
+                                                                    <span className="w-8 text-center">{renderSetScore(partido.set2_j2, partido.set2_tiebreak)}</span>
+                                                                    {(partido.set3_j1 !== null || partido.set3_j2 !== null) && (
+                                                                        <span className="w-8 text-center">{renderSetScore(partido.set3_j2, partido.set3_tiebreak)}</span>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -232,10 +269,12 @@ export function TournamentView({
                                                                         {partido.pareja1_jugadores || 'A definir'}
                                                                     </span>
                                                                 </div>
-                                                                <div className="flex gap-1 font-mono text-sm font-bold shrink-0">
-                                                                    <span className="w-5 text-center bg-muted rounded">{partido.set1_pareja1 ?? '-'}</span>
-                                                                    <span className="w-5 text-center bg-muted rounded">{partido.set2_pareja1 ?? '-'}</span>
-                                                                    <span className="w-5 text-center bg-muted rounded">{partido.set3_pareja1 ?? '-'}</span>
+                                                                <div className="flex gap-2 font-mono text-sm font-bold shrink-0">
+                                                                    <span className="w-8 text-center bg-muted rounded">{renderSetScore(partido.set1_pareja1, partido.set1_tiebreak)}</span>
+                                                                    <span className="w-8 text-center bg-muted rounded">{renderSetScore(partido.set2_pareja1, partido.set2_tiebreak)}</span>
+                                                                    {(partido.set3_pareja1 !== null || partido.set3_pareja2 !== null) && (
+                                                                        <span className="w-8 text-center bg-muted rounded">{renderSetScore(partido.set3_pareja1, partido.set3_tiebreak)}</span>
+                                                                    )}
                                                                 </div>
                                                             </div>
 
@@ -254,10 +293,12 @@ export function TournamentView({
                                                                         {partido.pareja2_jugadores || 'A definir'}
                                                                     </span>
                                                                 </div>
-                                                                <div className="flex gap-1 font-mono text-sm font-bold shrink-0">
-                                                                    <span className="w-5 text-center bg-muted rounded">{partido.set1_pareja2 ?? '-'}</span>
-                                                                    <span className="w-5 text-center bg-muted rounded">{partido.set2_pareja2 ?? '-'}</span>
-                                                                    <span className="w-5 text-center bg-muted rounded">{partido.set3_pareja2 ?? '-'}</span>
+                                                                <div className="flex gap-2 font-mono text-sm font-bold shrink-0">
+                                                                    <span className="w-8 text-center bg-muted rounded">{renderSetScore(partido.set1_pareja2, partido.set1_tiebreak)}</span>
+                                                                    <span className="w-8 text-center bg-muted rounded">{renderSetScore(partido.set2_pareja2, partido.set2_tiebreak)}</span>
+                                                                    {(partido.set3_pareja1 !== null || partido.set3_pareja2 !== null) && (
+                                                                        <span className="w-8 text-center bg-muted rounded">{renderSetScore(partido.set3_pareja2, partido.set3_tiebreak)}</span>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         </div>

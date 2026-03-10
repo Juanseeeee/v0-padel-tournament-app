@@ -8,7 +8,7 @@ export async function PUT(
 ) {
   const { zonaId, partidoId } = await params;
   const body = await request.json();
-  const { set1_p1, set1_p2, set2_p1, set2_p2, set3_p1, set3_p2 } = body;
+  const { set1_p1, set1_p2, set2_p1, set2_p2, set3_p1, set3_p2, set1_tiebreak, set2_tiebreak, set3_tiebreak } = body;
 
   const safeInt = (val: any): number | null => {
     if (val === null || val === undefined || val === "") return null;
@@ -88,6 +88,9 @@ export async function PUT(
         set2_pareja2 = ${s2p2},
         set3_pareja1 = ${s3p1},
         set3_pareja2 = ${s3p2},
+        set1_tiebreak = ${set1_tiebreak || null},
+        set2_tiebreak = ${set2_tiebreak || null},
+        set3_tiebreak = ${set3_tiebreak || null},
         ganador_id = ${ganadorId},
         estado = 'finalizado'
       WHERE id = ${parseInt(partidoId)}

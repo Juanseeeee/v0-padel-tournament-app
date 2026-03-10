@@ -19,8 +19,8 @@ export async function POST(request: Request) {
     const { titulo, contenido, autor, imagen_url, destacado } = body
 
     const result = await sql`
-      INSERT INTO informes (titulo, contenido, autor, imagen_url, destacado)
-      VALUES (${titulo}, ${contenido}, ${autor || null}, ${imagen_url || null}, ${destacado || false})
+      INSERT INTO informes (titulo, contenido, autor, imagen_url, destacado, fecha_publicacion)
+      VALUES (${titulo}, ${contenido}, ${autor || null}, ${imagen_url || null}, ${destacado || false}, NOW())
       RETURNING *
     `
     

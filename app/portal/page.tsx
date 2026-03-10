@@ -5,6 +5,8 @@ import useSWR from "swr";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -166,15 +168,23 @@ export default function PortalPage() {
   const calendarioList = useMemo(() => Array.isArray(calendarioFechas) ? calendarioFechas : [], [calendarioFechas]);
   const inscriptoFechaIds = useMemo(() => new Set<number>((Array.isArray(misInscripciones) ? misInscripciones : []).map((i: any) => Number(i.fecha_torneo_id))), [misInscripciones]);
   const rankingList = useMemo(() => Array.isArray(rankingData?.jugadores) ? rankingData.jugadores : [], [rankingData]);
+  const rankingFechas = useMemo(() => Array.isArray(rankingData?.fechas) ? rankingData.fechas : [], [rankingData]);
+  const rankingPuntosMap = useMemo(() => rankingData?.puntosMap || {}, [rankingData]);
   const inscripcionesList = useMemo(() => Array.isArray(misInscripciones) ? misInscripciones : [], [misInscripciones]);
 
   // Determine available categories for selector
   const availableCategories = useMemo(() => {
-    if (activeTab === "ranking" && me?.categorias?.length > 0) {
-      return me.categorias;
-    }
-    return categories || [];
-  }, [activeTab, me, categories]);
+    if (!categories) return [];
+    
+    // Sort so user's category is first, then by orden_nivel
+    return [...categories].sort((a: any, b: any) => {
+      if (me?.categoria_id) {
+        if (a.id === me.categoria_id) return -1;
+        if (b.id === me.categoria_id) return 1;
+      }
+      return (a.orden_nivel || 0) - (b.orden_nivel || 0);
+    });
+  }, [me, categories]);
 
   // Get selected category name
   const selectedCategoryName = useMemo(() => {
@@ -645,37 +655,103 @@ export default function PortalPage() {
                     <h3 className="text-lg font-bold text-foreground drop-shadow-sm">Ranking {selectedCategoryName || me.categoria_nombre}</h3>
                 </div>
                  <Card className="border-none shadow-sm bg-card rounded-3xl overflow-hidden">
-                    <div className="p-0">
+                    <CardContent className="p-0 overflow-x-auto">
                         {isLoadingRanking ? (
                              <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
                         ) : rankingList.length === 0 ? (
                             <div className="p-8 text-center text-muted-foreground">Ranking no disponible</div>
                         ) : (
-                            <div className="divide-y divide-border/40">
-                                {rankingList.map((player: any, index: number) => (
-                                    <div key={player.id} className={`flex items-center p-4 ${player.id === me.id ? "bg-primary/5" : ""}`}>
-                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm mr-4 ${
-                                            index === 0 ? "bg-yellow-400 text-yellow-900 shadow-yellow-400/50 shadow-md" : 
-                                            index === 1 ? "bg-gray-300 text-gray-800" : 
-                                            index === 2 ? "bg-amber-700 text-amber-100" : "bg-muted text-muted-foreground"
-                                        }`}>
-                                            {index + 1}
+                            <TooltipProvider delayDuration={0}>
+                              <Table>
+                                <TableHeader>
+                                  <TableRow className="hover:bg-transparent border-b border-border/40">
+                                    <TableHead className="w-12 text-center font-bold text-muted-foreground">#</TableHead>
+                                    <TableHead className="min-w-[200px] font-bold text-muted-foreground">Jugador</TableHead>
+                                    {rankingFechas.map((fecha: any) => (
+                                      <TableHead key={fecha.id} className="text-center min-w-[80px]">
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <div className="cursor-help flex flex-col items-center">
+                                              <span className="font-bold text-primary">Fecha {fecha.numero_fecha}</span>
+                                              <span className="text-[10px] font-normal text-muted-foreground hidden sm:block">
+                                                {new Date(fecha.fecha_calendario).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}
+                                              </span>
+                                            </div>
+                                          </TooltipTrigger>
+                                          <TooltipContent className="text-center p-2">
+                                            <p className="font-bold">Fecha {fecha.numero_fecha}</p>
+                                            <p className="text-xs">{new Date(fecha.fecha_calendario).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+                                            <p className="text-xs text-muted-foreground mt-1">{fecha.sede}</p>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TableHead>
+                                    ))}
+                                    <TableHead className="text-right font-bold text-primary w-24">TOTAL</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {rankingList.map((player: any, index: number) => (
+                                    <TableRow key={player.id} className={`hover:bg-muted/30 border-b border-border/40 transition-colors ${player.id === me.id ? "bg-primary/5" : ""}`}>
+                                      <TableCell className="text-center font-medium">
+                                        <div className={`
+                                          w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs mx-auto
+                                          ${index === 0 ? "bg-yellow-100 text-yellow-700" : 
+                                            index === 1 ? "bg-gray-100 text-gray-700" : 
+                                            index === 2 ? "bg-orange-100 text-orange-700" : 
+                                            "text-muted-foreground"}
+                                        `}>
+                                          {index + 1}
                                         </div>
-                                        <div className="flex-1">
-                                            <p className={`text-sm font-bold ${player.id === me.id ? "text-primary" : "text-foreground"}`}>
-                                                {player.nombre} {player.apellido} {player.id === me.id && "(Tú)"}
-                                            </p>
-                                            <p className="text-[10px] text-muted-foreground">{player.torneos_jugados || 0} Torneos jugados</p>
+                                      </TableCell>
+                                      <TableCell>
+                                        <div className="flex flex-col">
+                                          <span className={`font-bold ${player.id === me.id ? "text-primary" : "text-foreground"}`}>
+                                            {player.nombre} {player.apellido} {player.id === me.id && "(Tú)"}
+                                          </span>
+                                          {player.localidad && (
+                                            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{player.localidad}</span>
+                                          )}
                                         </div>
-                                        <div className="text-right">
-                                            <span className="text-lg font-black text-primary">{player.puntos_totales || 0}</span>
-                                            <p className="text-[9px] text-muted-foreground uppercase font-bold">Puntos</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                                      </TableCell>
+                                      {rankingFechas.map((fecha: any) => {
+                                        const puntosData = rankingPuntosMap[player.id]?.[fecha.id];
+                                        return (
+                                          <TableCell key={fecha.id} className="text-center p-2">
+                                            {puntosData ? (
+                                              <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                  <div className="inline-flex flex-col items-center cursor-help">
+                                                    <span className="font-bold text-foreground">{puntosData.puntos}</span>
+                                                    {puntosData.instancia && (
+                                                      <span className="text-[9px] text-muted-foreground uppercase max-w-[60px] truncate">
+                                                        {puntosData.instancia === 'campeon' ? '🏆' : 
+                                                         puntosData.instancia === 'finalista' ? '🥈' : 
+                                                         puntosData.instancia.substring(0, 3)}
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                  <p className="font-bold">{puntosData.puntos} Puntos</p>
+                                                  <p className="text-xs capitalize">{puntosData.instancia?.replace('_', ' ') || 'Participación'}</p>
+                                                </TooltipContent>
+                                              </Tooltip>
+                                            ) : (
+                                              <span className="text-muted-foreground/30 text-xl">-</span>
+                                            )}
+                                          </TableCell>
+                                        )
+                                      })}
+                                      <TableCell className="text-right">
+                                        <span className="font-black text-lg text-primary">{player.puntos_totales}</span>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </TooltipProvider>
                         )}
-                    </div>
+                    </CardContent>
                  </Card>
              </div>
         )}
