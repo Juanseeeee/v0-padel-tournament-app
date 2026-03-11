@@ -182,7 +182,7 @@ export async function GET(request: Request) {
     if (torneoId) {
         log("Limpiando datos de prueba...");
         try {
-          await sql`DELETE FROM partidos_zona WHERE fecha_torneo_id = ${torneoId}`;
+          await sql`DELETE FROM partidos_zona WHERE zona_id IN (SELECT id FROM zonas WHERE fecha_torneo_id = ${torneoId})`;
           await sql`DELETE FROM parejas_zona WHERE zona_id IN (SELECT id FROM zonas WHERE fecha_torneo_id = ${torneoId})`;
           await sql`DELETE FROM zonas WHERE fecha_torneo_id = ${torneoId}`;
           await sql`DELETE FROM parejas_torneo WHERE fecha_torneo_id = ${torneoId}`;

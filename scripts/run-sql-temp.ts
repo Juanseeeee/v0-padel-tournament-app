@@ -12,7 +12,15 @@ if (fs.existsSync(envPath)) {
   dotenv.config();
 }
 
-import { sql } from "../lib/db";
+// Ensure DATABASE_URL is available before importing db
+if (!process.env.DATABASE_URL) {
+  console.error("DATABASE_URL is not set");
+  process.exit(1);
+}
+
+// Import db after env is set - use require for CJS compatibility
+const db = require("../lib/db");
+const sql = db.sql;
 
 async function runSql() {
   const sqlFile = process.argv[2];
@@ -36,7 +44,9 @@ async function runSql() {
 
     for (const statement of statements) {
       console.log(`Executing: ${statement.substring(0, 50)}...`);
-      await sql(statement);
+      // Use sql string directly with parens for raw query execution in neon driver
+      const result = await sql(statement);
+      console.log(result);
     }
     
     console.log("SQL executed successfully");

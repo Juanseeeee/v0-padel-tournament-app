@@ -172,8 +172,8 @@ async function regenerateZoneMatches(zonaId: number, torneoId: number) {
       const key = `${Math.min(ids[i], ids[j])}-${Math.max(ids[i], ids[j])}`;
       if (!existenteSet.has(key)) {
         await sql`
-          INSERT INTO partidos_zona (zona_id, fecha_torneo_id, pareja1_id, pareja2_id, tipo_partido, estado)
-          VALUES (${zonaId}, ${torneoId}, ${ids[i]}, ${ids[j]}, 'round_robin', 'pendiente')
+          INSERT INTO partidos_zona (zona_id, pareja1_id, pareja2_id, tipo_partido, estado)
+          VALUES (${zonaId}, ${ids[i]}, ${ids[j]}, 'round_robin', 'pendiente')
         `;
       }
     }
