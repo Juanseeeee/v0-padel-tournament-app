@@ -68,6 +68,7 @@ import { FlyerGenerator } from "@/components/flyer-generator";
 import { AdminWrapper } from "@/components/admin-wrapper";
 import { toast } from "@/hooks/use-toast";
 import { Spinner } from "@/components/ui/spinner";
+import { getFriendlyError } from "@/lib/utils";
 import type {
   FechaTorneo,
   Categoria,
@@ -308,7 +309,7 @@ export default function TorneoManagementPage() {
       setShowParejaDialog(false);
       resetParejaForm();
     } catch (error) {
-      toast({ title: "Error al crear pareja", description: error instanceof Error ? error.message : "No se pudo crear la pareja", variant: "destructive" });
+      toast({ title: "Error al crear pareja", description: getFriendlyError(error), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -443,7 +444,7 @@ export default function TorneoManagementPage() {
         set1_tiebreak: "", set2_tiebreak: "", set3_tiebreak: "" 
       });
     } catch (error) {
-      toast({ title: "Error", description: "No se pudo guardar el resultado", variant: "destructive" });
+      toast({ title: "Error", description: getFriendlyError(error), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -478,7 +479,7 @@ export default function TorneoManagementPage() {
       mutateLlaves();
       setActiveTab("llaves");
     } catch (error) {
-      toast({ title: "Error al generar llaves", description: error instanceof Error ? error.message : "No se pudieron generar las llaves", variant: "destructive" });
+      toast({ title: "Error al generar llaves", description: getFriendlyError(error), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -543,7 +544,7 @@ export default function TorneoManagementPage() {
       mutate(`/api/admin/fechas/${torneoId}`);
       router.push("/admin/fechas");
     } catch (error) {
-      toast({ title: "Error al finalizar torneo", description: error instanceof Error ? error.message : "No se pudo finalizar el torneo", variant: "destructive" });
+      toast({ title: "Error al finalizar torneo", description: getFriendlyError(error), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -563,7 +564,7 @@ export default function TorneoManagementPage() {
       toast({ title: "Torneo eliminado", description: "El torneo fue eliminado correctamente." });
       router.push("/admin/fechas");
     } catch (error) {
-      toast({ title: "Error al eliminar torneo", description: error instanceof Error ? error.message : "No se pudo eliminar el torneo", variant: "destructive" });
+      toast({ title: "Error al eliminar torneo", description: getFriendlyError(error), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -852,11 +853,13 @@ export default function TorneoManagementPage() {
           {/* Tab Llaves */}
           <TabsContent value="llaves">
             <LlavesTab
+              torneoId={torneoId}
               llaves={llaves}
               onResultadoClick={openLlaveResultadoDialog}
               onFinalizarTorneo={handleFinalizarTorneo}
               torneoEstado={torneo?.estado || 'activo'}
               isSubmitting={isSubmitting}
+              onLlaveUpdate={mutateLlaves}
             />
           </TabsContent>
         </Tabs>
@@ -2106,7 +2109,7 @@ function ZonasTab({
                 // Refrescar desde server para asegurar consistencia
                 loadZoneDetails();
               } else {
-                toast({ title: "Error", description: "No se pudo guardar el resultado", variant: "destructive" });
+                toast({ title: "Error", description: getFriendlyError("No se pudo guardar el resultado"), variant: "destructive" });
               }
             }}>Guardar Resultado</Button>
           </DialogFooter>
@@ -2321,10 +2324,10 @@ function ZonaDetailContent({
         mutate();
         onUpdate();
       } else {
-        toast({ title: "Error", description: "No se pudo guardar el resultado", variant: "destructive" });
+        toast({ title: "Error", description: getFriendlyError("No se pudo guardar el resultado"), variant: "destructive" });
       }
     } catch (error) {
-      toast({ title: "Error", description: "No se pudo guardar el resultado", variant: "destructive" });
+      toast({ title: "Error", description: getFriendlyError(error), variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -2359,10 +2362,10 @@ function ZonaDetailContent({
         onUpdate();
         onClose();
       } else {
-        toast({ title: "Error", description: "No se pudo cerrar la zona", variant: "destructive" });
+        toast({ title: "Error", description: getFriendlyError("No se pudo cerrar la zona"), variant: "destructive" });
       }
     } catch (error) {
-      toast({ title: "Error", description: "No se pudo cerrar la zona", variant: "destructive" });
+      toast({ title: "Error", description: getFriendlyError(error), variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -2378,15 +2381,15 @@ function ZonaDetailContent({
       });
       const data = await res.json();
       if (!res.ok) {
-        toast({ title: "Error al resolver empate", description: data.error || "No se pudo resolver el empate", variant: "destructive" });
+        toast({ title: "Error al resolver empate", description: getFriendlyError(data.error || "No se pudo resolver el empate"), variant: "destructive" });
         return;
       }
       setShowTieDialog(false);
       mutate();
       onUpdate();
       if (metodo === "sorteo") onClose();
-    } catch {
-      toast({ title: "Error", description: "No se pudo resolver el empate", variant: "destructive" });
+    } catch (error) {
+      toast({ title: "Error", description: getFriendlyError(error), variant: "destructive" });
     } finally {
       setResolvingTie(false);
     }
@@ -2415,10 +2418,10 @@ function ZonaDetailContent({
         onUpdate();
       } else {
         const err = await res.json();
-        toast({ title: "Error al mover pareja", description: err.error || "No se pudo mover la pareja", variant: "destructive" });
+        toast({ title: "Error al mover pareja", description: getFriendlyError(err.error || "No se pudo mover la pareja"), variant: "destructive" });
       }
-    } catch {
-      toast({ title: "Error", description: "No se pudo mover la pareja", variant: "destructive" });
+    } catch (error) {
+      toast({ title: "Error", description: getFriendlyError(error), variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -3018,18 +3021,30 @@ function ZonaDetailContent({
 
 // Componente Llaves Tab
 function LlavesTab({
+  torneoId,
   llaves,
   onResultadoClick,
   onFinalizarTorneo,
   torneoEstado,
   isSubmitting,
+  onLlaveUpdate,
 }: {
+  torneoId: string;
   llaves: Llave[] | undefined;
   onResultadoClick: (llave: Llave) => void;
   onFinalizarTorneo: () => void;
   torneoEstado: string;
   isSubmitting: boolean;
+  onLlaveUpdate: () => void;
 }) {
+  const [draggingPairId, setDraggingPairId] = useState<number | null>(null);
+  const [draggingLlaveId, setDraggingLlaveId] = useState<number | null>(null);
+  const [draggingRonda, setDraggingRonda] = useState<string | null>(null);
+  const [hoverDropLlaveId, setHoverDropLlaveId] = useState<number | null>(null);
+  const [hoverDropPos, setHoverDropPos] = useState<'p1' | 'p2' | null>(null);
+  const [hoverInvalidLlaveId, setHoverInvalidLlaveId] = useState<number | null>(null);
+  const [hoverInvalidPos, setHoverInvalidPos] = useState<'p1' | 'p2' | null>(null);
+
   if (!llaves || llaves.length === 0) {
     return (
       <Card>
@@ -3064,6 +3079,93 @@ function LlavesTab({
 
   const finalJugada = llaves.some((l) => l.ronda === 'final' && l.estado === 'finalizado');
 
+  const handleDragStart = (e: React.DragEvent, parejaId: number, llaveId: number, ronda: string) => {
+    e.dataTransfer.setData("text/plain", JSON.stringify({ parejaId, llaveId, ronda }));
+    setDraggingPairId(parejaId);
+    setDraggingLlaveId(llaveId);
+    setDraggingRonda(ronda);
+  };
+
+  const handleDragOver = (e: React.DragEvent, targetLlave: Llave, pos: 'p1' | 'p2') => {
+    e.preventDefault();
+    if (!draggingPairId || !draggingRonda) return;
+    
+    // Strict Validations
+    if (draggingRonda !== targetLlave.ronda || targetLlave.estado === 'finalizado') {
+        setHoverInvalidLlaveId(targetLlave.id);
+        setHoverInvalidPos(pos);
+        setHoverDropLlaveId(null);
+        setHoverDropPos(null);
+        return;
+    }
+    
+    setHoverDropLlaveId(targetLlave.id);
+    setHoverDropPos(pos);
+    setHoverInvalidLlaveId(null);
+    setHoverInvalidPos(null);
+  };
+
+  const handleDragLeave = () => {
+    setHoverDropLlaveId(null);
+    setHoverDropPos(null);
+    setHoverInvalidLlaveId(null);
+    setHoverInvalidPos(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetLlave: Llave, pos: 'p1' | 'p2') => {
+    e.preventDefault();
+    setHoverDropLlaveId(null);
+    setHoverDropPos(null);
+    setHoverInvalidLlaveId(null);
+    setHoverInvalidPos(null);
+    
+    const data = e.dataTransfer.getData("text/plain");
+    if (!data) return;
+    
+    try {
+        const { parejaId, llaveId, ronda } = JSON.parse(data);
+        if (!parejaId || !llaveId || !ronda) return;
+        
+        // Strict validations again
+        if (ronda !== targetLlave.ronda) {
+            toast({ title: "Movimiento inválido", description: getFriendlyError("No se pueden mover parejas entre diferentes fases"), variant: "destructive" });
+            return;
+        }
+        
+        if (targetLlave.estado === 'finalizado') {
+            toast({ title: "Acción denegada", description: getFriendlyError("No se pueden modificar partidos ya jugados"), variant: "destructive" });
+            return;
+        }
+
+        const res = await fetch(`/api/admin/torneo/${torneoId}/llaves/mover-pareja`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                pareja_id: parejaId,
+                llave_origen_id: llaveId,
+                llave_destino_id: targetLlave.id,
+                posicion_destino: pos
+            }),
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            toast({ title: "Error al mover pareja", description: getFriendlyError(err.error || "Error al mover pareja"), variant: "destructive" });
+        } else {
+            onLlaveUpdate();
+            toast({ title: "Pareja movida", description: "Se actualizó el cuadro correctamente" });
+        }
+
+    } catch (err) {
+        console.error(err);
+        toast({ title: "Error inesperado", description: getFriendlyError(err), variant: "destructive" });
+    } finally {
+        setDraggingPairId(null);
+        setDraggingLlaveId(null);
+        setDraggingRonda(null);
+    }
+  };
+
   return (
     <>
     <Card className="border-0 shadow-lg backdrop-blur-sm bg-white/50 dark:bg-black/50">
@@ -3093,12 +3195,18 @@ function LlavesTab({
                     }`}
                   >
                     <div className="space-y-2">
+                      {/* Pareja 1 */}
                       <div
-                        className={`flex items-center justify-between rounded px-2 py-1 text-sm ${
+                        className={`relative flex items-center justify-between rounded px-2 py-1 text-sm ${
                           !isBye && llave.ganador_id === llave.pareja1_id
                             ? "bg-primary/20 font-bold"
                             : ""
-                        }`}
+                        } ${hoverDropLlaveId === llave.id && hoverDropPos === 'p1' ? 'ring-2 ring-primary ring-inset bg-primary/10' : ''} ${hoverInvalidLlaveId === llave.id && hoverInvalidPos === 'p1' ? 'ring-2 ring-destructive ring-inset bg-destructive/10' : ''}`}
+                        draggable={!!llave.pareja1_id && llave.estado !== 'finalizado'}
+                        onDragStart={(e) => llave.pareja1_id && handleDragStart(e, llave.pareja1_id, llave.id, llave.ronda)}
+                        onDragOver={(e) => handleDragOver(e, llave, 'p1')}
+                        onDragLeave={handleDragLeave}
+                        onDrop={(e) => handleDrop(e, llave, 'p1')}
                       >
                         <span className="flex items-center gap-1 truncate max-w-[180px]">
                           {llave.p1_seed && <span className="inline-flex items-center justify-center rounded bg-muted px-1 py-0.5 font-mono text-[10px] font-bold text-muted-foreground">{llave.p1_seed}</span>}
@@ -3111,12 +3219,19 @@ function LlavesTab({
                           </span>
                         )}
                       </div>
+
+                      {/* Pareja 2 */}
                       <div
-                        className={`flex items-center justify-between rounded px-2 py-1 text-sm ${
+                        className={`relative flex items-center justify-between rounded px-2 py-1 text-sm ${
                           !isBye && llave.ganador_id === llave.pareja2_id
                             ? "bg-primary/20 font-bold"
                             : ""
-                        }`}
+                        } ${hoverDropLlaveId === llave.id && hoverDropPos === 'p2' ? 'ring-2 ring-primary ring-inset bg-primary/10' : ''} ${hoverInvalidLlaveId === llave.id && hoverInvalidPos === 'p2' ? 'ring-2 ring-destructive ring-inset bg-destructive/10' : ''}`}
+                        draggable={!!llave.pareja2_id && llave.estado !== 'finalizado'}
+                        onDragStart={(e) => llave.pareja2_id && handleDragStart(e, llave.pareja2_id, llave.id, llave.ronda)}
+                        onDragOver={(e) => handleDragOver(e, llave, 'p2')}
+                        onDragLeave={handleDragLeave}
+                        onDrop={(e) => handleDrop(e, llave, 'p2')}
                       >
                         <span className="flex items-center gap-1 truncate max-w-[180px]">
                           {isBye ? <span className="italic text-muted-foreground">BYE</span> : <>
@@ -3137,7 +3252,7 @@ function LlavesTab({
                         variant="ghost"
                         size="sm"
                         className="mt-2 w-full"
-                        onClick={() => onResultadoClick(llave)}
+                        onClick={(e) => { e.stopPropagation(); onResultadoClick(llave); }}
                       >
                         Resultado
                       </Button>
@@ -3147,7 +3262,7 @@ function LlavesTab({
                         variant="ghost"
                         size="sm"
                         className="mt-2 w-full"
-                        onClick={() => onResultadoClick(llave)}
+                        onClick={(e) => { e.stopPropagation(); onResultadoClick(llave); }}
                       >
                         Editar
                       </Button>
