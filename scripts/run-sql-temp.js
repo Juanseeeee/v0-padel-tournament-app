@@ -1,32 +1,29 @@
-console.log("STARTING SCRIPT...");
 
-import fs from "fs";
-import path from "path";
-import dotenv from "dotenv";
+const fs = require("fs");
+const path = require("path");
+const dotenv = require("dotenv");
+
+console.log("STARTING JS SCRIPT...");
 
 // Load env vars
 const envPath = path.resolve(process.cwd(), ".env.local");
-console.log("Checking .env.local at:", envPath);
 if (fs.existsSync(envPath)) {
   console.log("Loading .env.local");
   dotenv.config({ path: envPath });
 } else {
-  // Fallback to .env
   console.log("Loading .env");
   dotenv.config();
 }
 
 console.log("DATABASE_URL present:", !!process.env.DATABASE_URL);
 
-// Ensure DATABASE_URL is available before importing db
 if (!process.env.DATABASE_URL) {
   console.error("DATABASE_URL is not set");
   process.exit(1);
 }
 
-// Import db after env is set - use require for CJS compatibility
-const db = require("../lib/db");
-const sql = db.sql;
+const { neon } = require('@neondatabase/serverless');
+const sql = neon(process.env.DATABASE_URL);
 
 async function runSql() {
   const sqlFile = process.argv[2];
@@ -41,28 +38,27 @@ async function runSql() {
     
     console.log(`Executing SQL from ${sqlFile}...`);
     
-    // Simple split by semicolon, ignoring potential semicolons in strings for now
-    // This is a naive implementation but should work for simple schema changes
     const statements = sqlContent
       .split(';')
       .map(s => s.trim())
       .filter(s => s.length > 0);
 
     for (const statement of statements) {
-    console.log(`Executing: ${statement.substring(0, 50)}...`);
-    // Mock a tagged template literal for the neon driver
-    const strings = [statement];
-    // @ts-ignore
-    strings.raw = [statement];
-    
-    try {
-      // @ts-ignore
-      const result = await sql(strings);
-      console.log(result);
-    } catch (e) {
-      console.error("Error executing statement:", e);
+      console.log(`Executing: ${statement.substring(0, 50)}...`);
+      // Mock a tagged template literal for the neon driver
+      const strings = [statement];
+      strings.raw = [statement];
+      
+      try {
+        const result = await sql(strings);
+        const resultStr = "Result: " + JSON.stringify(result, null, 2);
+        console.log(resultStr);
+        fs.appendFileSync(path.resolve(process.cwd(), "scripts/output.txt"), resultStr + "\n");
+      } catch (e) {
+        console.error("Error executing statement:", e);
+        fs.appendFileSync(path.resolve(process.cwd(), "scripts/output.txt"), "Error: " + e + "\n");
+      }
     }
-  }
     
     console.log("SQL executed successfully");
   } catch (error) {
