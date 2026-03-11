@@ -120,10 +120,14 @@ export async function POST(
           const countRes = await sql`SELECT COUNT(*) as count FROM parejas_zona WHERE zona_id = ${parseInt(zona_id)}`;
           const currentCount = parseInt(countRes[0].count);
           
+          console.log(`Assigning pair ${creada.id} to zone ${zona_id}. Current count: ${currentCount}`);
+
           await sql`
             INSERT INTO parejas_zona (zona_id, pareja_id, posicion_final)
             VALUES (${parseInt(zona_id)}, ${creada.id}, ${currentCount + 1})
           `;
+          
+          console.log(`Regenerating matches for zone ${zona_id} in tournament ${id}`);
           await regenerateZoneMatches(parseInt(zona_id), parseInt(id));
       } catch (err) {
           console.error("Error assigning zone:", err);
@@ -157,25 +161,72 @@ export async function POST(
 }
 
 async function regenerateZoneMatches(zonaId: number, torneoId: number) {
-  const parejasZona = await sql`SELECT pareja_id FROM parejas_zona WHERE zona_id = ${zonaId} ORDER BY posicion_final ASC, id ASC`;
-  if (parejasZona.length < 2) return;
-  await sql`DELETE FROM partidos_zona WHERE zona_id = ${zonaId} AND estado = 'pendiente'`;
-  const existentes = await sql`
-    SELECT pareja1_id, pareja2_id FROM partidos_zona WHERE zona_id = ${zonaId} AND estado = 'finalizado'
-  `;
-  const existenteSet = new Set(
-    existentes.map((e: any) => `${Math.min(e.pareja1_id, e.pareja2_id)}-${Math.max(e.pareja1_id, e.pareja2_id)}`)
-  );
-  const ids = parejasZona.map((p: any) => p.pareja_id);
-  for (let i = 0; i < ids.length; i++) {
-    for (let j = i + 1; j < ids.length; j++) {
-      const key = `${Math.min(ids[i], ids[j])}-${Math.max(ids[i], ids[j])}`;
-      if (!existenteSet.has(key)) {
-        await sql`
-          INSERT INTO partidos_zona (zona_id, fecha_torneo_id, pareja1_id, pareja2_id, tipo_partido, estado)
-          VALUES (${zonaId}, ${torneoId}, ${ids[i]}, ${ids[j]}, 'round_robin', 'pendiente')
-        `;
+  try {
+    // Get current parejas in this zone, ordered by posicion_final (visual order) to ensure matches match the table
+    const parejasZona = await sql`
+      SELECT pareja_id FROM parejas_zona 
+      WHERE zona_id = ${zonaId}
+      ORDER BY posicion_final ASC, id ASC
+    `;
+    console.log(`Zone ${zonaId} has ${parejasZona.length} pairs`);
+    
+    if (parejasZona.length < 2) return;
+
+    // Check for existing finalized matches
+    const finalizedMatches = await sql`
+      SELECT pareja1_id, pareja2_id FROM partidos_zona 
+      WHERE zona_id = ${zonaId} AND estado = 'finalizado'
+    `;
+    const playedPairs = new Set<string>();
+    finalizedMatches.forEach((m: any) => {
+      playedPairs.add(`${Math.min(m.pareja1_id, m.pareja2_id)}-${Math.max(m.pareja1_id, m.pareja2_id)}`);
+    });
+
+    // Delete only pending (unplayed) matches
+    await sql`DELETE FROM partidos_zona WHERE zona_id = ${zonaId} AND estado = 'pendiente'`;
+    console.log(`Deleted pending matches for zone ${zonaId}`);
+    
+    const ids = parejasZona.map((p: any) => p.pareja_id);
+    
+    if (ids.length === 3 && playedPairs.size === 0) {
+      // Zona de 3: inicial, perdedor_vs_3, ganador_vs_3
+      console.log(`Generating 3-pair zone structure for zone ${zonaId}`);
+      await sql`
+      INSERT INTO partidos_zona (zona_id, pareja1_id, pareja2_id, tipo_partido, estado, orden_partido)
+      VALUES
+          (${zonaId}, ${ids[0]}, ${ids[1]}, 'inicial', 'pendiente', 1),
+          (${zonaId}, NULL, ${ids[2]}, 'perdedor_vs_3', 'pendiente', 2),
+          (${zonaId}, NULL, ${ids[2]}, 'ganador_vs_3', 'pendiente', 3)
+      `;
+    } else if (ids.length === 4 && playedPairs.size === 0) {
+      // Zona de 4: semifinales, 3er puesto y final
+      console.log(`Generating 4-pair zone structure for zone ${zonaId}`);
+      await sql`
+      INSERT INTO partidos_zona (zona_id, pareja1_id, pareja2_id, tipo_partido, estado, orden_partido)
+      VALUES
+          (${zonaId}, ${ids[0]}, ${ids[1]}, 'inicial_1', 'pendiente', 1),
+          (${zonaId}, ${ids[2]}, ${ids[3]}, 'inicial_2', 'pendiente', 2),
+          (${zonaId}, NULL, NULL, 'perdedores', 'pendiente', 3),
+          (${zonaId}, NULL, NULL, 'ganadores', 'pendiente', 4)
+      `;
+    } else {
+      // Fallback to Round Robin
+      console.log(`Generating Round Robin structure for zone ${zonaId} (pairs: ${ids.length})`);
+      for (let i = 0; i < ids.length; i++) {
+        for (let j = i + 1; j < ids.length; j++) {
+          const key = `${Math.min(ids[i], ids[j])}-${Math.max(ids[i], ids[j])}`;
+          if (!playedPairs.has(key)) {
+            console.log(`Inserting match for zone ${zonaId}: ${ids[i]} vs ${ids[j]}`);
+            await sql`
+              INSERT INTO partidos_zona (zona_id, pareja1_id, pareja2_id, tipo_partido, estado)
+              VALUES (${zonaId}, ${ids[i]}, ${ids[j]}, 'round_robin', 'pendiente')
+            `;
+          }
+        }
       }
     }
+  } catch (e) {
+    console.error(`Error in regenerateZoneMatches for zone ${zonaId}:`, e);
+    throw e;
   }
 }

@@ -1,0 +1,355 @@
+Result: [
+  {
+    "column_name": "orden_partido",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "pareja2_id",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "partido_anterior_id",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "set1_pareja1",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "set1_pareja2",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "set2_pareja1",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "set2_pareja2",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "set3_pareja1",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "set3_pareja2",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "ganador_id",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "zona_id",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "cancha_numero",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "pareja1_id",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "created_at",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "column_name": "set3_tiebreak",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "fecha_hora_programada",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "estado",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "tipo_partido",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "dia_partido",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "set1_tiebreak",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "set2_tiebreak",
+    "data_type": "character varying"
+  }
+]
+Result: []
+Result: []
+Result: []
+Result: [
+  {
+    "column_name": "orden_partido",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "pareja2_id",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "partido_anterior_id",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "set1_pareja1",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "set1_pareja2",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "set2_pareja1",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "set2_pareja2",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "set3_pareja1",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "set3_pareja2",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "ganador_id",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "zona_id",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "cancha_numero",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "pareja1_id",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "created_at",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "column_name": "set3_tiebreak",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "fecha_hora_programada",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "estado",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "tipo_partido",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "dia_partido",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "set1_tiebreak",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "set2_tiebreak",
+    "data_type": "character varying"
+  }
+]
+Result: []
+Result: []
+Result: []
+Result: [
+  {
+    "column_name": "orden_partido",
+    "data_type": "integer",
+    "column_default": "1"
+  },
+  {
+    "column_name": "pareja2_id",
+    "data_type": "integer",
+    "column_default": null
+  },
+  {
+    "column_name": "partido_anterior_id",
+    "data_type": "integer",
+    "column_default": null
+  },
+  {
+    "column_name": "set1_pareja1",
+    "data_type": "integer",
+    "column_default": null
+  },
+  {
+    "column_name": "set1_pareja2",
+    "data_type": "integer",
+    "column_default": null
+  },
+  {
+    "column_name": "set2_pareja1",
+    "data_type": "integer",
+    "column_default": null
+  },
+  {
+    "column_name": "id",
+    "data_type": "integer",
+    "column_default": "nextval('partidos_zona_id_seq'::regclass)"
+  },
+  {
+    "column_name": "set2_pareja2",
+    "data_type": "integer",
+    "column_default": null
+  },
+  {
+    "column_name": "set3_pareja1",
+    "data_type": "integer",
+    "column_default": null
+  },
+  {
+    "column_name": "set3_pareja2",
+    "data_type": "integer",
+    "column_default": null
+  },
+  {
+    "column_name": "ganador_id",
+    "data_type": "integer",
+    "column_default": null
+  },
+  {
+    "column_name": "zona_id",
+    "data_type": "integer",
+    "column_default": null
+  },
+  {
+    "column_name": "cancha_numero",
+    "data_type": "integer",
+    "column_default": null
+  },
+  {
+    "column_name": "pareja1_id",
+    "data_type": "integer",
+    "column_default": null
+  },
+  {
+    "column_name": "created_at",
+    "data_type": "timestamp without time zone",
+    "column_default": "now()"
+  },
+  {
+    "column_name": "set3_tiebreak",
+    "data_type": "character varying",
+    "column_default": null
+  },
+  {
+    "column_name": "fecha_hora_programada",
+    "data_type": "character varying",
+    "column_default": null
+  },
+  {
+    "column_name": "estado",
+    "data_type": "character varying",
+    "column_default": "'pendiente'::character varying"
+  },
+  {
+    "column_name": "tipo_partido",
+    "data_type": "character varying",
+    "column_default": null
+  },
+  {
+    "column_name": "dia_partido",
+    "data_type": "character varying",
+    "column_default": null
+  },
+  {
+    "column_name": "set1_tiebreak",
+    "data_type": "character varying",
+    "column_default": null
+  },
+  {
+    "column_name": "set2_tiebreak",
+    "data_type": "character varying",
+    "column_default": null
+  }
+]
+Result: [
+  {
+    "table_name": "partidos_zona",
+    "table_type": "BASE TABLE"
+  }
+]
+Error: NeonDbError: Error connecting to database: TypeError: fetch failed
+Result: [
+  {
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "zona_id",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "pareja_id",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "posicion_final",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "partidos_ganados",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "partidos_perdidos",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "sets_ganados",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "sets_perdidos",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "games_ganados",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "games_perdidos",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "created_at",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "column_name": "posicion_inicial",
+    "data_type": "integer"
+  }
+]
