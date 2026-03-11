@@ -46,6 +46,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft,
   ArrowRight,
+  Link as LinkIcon,
   Plus,
   Users,
   Trophy,
@@ -124,6 +125,7 @@ export default function TorneoManagementPage() {
   const [showLlaveResultadoDialog, setShowLlaveResultadoDialog] = useState(false);
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   const [showDeleteTorneoAlert, setShowDeleteTorneoAlert] = useState(false);
+  const [showRegenerateAlert, setShowRegenerateAlert] = useState(false);
   const [selectedPartido, setSelectedPartido] = useState<PartidoZona | null>(null);
   const [selectedLlave, setSelectedLlave] = useState<Llave | null>(null);
   const [parejaToDelete, setParejaToDelete] = useState<number | null>(null);
@@ -147,6 +149,42 @@ export default function TorneoManagementPage() {
   const [configDias, setConfigDias] = useState("3");
   const [configTipoZona, setConfigTipoZona] = useState<"grupos_3" | "grupos_4">("grupos_3");
   const [configMinutos, setConfigMinutos] = useState("60");
+
+  // State for adding zone in dialog
+  const [isCreatingZone, setIsCreatingZone] = useState(false);
+  const [newZoneFormat, setNewZoneFormat] = useState("3");
+  const [isCreatingZoneLoading, setIsCreatingZoneLoading] = useState(false);
+  const [showAllPlayers, setShowAllPlayers] = useState(false);
+
+  const handleQuickCreateZone = async () => {
+    if (!torneo?.categoria_id) return;
+    setIsCreatingZoneLoading(true);
+    try {
+      const res = await fetch(`/api/admin/torneo/${torneoId}/zonas`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          categoria_id: torneo.categoria_id,
+          tipo: parseInt(newZoneFormat) // Maps to 'formato' in the backend
+        }),
+      });
+      if (!res.ok) throw new Error("Error al crear zona");
+      const newZone = await res.json();
+      
+      // Refresh zones list
+      await mutateZonas(); 
+      
+      // Select the new zone
+      setAssignZonaId(newZone.id.toString());
+      setIsCreatingZone(false);
+      toast({ title: "Zona creada", description: `${newZone.nombre} (${newZone.formato} parejas)` });
+    } catch (error) {
+      console.error(error);
+      toast({ title: "Error", description: "No se pudo crear la zona", variant: "destructive" });
+    } finally {
+      setIsCreatingZoneLoading(false);
+    }
+  };
 
   const [resultado, setResultado] = useState({
     set1_p1: "",
@@ -221,7 +259,7 @@ export default function TorneoManagementPage() {
     fetcher
   );
 
-  const { data: jugadoresData } = useSWR<{ jugadores: Jugador[] }>("/api/admin/jugadores", fetcher);
+  const { data: jugadoresData } = useSWR<{ jugadores: Jugador[] }>("/api/admin/jugadores?limit=1000", fetcher);
   const jugadores = jugadoresData?.jugadores;
   
   const { data: parejasRaw, mutate: mutateParejas } = useSWR(
@@ -275,11 +313,12 @@ export default function TorneoManagementPage() {
     if (pareja.jugador2_id) jugadoresInscritos.add(pareja.jugador2_id);
   });
 
-  const handleAddPareja = async () => {
-    if (!jugador1Id || !jugador2Id || !torneo?.categoria_id) {
-      toast({ title: "Datos incompletos", description: "Faltan datos para crear la pareja", variant: "destructive" });
-      return;
-    }
+  const [showConfirmAddPair, setShowConfirmAddPair] = useState(false);
+
+  // ... (other states)
+
+  const executeAddPareja = async () => {
+    if (!jugador1Id || !jugador2Id || !torneo?.categoria_id) return;
 
     setIsSubmitting(true);
     try {
@@ -302,10 +341,18 @@ export default function TorneoManagementPage() {
         throw new Error(error.error || "Error al crear pareja");
       }
 
+      const data = await res.json();
+      if (data.warning) {
+        toast({ title: "Pareja creada con advertencia", description: data.warning, variant: "warning" });
+      } else {
+        toast({ title: "Pareja creada", description: "La pareja se ha inscrito correctamente." });
+      }
+
       mutateParejas();
       if (assignZonaId) {
         mutateZonas();
       }
+      setShowConfirmAddPair(false);
       setShowParejaDialog(false);
       resetParejaForm();
     } catch (error) {
@@ -313,6 +360,27 @@ export default function TorneoManagementPage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleAddParejaClick = () => {
+    if (!jugador1Id || !jugador2Id || !torneo?.categoria_id) {
+      toast({ title: "Datos incompletos", description: "Faltan datos para crear la pareja", variant: "destructive" });
+      return;
+    }
+
+    // Validar disponibilidad
+    if (jugadoresInscritos.has(parseInt(jugador1Id))) {
+      const j = jugadores?.find(p => p.id === parseInt(jugador1Id));
+      toast({ title: "Jugador no disponible", description: `${j?.nombre} ${j?.apellido} ya está inscrito.`, variant: "destructive" });
+      return;
+    }
+    if (jugadoresInscritos.has(parseInt(jugador2Id))) {
+      const j = jugadores?.find(p => p.id === parseInt(jugador2Id));
+      toast({ title: "Jugador no disponible", description: `${j?.nombre} ${j?.apellido} ya está inscrito.`, variant: "destructive" });
+      return;
+    }
+
+    setShowConfirmAddPair(true);
   };
 
   const handleDeletePareja = async () => {
@@ -363,22 +431,7 @@ export default function TorneoManagementPage() {
     }
   };
 
-  const handleGenerarZonas = async () => {
-    if (!torneo?.categoria_id) {
-      toast({ title: "Datos faltantes", description: "El torneo no tiene categoría asignada", variant: "destructive" });
-      return;
-    }
-
-    if (torneo.estado === 'finalizada') {
-      toast({ title: "Acción no permitida", description: "No se pueden generar zonas en un torneo finalizado", variant: "destructive" });
-      return;
-    }
-
-    if (!parejasCategoria || parejasCategoria.length < 3) {
-      toast({ title: "Requisito mínimo", description: "Se necesitan al menos 3 parejas para generar zonas", variant: "destructive" });
-      return;
-    }
-
+  const executeGenerarZonas = async () => {
     setIsSubmitting(true);
     try {
       const res = await fetch(`/api/admin/torneo/${torneoId}/zonas/generar`, {
@@ -397,11 +450,32 @@ export default function TorneoManagementPage() {
 
       mutateZonas();
       setActiveTab("zonas");
+      setShowRegenerateAlert(false);
+      toast({ title: "Zonas generadas", description: "Las zonas se han generado correctamente." });
     } catch (error) {
-      toast({ title: "Error al generar zonas", description: error instanceof Error ? error.message : "No se pudieron generar las zonas", variant: "destructive" });
+      toast({ title: "Error al generar zonas", description: getFriendlyError(error), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleGenerarZonas = async () => {
+    if (!torneo?.categoria_id) {
+      toast({ title: "Datos faltantes", description: "El torneo no tiene categoría asignada", variant: "destructive" });
+      return;
+    }
+
+    if (torneo.estado === 'finalizada') {
+      toast({ title: "Acción no permitida", description: "No se pueden generar zonas en un torneo finalizado", variant: "destructive" });
+      return;
+    }
+
+    if (!parejasCategoria || parejasCategoria.length < 3) {
+      toast({ title: "Requisito mínimo", description: "Se necesitan al menos 3 parejas para generar zonas", variant: "destructive" });
+      return;
+    }
+
+    setShowRegenerateAlert(true);
   };
 
   const handleGuardarResultado = async () => {
@@ -876,6 +950,18 @@ export default function TorneoManagementPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="showAllPlayers"
+                  checked={showAllPlayers}
+                  onChange={(e) => setShowAllPlayers(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                <Label htmlFor="showAllPlayers" className="text-sm text-muted-foreground font-normal">
+                  Mostrar todos los jugadores
+                </Label>
+              </div>
               <div className="grid gap-2">
                 <Label>Jugador 1</Label>
                 <Select 
@@ -892,7 +978,7 @@ export default function TorneoManagementPage() {
                         j.estado === "activo" && 
                         j.id.toString() !== jugador2Id &&
                         !jugadoresInscritos.has(j.id) &&
-                        (j.categoria_actual_id === torneo?.categoria_id || 
+                        (showAllPlayers || j.categoria_actual_id === torneo?.categoria_id || 
                          (j.categoria_ids && j.categoria_ids.split(',').map(Number).includes(torneo?.categoria_id)))
                       )
                       .map((j) => (
@@ -919,7 +1005,7 @@ export default function TorneoManagementPage() {
                         j.estado === "activo" && 
                         j.id.toString() !== jugador1Id &&
                         !jugadoresInscritos.has(j.id) &&
-                        (j.categoria_actual_id === torneo?.categoria_id || 
+                        (showAllPlayers || j.categoria_actual_id === torneo?.categoria_id || 
                          (j.categoria_ids && j.categoria_ids.split(',').map(Number).includes(torneo?.categoria_id)))
                       )
                       .map((j) => (
@@ -1030,23 +1116,78 @@ export default function TorneoManagementPage() {
                 <Label className="text-sm font-semibold text-muted-foreground">Asignar a zona (opcional)</Label>
                 <div className="grid grid-cols-2 gap-3 mt-2">
                   <div className="grid gap-1">
-                    <Label className="text-xs">Zona</Label>
-                    <Select
-                      value={assignZonaId || ""}
-                      onValueChange={(val) => setAssignZonaId(val)}
-                      disabled={!zonas || zonas.length === 0}
-                    >
-                      <SelectTrigger className="w-full h-9">
-                        <SelectValue placeholder={(!zonas || zonas.length === 0) ? "Sin zonas disponibles" : "Seleccionar zona"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {zonas?.map((z) => (
-                          <SelectItem key={z.id} value={z.id.toString()}>
-                            {z.nombre} · {((z as any).parejas_count || 0)}/{torneo.formato_zona} {z.estado === 'finalizada' ? '(cerrada)' : ''}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">Zona</Label>
+                      {!isCreatingZone && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5"
+                          onClick={() => setIsCreatingZone(true)}
+                          title="Nueva Zona"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                    {isCreatingZone ? (
+                      <div className="flex items-center gap-2 animate-in fade-in slide-in-from-top-1">
+                        <Select value={newZoneFormat} onValueChange={setNewZoneFormat}>
+                          <SelectTrigger className="h-9 flex-1">
+                            <SelectValue placeholder="Fmt" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="3">3 Parejas</SelectItem>
+                            <SelectItem value="4">4 Parejas</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-9 px-3"
+                          onClick={handleQuickCreateZone}
+                          disabled={isCreatingZoneLoading}
+                        >
+                          {isCreatingZoneLoading ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Check className="h-3 w-3" />
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-9 px-3"
+                          onClick={() => setIsCreatingZone(false)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <Select
+                        value={assignZonaId || ""}
+                        onValueChange={(val) => setAssignZonaId(val)}
+                        disabled={!zonas || zonas.length === 0}
+                      >
+                        <SelectTrigger className="w-full h-9">
+                          <SelectValue placeholder={(!zonas || zonas.length === 0) ? "Sin zonas disponibles" : "Seleccionar zona"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {zonas?.map((z) => {
+                            const max = (z as any).formato || torneo.formato_zona || 3;
+                            const count = (z as any).parejas_count || 0;
+                            const isFull = count >= max;
+                            return (
+                              <SelectItem key={z.id} value={z.id.toString()} disabled={isFull}>
+                                {z.nombre} · {count}/{max} {z.estado === 'finalizada' ? '(cerrada)' : ''} {isFull ? '(Llena)' : ''}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
                   <div className="grid gap-1">
                     <Label className="text-xs">Previsualización</Label>
@@ -1073,12 +1214,37 @@ export default function TorneoManagementPage() {
               <Button variant="outline" onClick={() => { setShowParejaDialog(false); resetParejaForm(); }}>
                 Cancelar
               </Button>
-              <Button onClick={handleAddPareja} disabled={isSubmitting || !jugador1Id || !jugador2Id}>
+              <Button onClick={handleAddParejaClick} disabled={isSubmitting || !jugador1Id || !jugador2Id}>
                 {isSubmitting ? "Guardando..." : "Agregar Pareja"}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Confirm Add Pair Dialog */}
+        <AlertDialog open={showConfirmAddPair} onOpenChange={setShowConfirmAddPair}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar inscripción</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div>
+                  ¿Estás seguro de inscribir a la siguiente pareja?
+                  <div className="mt-2 p-3 bg-muted rounded-md text-sm text-foreground">
+                     <p><strong>Jugador 1:</strong> {jugadores?.find(j => j.id.toString() === jugador1Id)?.nombre} {jugadores?.find(j => j.id.toString() === jugador1Id)?.apellido}</p>
+                     <p><strong>Jugador 2:</strong> {jugadores?.find(j => j.id.toString() === jugador2Id)?.nombre} {jugadores?.find(j => j.id.toString() === jugador2Id)?.apellido}</p>
+                     {assignZonaId && (
+                       <p><strong>Zona:</strong> {zonas?.find(z => z.id.toString() === assignZonaId)?.nombre}</p>
+                     )}
+                  </div>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={executeAddPareja}>Confirmar</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Config Dialog */}
         <Dialog open={showConfigDialog} onOpenChange={setShowConfigDialog}>
@@ -1147,6 +1313,54 @@ export default function TorneoManagementPage() {
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <AlertDialogAction onClick={handleEliminarTorneo} disabled={isSubmitting}>
                 Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={showRegenerateAlert} onOpenChange={setShowRegenerateAlert}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className={zonas && zonas.length > 0 ? "text-red-600" : ""}>
+                {zonas && zonas.length > 0 ? "¡PELIGRO: Zona Destructiva!" : "¿Generar zonas?"}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {zonas && zonas.length > 0 ? (
+                  <div className="space-y-3">
+                    <p className="font-bold text-red-600">
+                      ADVERTENCIA CRÍTICA: Ya existen zonas generadas en este torneo.
+                    </p>
+                    <ul className="list-disc list-inside text-sm text-muted-foreground">
+                      <li>Se <strong>ELIMINARÁN</strong> todas las zonas actuales.</li>
+                      <li>Se <strong>BORRARÁN</strong> todos los partidos creados.</li>
+                      <li>Se <strong>PERDERÁN</strong> todos los resultados y puntajes cargados.</li>
+                    </ul>
+                    {zonas.some(z => z.estado === 'finalizada') && (
+                      <p className="font-bold text-red-700 bg-red-50 p-2 rounded border border-red-200">
+                        HAY ZONAS FINALIZADAS. Esta acción destruirá el progreso del torneo.
+                      </p>
+                    )}
+                    <p>Esta acción es irreversible. ¿Estás absolutamente seguro?</p>
+                  </div>
+                ) : (
+                  "¿Estás seguro de generar las zonas para las parejas inscritas?"
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={executeGenerarZonas} 
+                className={zonas && zonas.length > 0 ? "bg-red-600 hover:bg-red-700 focus:ring-red-600" : ""}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {zonas && zonas.length > 0 ? "Destruyendo y Regenerando..." : "Generando..."}
+                  </>
+                ) : (
+                  zonas && zonas.length > 0 ? "SÍ, ELIMINAR TODO Y REGENERAR" : "Sí, generar"
+                )}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -1330,6 +1544,8 @@ function ZonasTab({
     set1_tiebreak: "", set2_tiebreak: "", set3_tiebreak: "" 
   });
 
+  const [isCreatingZone, setIsCreatingZone] = useState(false);
+
   const loadZoneDetails = useCallback(async () => {
     if (!zonas || zonas.length === 0) return;
     try {
@@ -1356,6 +1572,33 @@ function ZonasTab({
   useEffect(() => {
     loadZoneDetails();
   }, [loadZoneDetails]);
+
+  const handleCreateZone = async () => {
+    if (!categoriaId) return;
+    setIsCreatingZone(true);
+    try {
+      const res = await fetch(`/api/admin/torneo/${torneoId}/zonas`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          categoria_id: categoriaId,
+          tipo: formatoZona,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Error al crear zona");
+      }
+
+      toast({ title: "Zona creada", description: "Se ha creado una nueva zona vacía." });
+      onZonaUpdate();
+    } catch (error) {
+      toast({ title: "Error", description: getFriendlyError(error), variant: "destructive" });
+    } finally {
+      setIsCreatingZone(false);
+    }
+  };
 
   const getResultString = (m: any) => {
     const s1p1 = m.set1_pareja1 ?? m.set1_p1;
@@ -1408,13 +1651,21 @@ function ZonasTab({
 
   if (!zonas || zonas.length === 0) {
     return (
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-          <Grid3X3 className="mb-4 h-12 w-12 opacity-50" />
-          <p>No hay zonas generadas</p>
-          <p className="text-sm">Genera las zonas desde la pestaña de parejas</p>
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <div className="flex justify-end">
+           <Button onClick={handleCreateZone} disabled={isCreatingZone}>
+            {isCreatingZone ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+            Nueva Zona
+          </Button>
+        </div>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+            <Grid3X3 className="mb-4 h-12 w-12 opacity-50" />
+            <p>No hay zonas generadas</p>
+            <p className="text-sm">Genera las zonas desde la pestaña de parejas o crea una manualmente</p>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -1450,10 +1701,16 @@ function ZonasTab({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-  <Button variant="outline" onClick={handleExportPdf} disabled={exportingPdf}>
-  {exportingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
-  {exportingPdf ? "Exportando..." : "Exportar para WhatsApp"}
-  </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExportPdf} disabled={exportingPdf}>
+            {exportingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+            {exportingPdf ? "Exportando..." : "Exportar para WhatsApp"}
+          </Button>
+          <Button onClick={handleCreateZone} disabled={isCreatingZone}>
+            {isCreatingZone ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+            Nueva Zona
+          </Button>
+        </div>
         {todasLasZonasFinalizadas && (
           <Button onClick={onGenerarLlaves} disabled={isSubmitting || torneoEstado === 'finalizada'}>
             <GitBranch className="mr-2 h-4 w-4" />
@@ -1463,15 +1720,24 @@ function ZonasTab({
       </div>
       
       <div className="grid gap-4 grid-cols-1">
-        {zonas.map((zona) => (
+        {zonas.map((zona) => {
+          const pairs = zoneDetails[zona.id]?.parejas || [];
+          const maxCapacity = (zona as any).formato || formatoZona || 3;
+          const isFull = pairs.length >= maxCapacity;
+
+          return (
           <Card 
             key={zona.id} 
             className={`transition-all hover:scale-[1.02] border-0 shadow-lg hover:shadow-xl backdrop-blur-sm bg-white/50 dark:bg-black/50 relative ${hoverDropZoneId === zona.id ? 'ring-2 ring-primary' : ''}`}
-            onDragOver={(e) => e.preventDefault()}
+            onDragOver={(e) => {
+                e.preventDefault();
+                // Visual feedback if full
+                if (isFull && draggingPair) {
+                    e.dataTransfer.dropEffect = "none"; 
+                }
+            }}
             onDragEnter={() => setHoverDropZoneId(zona.id)}
             onDragLeave={() => {
-               // Solo limpiar si no estamos sobre una fila (difícil de saber aquí, mejor dejar que el enter de otro limpie o el drop)
-               // Pero para feedback visual, si salimos de la card deberíamos limpiar.
                setHoverDropZoneId(null);
             }}
             onDrop={async (e) => {
@@ -1484,18 +1750,11 @@ function ZonasTab({
                 
                 setHoverDropZoneId(null);
                 
-                // Determinar acción basada en si la zona está llena
-                const pairs = zoneDetails[zona.id]?.parejas || [];
-                const isFull = pairs.length >= 4;
-                
-                // Si la zona está llena, intercambiamos con la última pareja para mantener estructura.
-                // Si hay espacio, movemos la pareja (agregamos), lo que regenerará partidos (necesario por cambio de formato).
-                
                 if (isFull) {
                     toast({ 
                         title: "Zona completa", 
-                        description: "Para intercambiar, soltá la pareja sobre otra pareja específica de esta zona.", 
-                        variant: "default" 
+                        description: `Esta zona ya tiene ${maxCapacity} parejas.`, 
+                        variant: "destructive" 
                     });
                     return;
                 }
@@ -1518,8 +1777,6 @@ function ZonasTab({
                   toast({ title: "No se pudo mover la pareja", description: err.error || "Error al mover", variant: "destructive" });
                 } else {
                   onZonaUpdate();
-                  // Update local state optimistic
-                  // (Omitted for brevity, waiting for refresh)
                 }
               } catch {
                 return;
@@ -1528,9 +1785,9 @@ function ZonasTab({
           >
             <CardHeader className="pb-2">
               {hoverDropZoneId === zona.id && !hoverDropPairId && (
-                <div className="absolute inset-0 bg-primary/5 flex items-center justify-center rounded-lg pointer-events-none z-10 border-2 border-primary border-dashed">
-                    <span className="bg-background/90 px-4 py-2 rounded-full shadow-sm font-medium text-primary animate-bounce">
-                        Mover a esta zona
+                <div className={`absolute inset-0 ${isFull ? 'bg-red-500/10 border-red-500' : 'bg-primary/5 border-primary'} flex items-center justify-center rounded-lg pointer-events-none z-10 border-2 border-dashed`}>
+                    <span className={`px-4 py-2 rounded-full shadow-sm font-medium animate-bounce ${isFull ? 'bg-red-100 text-red-600' : 'bg-background/90 text-primary'}`}>
+                        {isFull ? 'Zona Completa' : 'Mover a esta zona'}
                     </span>
                 </div>
               )}
@@ -1538,6 +1795,9 @@ function ZonasTab({
                 <span className="flex items-center gap-2">
                   <Grid3X3 className="h-4 w-4 text-primary" />
                   {zona.nombre}
+                  <Badge variant={isFull ? "destructive" : "outline"} className="ml-2">
+                    {pairs.length}/{maxCapacity}
+                  </Badge>
                   {(() => {
                     const ps = (zoneDetails[zona.id]?.partidos || []).filter(p => !!p.fecha_hora_programada);
                     if (ps.length === 0) return null;
@@ -1932,7 +2192,8 @@ function ZonasTab({
               </div>
             </CardContent>
           </Card>
-        ))}
+        );
+      })}
       </div>
 
       <Dialog open={showResDialog} onOpenChange={setShowResDialog}>
@@ -3040,6 +3301,7 @@ function LlavesTab({
   const [draggingPairId, setDraggingPairId] = useState<number | null>(null);
   const [draggingLlaveId, setDraggingLlaveId] = useState<number | null>(null);
   const [draggingRonda, setDraggingRonda] = useState<string | null>(null);
+  const [draggingType, setDraggingType] = useState<'pareja' | 'connection' | null>(null);
   const [hoverDropLlaveId, setHoverDropLlaveId] = useState<number | null>(null);
   const [hoverDropPos, setHoverDropPos] = useState<'p1' | 'p2' | null>(null);
   const [hoverInvalidLlaveId, setHoverInvalidLlaveId] = useState<number | null>(null);
@@ -3067,31 +3329,64 @@ function LlavesTab({
     }));
 
   const getRondaLabel = (ronda: string) => {
-    const labels: Record<string, string> = {
-      "16avos": "16avos de Final",
-      "8vos": "Octavos de Final",
-      "4tos": "Cuartos de Final",
-      semis: "Semifinales",
-      final: "Final",
-    };
-    return labels[ronda] || ronda;
-  };
+            const labels: Record<string, string> = {
+              "16avos": "16avos de Final",
+              "8vos": "Octavos de Final",
+              "4tos": "Cuartos de Final",
+              semis: "Semifinales",
+              final: "Final",
+            };
+            return labels[ronda] || ronda;
+          };
 
-  const finalJugada = llaves.some((l) => l.ronda === 'final' && l.estado === 'finalizado');
+          const getTargetMatchInfo = (targetId: number | null | undefined) => {
+            if (!targetId) return null;
+            const target = llaves.find(l => l.id === targetId);
+            if (!target) return null;
+            return {
+              ronda: target.ronda,
+              posicion: target.posicion
+            };
+          };
+
+          const finalJugada = llaves.some((l) => l.ronda === 'final' && l.estado === 'finalizado');
 
   const handleDragStart = (e: React.DragEvent, parejaId: number, llaveId: number, ronda: string) => {
-    e.dataTransfer.setData("text/plain", JSON.stringify({ parejaId, llaveId, ronda }));
+    e.stopPropagation();
+    e.dataTransfer.setData("text/plain", JSON.stringify({ type: 'pareja', parejaId, llaveId, ronda }));
     setDraggingPairId(parejaId);
     setDraggingLlaveId(llaveId);
     setDraggingRonda(ronda);
+    setDraggingType('pareja');
+  };
+
+  const handleConnectionDragStart = (e: React.DragEvent, llave: Llave) => {
+    e.stopPropagation();
+    e.dataTransfer.setData("text/plain", JSON.stringify({ type: 'connection', llaveId: llave.id, ronda: llave.ronda }));
+    setDraggingLlaveId(llave.id);
+    setDraggingRonda(llave.ronda);
+    setDraggingType('connection');
   };
 
   const handleDragOver = (e: React.DragEvent, targetLlave: Llave, pos: 'p1' | 'p2') => {
     e.preventDefault();
-    if (!draggingPairId || !draggingRonda) return;
+    if (!draggingRonda || !draggingType) return;
     
-    // Strict Validations
-    if (draggingRonda !== targetLlave.ronda || targetLlave.estado === 'finalizado') {
+    // Strict Validations based on type
+    let isValid = false;
+
+    if (draggingType === 'pareja') {
+        if (draggingRonda === targetLlave.ronda && targetLlave.estado !== 'finalizado') {
+            isValid = true;
+        }
+    } else if (draggingType === 'connection') {
+        // Can only drag 8vos to 4tos
+        if (draggingRonda === '8vos' && targetLlave.ronda === '4tos' && targetLlave.estado !== 'finalizado') {
+            isValid = true;
+        }
+    }
+
+    if (!isValid) {
         setHoverInvalidLlaveId(targetLlave.id);
         setHoverInvalidPos(pos);
         setHoverDropLlaveId(null);
@@ -3119,41 +3414,69 @@ function LlavesTab({
     setHoverInvalidLlaveId(null);
     setHoverInvalidPos(null);
     
-    const data = e.dataTransfer.getData("text/plain");
-    if (!data) return;
+    const dataStr = e.dataTransfer.getData("text/plain");
+    if (!dataStr) return;
     
     try {
-        const { parejaId, llaveId, ronda } = JSON.parse(data);
-        if (!parejaId || !llaveId || !ronda) return;
-        
-        // Strict validations again
-        if (ronda !== targetLlave.ronda) {
-            toast({ title: "Movimiento inválido", description: getFriendlyError("No se pueden mover parejas entre diferentes fases"), variant: "destructive" });
-            return;
-        }
-        
-        if (targetLlave.estado === 'finalizado') {
-            toast({ title: "Acción denegada", description: getFriendlyError("No se pueden modificar partidos ya jugados"), variant: "destructive" });
-            return;
-        }
+        const data = JSON.parse(dataStr);
+        const { type } = data;
 
-        const res = await fetch(`/api/admin/torneo/${torneoId}/llaves/mover-pareja`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                pareja_id: parejaId,
-                llave_origen_id: llaveId,
-                llave_destino_id: targetLlave.id,
-                posicion_destino: pos
-            }),
-        });
+        if (type === 'pareja') {
+            const { parejaId, llaveId, ronda } = data;
+            
+            if (ronda !== targetLlave.ronda) {
+                toast({ title: "Movimiento inválido", description: getFriendlyError("No se pueden mover parejas entre diferentes fases"), variant: "destructive" });
+                return;
+            }
+            
+            if (targetLlave.estado === 'finalizado') {
+                toast({ title: "Acción denegada", description: getFriendlyError("No se pueden modificar partidos ya jugados"), variant: "destructive" });
+                return;
+            }
 
-        if (!res.ok) {
-            const err = await res.json();
-            toast({ title: "Error al mover pareja", description: getFriendlyError(err.error || "Error al mover pareja"), variant: "destructive" });
-        } else {
-            onLlaveUpdate();
-            toast({ title: "Pareja movida", description: "Se actualizó el cuadro correctamente" });
+            const res = await fetch(`/api/admin/torneo/${torneoId}/llaves/mover-pareja`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    pareja_id: parejaId,
+                    llave_origen_id: llaveId,
+                    llave_destino_id: targetLlave.id,
+                    posicion_destino: pos
+                }),
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                toast({ title: "Error al mover pareja", description: getFriendlyError(err.error || "Error al mover pareja"), variant: "destructive" });
+            } else {
+                onLlaveUpdate();
+                toast({ title: "Pareja movida", description: "Se actualizó el cuadro correctamente" });
+            }
+        } else if (type === 'connection') {
+            const { llaveId, ronda } = data;
+            
+            if (ronda !== '8vos' || targetLlave.ronda !== '4tos') {
+                 toast({ title: "Conexión inválida", description: "Solo se pueden conectar partidos de 8vos a 4tos", variant: "destructive" });
+                 return;
+            }
+
+            const res = await fetch(`/api/admin/torneo/${torneoId}/llaves/update-connection`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    source_match_id: llaveId,
+                    target_match_id: targetLlave.id,
+                    target_slot: pos === 'p1' ? 1 : 2
+                }),
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                toast({ title: "Error al actualizar conexión", description: getFriendlyError(err.error || "Error al actualizar conexión"), variant: "destructive" });
+            } else {
+                onLlaveUpdate();
+                toast({ title: "Conexión actualizada", description: "Se actualizó la ruta del ganador correctamente" });
+            }
         }
 
     } catch (err) {
@@ -3163,6 +3486,7 @@ function LlavesTab({
         setDraggingPairId(null);
         setDraggingLlaveId(null);
         setDraggingRonda(null);
+        setDraggingType(null);
     }
   };
 
@@ -3189,11 +3513,33 @@ function LlavesTab({
                   <div
                     key={llave.id}
                     onClick={() => !isBye && onResultadoClick(llave)}
-                    className={`rounded-lg border p-3 cursor-pointer transition-all hover:shadow-md ${
+                    draggable={llave.ronda === '8vos' && llave.estado !== 'finalizado'}
+                    onDragStart={(e) => llave.ronda === '8vos' && handleConnectionDragStart(e, llave)}
+                    className={`rounded-lg border p-3 cursor-pointer transition-all hover:shadow-md relative group ${
                       isBye ? "border-muted bg-muted/30 opacity-60 cursor-default" :
                       llave.estado === 'finalizado' ? "border-primary/50 bg-primary/5 hover:bg-primary/10" : "bg-card hover:border-primary/50"
-                    }`}
+                    } ${draggingType === 'connection' && draggingLlaveId === llave.id ? 'opacity-50 border-dashed border-primary' : ''}`}
                   >
+                    {/* Visual indicator for drag handle on 8vos */}
+                    {llave.ronda === '8vos' && llave.estado !== 'finalizado' && (
+                        <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm z-10 cursor-grab active:cursor-grabbing" title="Arrastrar para conectar con 4tos">
+                            <LinkIcon className="h-3 w-3" />
+                        </div>
+                    )}
+                    
+                    {/* Connection indicator */}
+                    {llave.siguiente_llave_id && (() => {
+                        const targetInfo = getTargetMatchInfo(llave.siguiente_llave_id);
+                        if (targetInfo) {
+                            return (
+                                <div className="absolute -top-2 left-2 bg-muted text-muted-foreground text-[10px] px-1.5 rounded border shadow-sm z-10 font-mono">
+                                    → {targetInfo.ronda === '4tos' ? '4tos' : targetInfo.ronda} P{targetInfo.posicion} {llave.siguiente_llave_slot === 1 ? '(1)' : '(2)'}
+                                </div>
+                            );
+                        }
+                        return null;
+                    })()}
+
                     <div className="space-y-2">
                       {/* Pareja 1 */}
                       <div

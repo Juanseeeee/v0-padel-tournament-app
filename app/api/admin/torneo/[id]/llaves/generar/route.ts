@@ -110,15 +110,64 @@ export async function POST(
       llaveDbIds[`${match.ronda}-${match.posicion}`] = result[0].id;
     }
 
-    // Ahora propagar: las llaves con p1/p2 = null se llenan con ganadores de la ronda anterior.
-    // Para cada ronda (excepto la primera), las posiciones se alimentan así:
-    //   - posicion 1 de ronda N+1 recibe ganadores de posiciones 1 y 2 de ronda N
-    //   - posicion 2 de ronda N+1 recibe ganadores de posiciones 3 y 4 de ronda N
-    //   - etc. (posicion K recibe ganadores de posiciones 2K-1 y 2K)
-    // Pero SOLO si el slot está null (no fue pre-asignado por el config)
+    // Establecer las conexiones entre llaves (siguiente_llave_id)
+    // Esto permite mover partidos de 8vos a otros slots de 4tos si se desea
+    for (const match of config.bracket) {
+      const thisRondaIdx = RONDAS_ORDER.indexOf(match.ronda);
+      const nextRonda = RONDAS_ORDER[thisRondaIdx + 1];
+      
+      if (!nextRonda) continue;
 
-    // No necesitamos propagar ahora - se propaga cuando se cargan resultados
-    // Los slots null se llenarán cuando el ganador de la ronda anterior sea determinado
+      // Obtener todas las llaves de la ronda actual ordenadas por posición
+      const currentRoundMatches = config.bracket
+        .filter(m => m.ronda === match.ronda)
+        .sort((a, b) => a.posicion - b.posicion);
+      
+      const myIndex = currentRoundMatches.indexOf(match);
+      if (myIndex === -1) continue;
+
+      // Obtener llaves de la siguiente ronda
+      const nextRoundMatches = config.bracket
+        .filter(m => m.ronda === nextRonda)
+        .sort((a, b) => a.posicion - b.posicion);
+
+      // Buscar qué slot null corresponde a esta llave
+      let nullSlotCounter = 0;
+      let targetMatch = null;
+      let targetSlot = null;
+
+      for (const nextMatch of nextRoundMatches) {
+        if (nextMatch.p1 === null) {
+          if (nullSlotCounter === myIndex) {
+            targetMatch = nextMatch;
+            targetSlot = 1;
+            break;
+          }
+          nullSlotCounter++;
+        }
+        if (nextMatch.p2 === null) {
+          if (nullSlotCounter === myIndex) {
+            targetMatch = nextMatch;
+            targetSlot = 2;
+            break;
+          }
+          nullSlotCounter++;
+        }
+      }
+
+      if (targetMatch && targetSlot) {
+        const sourceId = llaveDbIds[`${match.ronda}-${match.posicion}`];
+        const targetId = llaveDbIds[`${targetMatch.ronda}-${targetMatch.posicion}`];
+
+        if (sourceId && targetId) {
+          await sql`
+            UPDATE llaves 
+            SET siguiente_llave_id = ${targetId}, siguiente_llave_slot = ${targetSlot}
+            WHERE id = ${sourceId}
+          `;
+        }
+      }
+    }
 
     // Calcular cuántas rondas hay
     const rondasUsadas = [...new Set(config.bracket.map(m => m.ronda))];

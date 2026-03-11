@@ -1,8 +1,15 @@
 import { sql } from "@/lib/db"
 import { NextResponse } from "next/server"
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const search = searchParams.get('q');
+  const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 50;
+  const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : 0;
+  
   try {
+    const searchPattern = search ? `%${search}%` : null;
+    
     const jugadores = await sql`
       SELECT j.*, 
         COALESCE(pc.total_puntos, 0) as puntos_totales,
@@ -27,7 +34,12 @@ export async function GET() {
         GROUP BY jc2.jugador_id
       ) jc ON jc.jugador_id = j.id
       LEFT JOIN usuarios u ON u.jugador_id = j.id
+      WHERE (${searchPattern}::text IS NULL OR 
+             j.nombre ILIKE ${searchPattern} OR 
+             j.apellido ILIKE ${searchPattern} OR 
+             u.dni ILIKE ${searchPattern})
       ORDER BY COALESCE(pc.total_puntos, 0) DESC, j.nombre ASC
+      LIMIT ${limit} OFFSET ${offset}
     `
     return NextResponse.json({ jugadores })
   } catch (error) {

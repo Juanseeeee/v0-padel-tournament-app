@@ -69,6 +69,27 @@ export async function POST(
     `;
     const numero_pareja = (maxNumero[0]?.max_num || 0) + 1;
 
+    // Validar zona antes de crear la pareja
+    if (zona_id) {
+      const [zona] = await sql`
+        SELECT * FROM zonas WHERE id = ${parseInt(zona_id)} AND fecha_torneo_id = ${parseInt(id)} AND estado != 'finalizada'
+      `;
+      if (!zona) {
+        return NextResponse.json({ error: "Zona no válida para asignación" }, { status: 400 });
+      }
+      
+      const countRes = await sql`
+        SELECT COUNT(*) as count FROM parejas_zona WHERE zona_id = ${parseInt(zona_id)}
+      `;
+      const currentCount = parseInt(countRes[0].count);
+      const maxCap = (zona.formato || 3); // Simplificado: usar formato de zona o default
+      
+      // Validación estricta de capacidad
+      if (currentCount >= maxCap) {
+        return NextResponse.json({ error: `La zona ya tiene ${currentCount}/${maxCap} parejas` }, { status: 400 });
+      }
+    }
+
     const result = await sql`
       INSERT INTO parejas_torneo (fecha_torneo_id, jugador1_id, jugador2_id, categoria_id, numero_pareja, cabeza_serie, dia_preferido, hora_disponible)
       VALUES (${parseInt(id)}, ${jugador1_id}, ${jugador2_id}, ${categoria_id}, ${numero_pareja}, ${cabeza_serie || false}, ${dia_preferido || null}, ${hora_disponible || null})
@@ -77,48 +98,55 @@ export async function POST(
 
     const creada = result[0];
 
-    if (zona_id) {
-      const [zona] = await sql`
-        SELECT * FROM zonas WHERE id = ${parseInt(zona_id)} AND fecha_torneo_id = ${parseInt(id)} AND estado != 'finalizada'
-      `;
-      if (!zona) {
-        return NextResponse.json({ error: "Zona no válida para asignación" }, { status: 400 });
-      }
-      const countRes = await sql`
-        SELECT COUNT(*) as count FROM parejas_zona WHERE zona_id = ${parseInt(zona_id)}
-      `;
-      const torneoInfo = await sql`
-        SELECT formato_zona FROM fechas_torneo WHERE id = ${parseInt(id)}
-      `;
-      const baseCap = parseInt(String(torneoInfo[0]?.formato_zona || 4), 10);
-      const currentCount = parseInt(countRes[0].count);
-      // Calcular capacidad permitida considerando distribución (permitir algunas zonas de 4 cuando base es 3)
-      let allowedCap = baseCap;
-      if (baseCap === 3) {
-        const zonasMismaCat = await sql`
-          SELECT z.id,
-                 (SELECT COUNT(*) FROM parejas_zona pz WHERE pz.zona_id = z.id) as parejas_count
-          FROM zonas z
-          WHERE z.fecha_torneo_id = ${parseInt(id)}
-            AND z.categoria_id = ${zona.categoria_id}
-            AND z.estado <> 'finalizada'
+    // Audit Log
+    try {
+        await sql`
+            INSERT INTO audit_logs (action, details, user_id)
+            VALUES ('create_pair', ${JSON.stringify({ 
+                pareja_id: creada.id, 
+                torneo_id: parseInt(id),
+                jugador1_id, 
+                jugador2_id,
+                zona_id: zona_id || null
+            })}, NULL)
         `;
-        const totalPairs = zonasMismaCat.reduce((acc: number, z: any) => acc + parseInt(z.parejas_count), 0);
-        const remainder = totalPairs % baseCap;
-        const zonesAt4 = zonasMismaCat.filter((z: any) => parseInt(z.parejas_count) === 4).length;
-        const canUpgradeTo4 = remainder > zonesAt4;
-        if (canUpgradeTo4 && currentCount < 4) {
-          allowedCap = 4;
-        }
+    } catch (e) {
+        console.error("Error writing audit log:", e);
+    }
+
+    if (zona_id) {
+      // Re-verificar zona (aunque ya verificamos, para evitar race conditions podría fallar aquí, pero es aceptable)
+      try {
+          const countRes = await sql`SELECT COUNT(*) as count FROM parejas_zona WHERE zona_id = ${parseInt(zona_id)}`;
+          const currentCount = parseInt(countRes[0].count);
+          
+          await sql`
+            INSERT INTO parejas_zona (zona_id, pareja_id, posicion_final)
+            VALUES (${parseInt(zona_id)}, ${creada.id}, ${currentCount + 1})
+          `;
+          await regenerateZoneMatches(parseInt(zona_id), parseInt(id));
+      } catch (err) {
+          console.error("Error assigning zone:", err);
+          
+          // ROLLBACK: Eliminar la pareja creada para evitar inconsistencias
+          try {
+            await sql`DELETE FROM parejas_torneo WHERE id = ${creada.id}`;
+            
+            // Registrar rollback en audit logs
+            await sql`
+              INSERT INTO audit_logs (action, details, user_id)
+              VALUES ('rollback_create_pair', ${JSON.stringify({ 
+                  pareja_id: creada.id, 
+                  reason: 'zone_assignment_failed', 
+                  original_error: String(err) 
+              })}, NULL)
+            `;
+          } catch (rollbackErr) {
+            console.error("Error during rollback:", rollbackErr);
+          }
+
+          return NextResponse.json({ error: "Error al asignar zona. Se canceló la creación de la pareja." }, { status: 500 });
       }
-      if (currentCount >= allowedCap) {
-        return NextResponse.json({ error: `La zona ya tiene ${currentCount}/${allowedCap} parejas` }, { status: 400 });
-      }
-      await sql`
-        INSERT INTO parejas_zona (zona_id, pareja_id, posicion_final)
-        VALUES (${parseInt(zona_id)}, ${creada.id}, ${currentCount + 1})
-      `;
-      await regenerateZoneMatches(parseInt(zona_id), parseInt(id));
     }
 
     return NextResponse.json(creada);
