@@ -191,45 +191,33 @@ export const BRACKET_CONFIGS: Record<number, TournamentConfig> = {
 
   16: {
     // 5 zonas: A(4) + B(3), C(3), D(3), E(3) -> 11 clasificados
-    // Prioridad a zonas de 3. Solo una zona de 4 (Zona A).
+    // Clasifican: 1os (5), 2os (5), 3ro de A (1) = 11
+    // Byes (pasan directo a 4tos): 1A, 1B, 1C, 1D, 1E (5 equipos).
+    // Faltan 3 para completar los 8 de 4tos.
+    // Juegan 8vos los 6 restantes: 2A, 2B, 2C, 2D, 2E, 3A.
     zonas: [4, 3, 3, 3, 3],
     bracket: [
-      // 8vos (pre-cuartos para 11 clasificados)
-      // Clasifican: 1os de todas (5), 2os de todas (5), 3ro de A (1) = 11
-      // Byes (pasan a 4tos): 1A, 1B, 1C, 1D, 1E (5 equipos) -> Faltan 3 para 8.
-      // 8vos juegan: los 6 restantes (2A, 2B, 2C, 2D, 2E, 3A).
-      // 3 partidos de 8vos -> 3 ganadores.
-      // Total en 4tos: 5 (byes) + 3 (ganadores) = 8.
-      
-      // Partidos de 8vos
+      // 8vos (3 partidos)
       { ronda: '8vos', posicion: 1, p1: '2A', p2: '2E' },
       { ronda: '8vos', posicion: 2, p1: '2B', p2: '2D' },
-      { ronda: '8vos', posicion: 3, p1: '2C', p2: '3A' }, // 3ro de la zona de 4 entra
+      { ronda: '8vos', posicion: 3, p1: '2C', p2: '3A' },
 
-      // 4tos
-      { ronda: '4tos', posicion: 1, p1: '1A', p2: null },     // vs ganador 8vos-1
-      { ronda: '4tos', posicion: 2, p1: '1E', p2: null },     // vs ganador 8vos-2
-      { ronda: '4tos', posicion: 3, p1: '1D', p2: '1C' },     // Duelo de 1os (o ajustar cruces)
-      // Espera, si hay 5 byes, no pueden jugar entre ellos si queremos 8 en 4tos.
-      // 5 byes + 3 winners = 8.
-      // Cruces 4tos:
-      // 1. 1A vs Ganador(2A/2E) -> No, evitar mismo grupo. 1A vs Ganador(2B/2D)
-      // 2. 1B vs Ganador(2C/3A)
-      // 3. 1C vs 1E ? (Si enfrentamos 1os entre si, eliminamos uno).
-      // 4. 1D vs Ganador(2A/2E) ?
+      // 4tos (4 partidos)
+      // Partido 1: 1A vs Ganador 8vos-1 (2A/2E) - Evitamos cruce con 2A si es posible, pero 2E es opcion.
+      { ronda: '4tos', posicion: 1, p1: '1A', p2: null }, 
       
-      // Re-map similar a 17:
-      // 17 usa: 1A, 1E, 1C, 1D, 1B en 4tos.
-      // Aqui tenemos 1A, 1B, 1C, 1D, 1E.
+      // Partido 2: 1B vs Ganador 8vos-2 (2B/2D)
+      { ronda: '4tos', posicion: 2, p1: '1B', p2: null }, 
       
-      { ronda: '4tos', posicion: 1, p1: '1A', p2: null }, // vs Ganador 1 (2B/2D)
-      { ronda: '4tos', posicion: 2, p1: '1B', p2: null }, // vs Ganador 2 (2C/3A)
-      { ronda: '4tos', posicion: 3, p1: '1C', p2: '1D' }, // 1C vs 1D
-      { ronda: '4tos', posicion: 4, p1: '1E', p2: null }, // vs Ganador 3 (2A/2E)
+      // Partido 3: 1C vs 1D (Duelo de 1ros para reducir de 5 a 4)
+      { ronda: '4tos', posicion: 3, p1: '1C', p2: '1D' }, 
       
+      // Partido 4: 1E vs Ganador 8vos-3 (2C/3A)
+      { ronda: '4tos', posicion: 4, p1: '1E', p2: null }, 
+
       // Semis
-      { ronda: 'semis', posicion: 1, p1: null, p2: null },
-      { ronda: 'semis', posicion: 2, p1: null, p2: null },
+      { ronda: 'semis', posicion: 1, p1: null, p2: null }, // Ganador 4tos-1 vs Ganador 4tos-2
+      { ronda: 'semis', posicion: 2, p1: null, p2: null }, // Ganador 4tos-3 vs Ganador 4tos-4
       // Final
       { ronda: 'final', posicion: 1, p1: null, p2: null },
     ],

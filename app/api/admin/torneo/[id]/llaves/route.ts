@@ -31,7 +31,9 @@ export async function GET(
           pt1.numero_pareja as pareja1_numero,
           pt2.numero_pareja as pareja2_numero,
           CONCAT(j1a.nombre, ' ', LEFT(j1a.apellido, 1), '. / ', j1b.nombre, ' ', LEFT(j1b.apellido, 1), '.') as pareja1_jugadores,
-          CONCAT(j2a.nombre, ' ', LEFT(j2a.apellido, 1), '. / ', j2b.nombre, ' ', LEFT(j2b.apellido, 1), '.') as pareja2_jugadores
+          CONCAT(j2a.nombre, ' ', LEFT(j2a.apellido, 1), '. / ', j2b.nombre, ' ', LEFT(j2b.apellido, 1), '.') as pareja2_jugadores,
+          l.siguiente_llave_id,
+          l.siguiente_llave_slot
         FROM llaves l
         LEFT JOIN parejas_torneo pt1 ON l.pareja1_id = pt1.id
         LEFT JOIN parejas_torneo pt2 ON l.pareja2_id = pt2.id

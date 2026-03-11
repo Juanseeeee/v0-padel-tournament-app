@@ -94,94 +94,110 @@ export async function PUT(
       WHERE id = ${parseInt(llaveId)}
     `;
 
-    // Propagar ganador a la siguiente ronda usando la topología del bracket config
+    // Propagar ganador a la siguiente ronda
     if (ganador_id) {
-      // Obtener total de parejas para cargar el config correcto
-      const parejasCount = await sql`
-        SELECT COUNT(*) as total FROM parejas_torneo
-        WHERE fecha_torneo_id = ${l.fecha_torneo_id} AND categoria_id = ${l.categoria_id}
-      `;
-      const totalParejas = parseInt(parejasCount[0].total);
-      const config = BRACKET_CONFIGS[totalParejas];
-
-      if (config) {
-        // Encontrar la posición de esta llave en el bracket config
-        const thisMatch = config.bracket.find(
-          m => m.ronda === l.ronda && m.posicion === l.posicion
-        );
-
-        if (thisMatch) {
-          // Encontrar el índice de esta llave en el bracket
-          const thisIdx = config.bracket.indexOf(thisMatch);
-          
-          // Buscar en el bracket cuál llave de ronda posterior tiene un slot null
-          // que corresponde a esta llave. La lógica es:
-          // Recorremos las llaves de rondas posteriores y buscamos qué slots null
-          // se alimentan desde esta ronda+posicion.
-          
-          const thisRondaIdx = RONDAS_ORDER.indexOf(l.ronda);
-          
-          // Buscar qué slot null en las rondas posteriores le toca a este ganador
-          // Para esto, recorremos las llaves de la ronda siguiente y determinamos
-          // cuáles slots null se llenan con ganadores de la ronda actual.
-          
-          // Obtenemos todas las llaves de la ronda actual en orden de posición
-          const llavesRondaActual = config.bracket
-            .filter(m => m.ronda === l.ronda)
-            .sort((a, b) => a.posicion - b.posicion);
-          
-          // El índice de esta llave dentro de su ronda
-          const idxEnRonda = llavesRondaActual.findIndex(
-            m => m.posicion === l.posicion
+      // Intentar usar la conexión explícita primero (siguiente_llave_id)
+      if (l.siguiente_llave_id && l.siguiente_llave_slot) {
+        if (l.siguiente_llave_slot === 1) {
+          await sql`
+            UPDATE llaves SET pareja1_id = ${ganador_id}
+            WHERE id = ${l.siguiente_llave_id}
+          `;
+        } else {
+          await sql`
+            UPDATE llaves SET pareja2_id = ${ganador_id}
+            WHERE id = ${l.siguiente_llave_id}
+          `;
+        }
+      } else {
+        // Fallback a la lógica implícita (legacy)
+        // Obtener total de parejas para cargar el config correcto
+        const parejasCount = await sql`
+          SELECT COUNT(*) as total FROM parejas_torneo
+          WHERE fecha_torneo_id = ${l.fecha_torneo_id} AND categoria_id = ${l.categoria_id}
+        `;
+        const totalParejas = parseInt(parejasCount[0].total);
+        const config = BRACKET_CONFIGS[totalParejas];
+  
+        if (config) {
+          // Encontrar la posición de esta llave en el bracket config
+          const thisMatch = config.bracket.find(
+            m => m.ronda === l.ronda && m.posicion === l.posicion
           );
-          
-          // Buscar la siguiente ronda
-          const siguienteRonda = thisRondaIdx + 1 < RONDAS_ORDER.length 
-            ? RONDAS_ORDER[thisRondaIdx + 1] 
-            : null;
-          
-          if (siguienteRonda) {
-            // Llaves de la siguiente ronda
-            const llavesSiguienteRonda = config.bracket
-              .filter(m => m.ronda === siguienteRonda)
+  
+          if (thisMatch) {
+            // Encontrar el índice de esta llave en el bracket
+            const thisIdx = config.bracket.indexOf(thisMatch);
+            
+            // Buscar en el bracket cuál llave de ronda posterior tiene un slot null
+            // que corresponde a esta llave. La lógica es:
+            // Recorremos las llaves de rondas posteriores y buscamos qué slots null
+            // se alimentan desde esta ronda+posicion.
+            
+            const thisRondaIdx = RONDAS_ORDER.indexOf(l.ronda);
+            
+            // Buscar qué slot null en las rondas posteriores le toca a este ganador
+            // Para esto, recorremos las llaves de la ronda siguiente y determinamos
+            // cuáles slots null se llenan con ganadores de la ronda actual.
+            
+            // Obtenemos todas las llaves de la ronda actual en orden de posición
+            const llavesRondaActual = config.bracket
+              .filter(m => m.ronda === l.ronda)
               .sort((a, b) => a.posicion - b.posicion);
             
-            // Contar cuántos slots null hay en la siguiente ronda y mapearlos
-            // a las llaves de la ronda actual.
-            // Los slots null se llenan en orden: el primer null se llena con
-            // el ganador de la primera llave de la ronda actual, el segundo null
-            // con el segundo ganador, etc.
-            let nullSlotCounter = 0;
+            // El índice de esta llave dentro de su ronda
+            const idxEnRonda = llavesRondaActual.findIndex(
+              m => m.posicion === l.posicion
+            );
             
-            for (const nextMatch of llavesSiguienteRonda) {
-              // Revisar p1
-              if (nextMatch.p1 === null) {
-                if (nullSlotCounter === idxEnRonda) {
-                  // Este es el slot que corresponde a nuestro ganador
-                  await sql`
-                    UPDATE llaves SET pareja1_id = ${ganador_id}
-                    WHERE fecha_torneo_id = ${l.fecha_torneo_id}
-                      AND categoria_id = ${l.categoria_id}
-                      AND ronda = ${siguienteRonda}
-                      AND posicion = ${nextMatch.posicion}
-                  `;
-                  break;
+            // Buscar la siguiente ronda
+            const siguienteRonda = thisRondaIdx + 1 < RONDAS_ORDER.length 
+              ? RONDAS_ORDER[thisRondaIdx + 1] 
+              : null;
+            
+            if (siguienteRonda) {
+              // Llaves de la siguiente ronda
+              const llavesSiguienteRonda = config.bracket
+                .filter(m => m.ronda === siguienteRonda)
+                .sort((a, b) => a.posicion - b.posicion);
+              
+              // Contar cuántos slots null hay en la siguiente ronda y mapearlos
+              // a las llaves de la ronda actual.
+              // Los slots null se llenan en orden: el primer null se llena con
+              // el ganador de la primera llave de la ronda actual, el segundo null
+              // con el segundo ganador, etc.
+              let nullSlotCounter = 0;
+              
+              for (const nextMatch of llavesSiguienteRonda) {
+                // Revisar p1
+                if (nextMatch.p1 === null) {
+                  if (nullSlotCounter === idxEnRonda) {
+                    // Este es el slot que corresponde a nuestro ganador
+                    await sql`
+                      UPDATE llaves SET pareja1_id = ${ganador_id}
+                      WHERE fecha_torneo_id = ${l.fecha_torneo_id}
+                        AND categoria_id = ${l.categoria_id}
+                        AND ronda = ${siguienteRonda}
+                        AND posicion = ${nextMatch.posicion}
+                    `;
+                    break;
+                  }
+                  nullSlotCounter++;
                 }
-                nullSlotCounter++;
-              }
-              // Revisar p2
-              if (nextMatch.p2 === null) {
-                if (nullSlotCounter === idxEnRonda) {
-                  await sql`
-                    UPDATE llaves SET pareja2_id = ${ganador_id}
-                    WHERE fecha_torneo_id = ${l.fecha_torneo_id}
-                      AND categoria_id = ${l.categoria_id}
-                      AND ronda = ${siguienteRonda}
-                      AND posicion = ${nextMatch.posicion}
-                  `;
-                  break;
+                // Revisar p2
+                if (nextMatch.p2 === null) {
+                  if (nullSlotCounter === idxEnRonda) {
+                    await sql`
+                      UPDATE llaves SET pareja2_id = ${ganador_id}
+                      WHERE fecha_torneo_id = ${l.fecha_torneo_id}
+                        AND categoria_id = ${l.categoria_id}
+                        AND ronda = ${siguienteRonda}
+                        AND posicion = ${nextMatch.posicion}
+                    `;
+                    break;
+                  }
+                  nullSlotCounter++;
                 }
-                nullSlotCounter++;
               }
             }
           }

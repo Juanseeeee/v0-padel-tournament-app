@@ -58,7 +58,7 @@ export default function JugadoresAdminPage() {
   async function fetchData() {
     try {
       const [jugadoresRes, categoriasRes] = await Promise.all([
-        fetch("/api/admin/jugadores"),
+        fetch("/api/admin/jugadores?limit=1000"),
         fetch("/api/admin/categorias"),
       ])
       const jugadoresData = await jugadoresRes.json()

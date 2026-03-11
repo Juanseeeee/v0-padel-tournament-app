@@ -206,6 +206,8 @@ export type Llave = {
   estado: string;
   p1_seed: string | null;
   p2_seed: string | null;
+  siguiente_llave_id?: number | null;
+  siguiente_llave_slot?: number | null;
   pareja1_numero?: number;
   pareja2_numero?: number;
   pareja1_jugadores?: string;
