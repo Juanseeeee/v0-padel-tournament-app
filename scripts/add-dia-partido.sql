@@ -1,1 +1,0 @@
-ALTER TABLE partidos_zona ADD COLUMN IF NOT EXISTS dia_partido VARCHAR(20);

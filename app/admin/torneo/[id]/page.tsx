@@ -392,13 +392,18 @@ export default function TorneoManagementPage() {
         method: "DELETE",
       });
 
-      if (!res.ok) throw new Error("Error al eliminar pareja");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Error al eliminar pareja");
+      }
 
       mutateParejas();
+      mutateZonas(); // Actualizar zonas por si se regeneraron partidos
       setShowDeleteAlert(false);
       setParejaToDelete(null);
+      toast({ title: "Pareja eliminada", description: "La pareja fue eliminada correctamente." });
     } catch (error) {
-      toast({ title: "Error al eliminar pareja", description: "No se pudo eliminar la pareja", variant: "destructive" });
+      toast({ title: "Error al eliminar pareja", description: getFriendlyError(error), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
