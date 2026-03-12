@@ -263,20 +263,56 @@ export async function PUT(
   try {
     // Si se está cerrando la zona, calcular posiciones finales
     if (estado === 'finalizada') {
-      // Obtener parejas ordenadas por partidos ganados y diferencia de sets
+      const zonaIdNum = parseInt(zonaId);
+      
+      // 1. Obtener parejas ordenadas por lógica genérica (Round Robin)
+      // Se usa como fallback y para obtener datos base
       const parejas = await sql`
         SELECT pareja_id, partidos_ganados, sets_ganados, sets_perdidos
         FROM parejas_zona
-        WHERE zona_id = ${parseInt(zonaId)}
+        WHERE zona_id = ${zonaIdNum}
         ORDER BY partidos_ganados DESC, (sets_ganados - sets_perdidos) DESC, sets_ganados DESC
       `;
 
-      // Actualizar posiciones finales
-      for (let i = 0; i < parejas.length; i++) {
+      let ordenParejasIds: number[] = [];
+
+      // 2. Verificar si es zona de 4 con formato especial (Semi/Final)
+      const partidosEspeciales = await sql`
+        SELECT tipo_partido, ganador_id, pareja1_id, pareja2_id 
+        FROM partidos_zona 
+        WHERE zona_id = ${zonaIdNum} 
+          AND tipo_partido IN ('ganadores', 'perdedores')
+          AND estado = 'finalizado'
+      `;
+
+      const partidoGanadores = partidosEspeciales.find((p: any) => p.tipo_partido === 'ganadores');
+      const partidoPerdedores = partidosEspeciales.find((p: any) => p.tipo_partido === 'perdedores');
+
+      if (partidoGanadores && partidoPerdedores && partidoGanadores.ganador_id && partidoPerdedores.ganador_id) {
+        // Lógica específica para Zona de 4:
+        // 1º: Ganador de la final de ganadores
+        // 2º: Perdedor de la final de ganadores
+        // 3º: Ganador de la final de perdedores
+        // 4º: Perdedor de la final de perdedores
+        
+        const primero = partidoGanadores.ganador_id;
+        const segundo = partidoGanadores.ganador_id === partidoGanadores.pareja1_id ? partidoGanadores.pareja2_id : partidoGanadores.pareja1_id;
+        const tercero = partidoPerdedores.ganador_id;
+        const cuarto = partidoPerdedores.ganador_id === partidoPerdedores.pareja1_id ? partidoPerdedores.pareja2_id : partidoPerdedores.pareja1_id;
+        
+        // Filtramos nulls por seguridad
+        ordenParejasIds = [primero, segundo, tercero, cuarto].filter(id => id !== null) as number[];
+      } else {
+        // Lógica genérica (Round Robin o incompleto)
+        ordenParejasIds = parejas.map((p: any) => p.pareja_id);
+      }
+
+      // 3. Actualizar posiciones finales
+      for (let i = 0; i < ordenParejasIds.length; i++) {
         await sql`
           UPDATE parejas_zona 
           SET posicion_final = ${i + 1}
-          WHERE zona_id = ${parseInt(zonaId)} AND pareja_id = ${parejas[i].pareja_id}
+          WHERE zona_id = ${zonaIdNum} AND pareja_id = ${ordenParejasIds[i]}
         `;
       }
     }

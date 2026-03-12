@@ -3,10 +3,10 @@ import { sql } from "@/lib/db";
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const torneoId = params.id;
+    const { id: torneoId } = await params;
     const body = await request.json();
     const { 
       pareja_id, 
@@ -59,8 +59,9 @@ export async function POST(
     // 5. Determine target pair (for swap)
     const targetParejaId = posicion_destino === 'p1' ? destino.pareja1_id : destino.pareja2_id;
     
-    const origenParejaJugadores = posicion_origen === 'p1' ? origen.pareja1_jugadores : origen.pareja2_jugadores;
-    const destinoParejaJugadores = posicion_destino === 'p1' ? destino.pareja1_jugadores : destino.pareja2_jugadores;
+    // Get Seeds to swap labels too
+    const seed_origen = posicion_origen === 'p1' ? origen.p1_seed : origen.p2_seed;
+    const seed_destino = posicion_destino === 'p1' ? destino.p1_seed : destino.p2_seed;
 
     // 6. Perform Swap
     if (origen.id === destino.id) {
@@ -75,8 +76,8 @@ export async function POST(
          UPDATE llaves SET
            pareja1_id = ${origen.pareja2_id},
            pareja2_id = ${origen.pareja1_id},
-           pareja1_jugadores = ${origen.pareja2_jugadores},
-           pareja2_jugadores = ${origen.pareja1_jugadores}
+           p1_seed = ${origen.p2_seed},
+           p2_seed = ${origen.p1_seed}
          WHERE id = ${origen.id}
        `;
     } else {
@@ -85,14 +86,14 @@ export async function POST(
            await sql`
              UPDATE llaves SET
                pareja1_id = ${targetParejaId},
-               pareja1_jugadores = ${destinoParejaJugadores}
+               p1_seed = ${seed_destino}
              WHERE id = ${origen.id}
            `;
        } else {
            await sql`
              UPDATE llaves SET
                pareja2_id = ${targetParejaId},
-               pareja2_jugadores = ${destinoParejaJugadores}
+               p2_seed = ${seed_destino}
              WHERE id = ${origen.id}
            `;
        }
@@ -102,14 +103,14 @@ export async function POST(
            await sql`
              UPDATE llaves SET
                pareja1_id = ${pareja_id},
-               pareja1_jugadores = ${origenParejaJugadores}
+               p1_seed = ${seed_origen}
              WHERE id = ${destino.id}
            `;
        } else {
            await sql`
              UPDATE llaves SET
                pareja2_id = ${pareja_id},
-               pareja2_jugadores = ${origenParejaJugadores}
+               p2_seed = ${seed_origen}
              WHERE id = ${destino.id}
            `;
        }
