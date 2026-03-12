@@ -21,9 +21,10 @@ export async function GET(request: Request) {
         u.telefono as usuario_telefono
       FROM jugadores j
       LEFT JOIN (
-        SELECT jugador_id, SUM(puntos_acumulados) as total_puntos
-        FROM puntos_categoria
-        GROUP BY jugador_id
+        SELECT pc.jugador_id, SUM(pc.puntos_acumulados) as total_puntos
+        FROM puntos_categoria pc
+        JOIN jugador_categorias jc ON pc.jugador_id = jc.jugador_id AND pc.categoria_id = jc.categoria_id
+        GROUP BY pc.jugador_id
       ) pc ON pc.jugador_id = j.id
       LEFT JOIN (
         SELECT jc2.jugador_id, 

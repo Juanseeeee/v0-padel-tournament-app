@@ -16,9 +16,10 @@ async function getJugador(id: string): Promise<Jugador | null> {
     FROM jugadores j
     LEFT JOIN categorias c ON j.categoria_actual_id = c.id
     LEFT JOIN (
-      SELECT jugador_id, SUM(puntos_acumulados) as total_puntos
-      FROM puntos_categoria
-      GROUP BY jugador_id
+      SELECT pc.jugador_id, SUM(pc.puntos_acumulados) as total_puntos
+      FROM puntos_categoria pc
+      JOIN jugador_categorias jc ON pc.jugador_id = jc.jugador_id AND pc.categoria_id = jc.categoria_id
+      GROUP BY pc.jugador_id
     ) pc ON pc.jugador_id = j.id
     WHERE j.id = ${id}
   `
@@ -74,14 +75,18 @@ async function getRankingPosicion(jugadorId: string, categoriaId: number | null)
     SELECT COUNT(*) + 1 as posicion
     FROM jugadores j
     LEFT JOIN (
-      SELECT jugador_id, SUM(puntos_acumulados) as total_puntos
-      FROM puntos_categoria
-      GROUP BY jugador_id
+      SELECT pc.jugador_id, SUM(pc.puntos_acumulados) as total_puntos
+      FROM puntos_categoria pc
+      JOIN jugador_categorias jc ON pc.jugador_id = jc.jugador_id AND pc.categoria_id = jc.categoria_id
+      GROUP BY pc.jugador_id
     ) pc ON pc.jugador_id = j.id
     WHERE j.categoria_actual_id = ${categoriaId} 
       AND j.estado = 'activo'
       AND COALESCE(pc.total_puntos, 0) > (
-        SELECT COALESCE(SUM(puntos_acumulados), 0) FROM puntos_categoria WHERE jugador_id = ${jugadorId}
+        SELECT COALESCE(SUM(pc2.puntos_acumulados), 0) 
+        FROM puntos_categoria pc2
+        JOIN jugador_categorias jc2 ON pc2.jugador_id = jc2.jugador_id AND pc2.categoria_id = jc2.categoria_id
+        WHERE pc2.jugador_id = ${jugadorId}
       )
   `
   return Number(result[0]?.posicion) || 1
