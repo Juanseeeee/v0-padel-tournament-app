@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import useSWR, { mutate } from "swr";
@@ -2526,16 +2526,118 @@ function ZonaDetailContent({
   const partidos = data?.partidos || [];
   const zonaData = data?.zona || zona;
 
-  // Ordenar parejas por puntos y diferencia de sets
-  const parejasOrdenadas = [...parejas].sort((a, b) => {
-    const puntosA = a.partidos_ganados || 0;
-    const puntosB = b.partidos_ganados || 0;
-    if (puntosB !== puntosA) return puntosB - puntosA;
-    const diffA = (a.sets_ganados || 0) - (a.sets_perdidos || 0);
-    const diffB = (b.sets_ganados || 0) - (b.sets_perdidos || 0);
-    if (diffB !== diffA) return diffB - diffA;
-    return (b.sets_ganados || 0) - (a.sets_ganados || 0);
-  });
+  // Ordenar parejas por lógica específica si es zona de 4 semifinales
+  const getParejasOrdenadas = () => {
+    const normalize = (s: string) => s?.trim().toLowerCase() || "";
+
+    // Detectar si es zona de 4 con formato semifinales
+    const isZona4Semis = partidos.some(p => {
+        const t = normalize(p.tipo_partido);
+        return t === 'inicial_1' || t === 'ganadores' || t === 'perdedores';
+    });
+    
+    if (isZona4Semis) {
+      const finalGanadores = partidos.find(p => normalize(p.tipo_partido) === 'ganadores');
+      const finalPerdedores = partidos.find(p => normalize(p.tipo_partido) === 'perdedores');
+      
+      // Identificar roles exactos
+      let campeonId: string | null = null;
+      let subcampeonId: string | null = null;
+      let terceroId: string | null = null;
+      let cuartoId: string | null = null;
+
+      // 1. Analizar Final (Ganadores)
+      if (finalGanadores) {
+          if (finalGanadores.estado === 'finalizado' && finalGanadores.ganador_id) {
+              campeonId = String(finalGanadores.ganador_id);
+              subcampeonId = String(finalGanadores.ganador_id === finalGanadores.pareja1_id ? finalGanadores.pareja2_id : finalGanadores.pareja1_id);
+          }
+      }
+
+      // 2. Analizar 3er Puesto (Perdedores)
+      if (finalPerdedores) {
+          if (finalPerdedores.estado === 'finalizado' && finalPerdedores.ganador_id) {
+              terceroId = String(finalPerdedores.ganador_id);
+              cuartoId = String(finalPerdedores.ganador_id === finalPerdedores.pareja1_id ? finalPerdedores.pareja2_id : finalPerdedores.pareja1_id);
+          }
+      }
+
+      // 3. Identificar Finalistas (para cuando no hay campeón aún)
+      const finalistas = new Set<string>();
+      if (finalGanadores) {
+          if (finalGanadores.pareja1_id) finalistas.add(String(finalGanadores.pareja1_id));
+          if (finalGanadores.pareja2_id) finalistas.add(String(finalGanadores.pareja2_id));
+      }
+      
+      // Fallback: si finalGanadores no tiene parejas, buscar ganadores de semis
+      if (finalistas.size < 2) {
+        partidos.forEach(p => {
+          const t = normalize(p.tipo_partido);
+          if ((t === 'inicial_1' || t === 'inicial_2') && p.estado === 'finalizado' && p.ganador_id) {
+             finalistas.add(String(p.ganador_id));
+          }
+        });
+      }
+      
+      return [...parejas].sort((a, b) => {
+        const idA = String(a.pareja_torneo_id);
+        const idB = String(b.pareja_torneo_id);
+        
+        // 1. Campeón siempre primero
+        if (campeonId) {
+            if (idA === campeonId) return -1;
+            if (idB === campeonId) return 1;
+        }
+
+        // 2. Subcampeón siempre segundo
+        if (subcampeonId) {
+            if (idA === subcampeonId) return -1;
+            if (idB === subcampeonId) return 1;
+        }
+
+        // 3. Finalistas (si no hay campeón definido aún) van antes que el resto
+        const isFinalistaA = finalistas.has(idA);
+        const isFinalistaB = finalistas.has(idB);
+        
+        if (isFinalistaA && !isFinalistaB) return -1;
+        if (!isFinalistaA && isFinalistaB) return 1;
+        
+        // 4. Tercero siempre tercero
+        if (terceroId) {
+            if (idA === terceroId) return -1;
+            if (idB === terceroId) return 1;
+        }
+        
+        // 5. Cuarto siempre cuarto
+        if (cuartoId) {
+            if (idA === cuartoId) return -1;
+            if (idB === cuartoId) return 1;
+        }
+
+        // 6. Fallback a puntos/sets si no hay definición por estructura
+        const puntosA = a.partidos_ganados || 0;
+        const puntosB = b.partidos_ganados || 0;
+        if (puntosB !== puntosA) return puntosB - puntosA;
+        const diffA = (a.sets_ganados || 0) - (a.sets_perdidos || 0);
+        const diffB = (b.sets_ganados || 0) - (b.sets_perdidos || 0);
+        if (diffB !== diffA) return diffB - diffA;
+        return (b.sets_ganados || 0) - (a.sets_ganados || 0);
+      });
+    }
+
+    // Default sorting
+    return [...parejas].sort((a, b) => {
+      const puntosA = a.partidos_ganados || 0;
+      const puntosB = b.partidos_ganados || 0;
+      if (puntosB !== puntosA) return puntosB - puntosA;
+      const diffA = (a.sets_ganados || 0) - (a.sets_perdidos || 0);
+      const diffB = (b.sets_ganados || 0) - (b.sets_perdidos || 0);
+      if (diffB !== diffA) return diffB - diffA;
+      return (b.sets_ganados || 0) - (a.sets_ganados || 0);
+    });
+  };
+
+  const parejasOrdenadas = getParejasOrdenadas();
 
   const getNombrePareja = (parejaId: number | null) => {
     if (!parejaId) return "Por definir";
@@ -3312,6 +3414,62 @@ function LlavesTab({
   const [hoverInvalidLlaveId, setHoverInvalidLlaveId] = useState<number | null>(null);
   const [hoverInvalidPos, setHoverInvalidPos] = useState<'p1' | 'p2' | null>(null);
 
+  const cardRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [lines, setLines] = useState<{ id: string; x1: number; y1: number; x2: number; y2: number }[]>([]);
+
+  useEffect(() => {
+    const updateLines = () => {
+        if (!llaves || !containerRef.current) return;
+        const newLines: { id: string; x1: number; y1: number; x2: number; y2: number }[] = [];
+        const container = containerRef.current;
+        const containerRect = container.getBoundingClientRect();
+        const scrollLeft = container.scrollLeft;
+        const scrollTop = container.scrollTop;
+
+        llaves.forEach(source => {
+            if (source.siguiente_llave_id && cardRefs.current[source.id] && cardRefs.current[source.siguiente_llave_id]) {
+                const sourceEl = cardRefs.current[source.id];
+                const targetEl = cardRefs.current[source.siguiente_llave_id];
+                
+                if (sourceEl && targetEl) {
+                    const sourceRect = sourceEl.getBoundingClientRect();
+                    const targetRect = targetEl.getBoundingClientRect();
+                    
+                    // From right of source
+                    const x1 = (sourceRect.right - containerRect.left) + scrollLeft;
+                    const y1 = (sourceRect.top + sourceRect.height / 2 - containerRect.top) + scrollTop;
+                    
+                    // To left of target
+                    const x2 = (targetRect.left - containerRect.left) + scrollLeft;
+                    const y2 = (targetRect.top + targetRect.height / 2 - containerRect.top) + scrollTop;
+                    
+                    newLines.push({
+                        id: `${source.id}-${source.siguiente_llave_id}`,
+                        x1, y1, x2, y2
+                    });
+                }
+            }
+        });
+        setLines(newLines);
+    };
+
+    // Wait for layout
+    const timeout = setTimeout(updateLines, 100);
+    window.addEventListener('resize', updateLines);
+    const container = containerRef.current;
+    if (container) {
+        container.addEventListener('scroll', updateLines);
+    }
+    return () => {
+        window.removeEventListener('resize', updateLines);
+        if (container) {
+            container.removeEventListener('scroll', updateLines);
+        }
+        clearTimeout(timeout);
+    };
+  }, [llaves]);
+
   if (!llaves || llaves.length === 0) {
     return (
       <Card>
@@ -3326,11 +3484,25 @@ function LlavesTab({
 
   // Agrupar por ronda
   const rondasOrder = ["16avos", "8vos", "4tos", "semis", "final"];
+
+  const getSortKey = (llave: Llave) => {
+    if (llave.siguiente_llave_id && llave.siguiente_llave_slot) {
+        // Find target match
+        const target = llaves.find(l => l.id === llave.siguiente_llave_id);
+        if (target) {
+             return (target.posicion * 10) + llave.siguiente_llave_slot;
+        }
+    }
+    return llave.posicion * 100;
+  };
+
   const llavesAgrupadas = rondasOrder
     .filter((ronda) => llaves.some((l) => l.ronda === ronda))
     .map((ronda) => ({
       ronda,
-      partidos: llaves.filter((l) => l.ronda === ronda).sort((a, b) => a.posicion - b.posicion),
+      partidos: llaves
+        .filter((l) => l.ronda === ronda)
+        .sort((a, b) => getSortKey(a) - getSortKey(b)),
     }));
 
   const getRondaLabel = (ronda: string) => {
@@ -3385,8 +3557,11 @@ function LlavesTab({
             isValid = true;
         }
     } else if (draggingType === 'connection') {
-        // Can only drag 8vos to 4tos
-        if (draggingRonda === '8vos' && targetLlave.ronda === '4tos' && targetLlave.estado !== 'finalizado') {
+        // Can only drag 8vos to 4tos OR 4tos to semis
+        if (
+            (draggingRonda === '8vos' && targetLlave.ronda === '4tos' && targetLlave.estado !== 'finalizado') ||
+            (draggingRonda === '4tos' && targetLlave.ronda === 'semis' && targetLlave.estado !== 'finalizado')
+        ) {
             isValid = true;
         }
     }
@@ -3460,8 +3635,12 @@ function LlavesTab({
         } else if (type === 'connection') {
             const { llaveId, ronda } = data;
             
-            if (ronda !== '8vos' || targetLlave.ronda !== '4tos') {
-                 toast({ title: "Conexión inválida", description: "Solo se pueden conectar partidos de 8vos a 4tos", variant: "destructive" });
+            const isValidConnection = 
+                (ronda === '8vos' && targetLlave.ronda === '4tos') ||
+                (ronda === '4tos' && targetLlave.ronda === 'semis');
+
+            if (!isValidConnection) {
+                 toast({ title: "Conexión inválida", description: "Solo se pueden conectar partidos de 8vos a 4tos o de 4tos a semis", variant: "destructive" });
                  return;
             }
 
@@ -3504,8 +3683,28 @@ function LlavesTab({
           Cuadro de Llaves
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="flex gap-8 overflow-x-auto pb-4">
+      <CardContent className="relative min-h-[400px]">
+        {/* SVG Layer for Connections */}
+        <svg className="absolute top-0 left-0 w-full h-full pointer-events-none z-0">
+            <defs>
+                <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                    <polygon points="0 0, 10 3.5, 0 7" fill="currentColor" className="text-primary/30" />
+                </marker>
+            </defs>
+            {lines.map(line => (
+                <path
+                    key={line.id}
+                    d={`M ${line.x1} ${line.y1} C ${(line.x1 + line.x2) / 2} ${line.y1}, ${(line.x1 + line.x2) / 2} ${line.y2}, ${line.x2} ${line.y2}`}
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    fill="none"
+                    className="text-primary/30"
+                    markerEnd="url(#arrowhead)"
+                />
+            ))}
+        </svg>
+
+        <div className="flex gap-8 overflow-x-auto pb-4 relative z-10" ref={containerRef}>
           {llavesAgrupadas.map(({ ronda, partidos }) => (
             <div key={ronda} className="min-w-[240px]">
               <h4 className="mb-4 text-center font-medium text-muted-foreground">
@@ -3517,17 +3716,18 @@ function LlavesTab({
                   return (
                   <div
                     key={llave.id}
+                    ref={(el) => { cardRefs.current[llave.id] = el; }}
                     onClick={() => !isBye && onResultadoClick(llave)}
-                    draggable={llave.ronda === '8vos' && llave.estado !== 'finalizado'}
-                    onDragStart={(e) => llave.ronda === '8vos' && handleConnectionDragStart(e, llave)}
+                    draggable={(llave.ronda === '8vos' || llave.ronda === '4tos') && llave.estado !== 'finalizado'}
+                    onDragStart={(e) => (llave.ronda === '8vos' || llave.ronda === '4tos') && handleConnectionDragStart(e, llave)}
                     className={`rounded-lg border p-3 cursor-pointer transition-all hover:shadow-md relative group ${
                       isBye ? "border-muted bg-muted/30 opacity-60 cursor-default" :
                       llave.estado === 'finalizado' ? "border-primary/50 bg-primary/5 hover:bg-primary/10" : "bg-card hover:border-primary/50"
                     } ${draggingType === 'connection' && draggingLlaveId === llave.id ? 'opacity-50 border-dashed border-primary' : ''}`}
                   >
-                    {/* Visual indicator for drag handle on 8vos */}
-                    {llave.ronda === '8vos' && llave.estado !== 'finalizado' && (
-                        <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm z-10 cursor-grab active:cursor-grabbing" title="Arrastrar para conectar con 4tos">
+                    {/* Visual indicator for drag handle on 8vos or 4tos */}
+                    {(llave.ronda === '8vos' || llave.ronda === '4tos') && llave.estado !== 'finalizado' && (
+                        <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm z-10 cursor-grab active:cursor-grabbing" title={`Arrastrar para conectar con ${llave.ronda === '8vos' ? '4tos' : 'Semis'}`}>
                             <LinkIcon className="h-3 w-3" />
                         </div>
                     )}
