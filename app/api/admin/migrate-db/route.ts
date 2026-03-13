@@ -27,6 +27,16 @@ export async function GET() {
       CREATE UNIQUE INDEX IF NOT EXISTS usuarios_dni_idx ON usuarios (dni) WHERE dni IS NOT NULL;
     `;
 
+    // Fix partidos_zona time data
+    // If fecha_hora_programada stores "HH:mm" (length 5) and hora_estimada is null, copy it.
+    await sql`
+      UPDATE partidos_zona 
+      SET hora_estimada = fecha_hora_programada 
+      WHERE hora_estimada IS NULL 
+        AND length(fecha_hora_programada) = 5 
+        AND fecha_hora_programada LIKE '%:%'
+    `;
+
     console.log("Migration completed successfully.");
 
     return NextResponse.json({ message: "Migration completed successfully" });

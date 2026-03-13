@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Calendar, MapPin, ArrowLeft, Users, GitBranch, Activity } from "lucide-react"
-import { cn, parseDateOnly } from "@/lib/utils"
+import { Calendar, MapPin, ArrowLeft, Users, GitBranch, Activity, Clock } from "lucide-react"
+import { cn, parseDateOnly, parseDateTime } from "@/lib/utils"
 
 type PartidoZona = {
   orden: number
@@ -24,6 +24,10 @@ type PartidoZona = {
   set1_tiebreak: string | null
   set2_tiebreak: string | null
   set3_tiebreak: string | null
+  fecha_hora_programada?: string | null
+  fecha_partido?: string | null
+  hora_estimada?: string | null
+  dia_partido?: string | null
 }
 
 type Zona = {
@@ -171,12 +175,73 @@ export function TournamentView({
                                     <CardContent className="p-0">
                                         <div className="divide-y divide-border/40">
                                             {zona.partidos && zona.partidos.length > 0 ? (
-                                                zona.partidos.map((partido, idx) => (
+                                                zona.partidos.map((partido, idx) => {
+                                                    let date = parseDateTime(partido.fecha_hora_programada);
+
+                                                    // Fallback 1: Try constructing from fecha_partido (YYYY-MM-DD) + hora_estimada
+                                                    if (!date && partido.fecha_partido) {
+                                                        const dateTimeStr = partido.hora_estimada 
+                                                        ? `${partido.fecha_partido} ${partido.hora_estimada}`
+                                                        : partido.fecha_partido;
+                                                        date = parseDateTime(dateTimeStr);
+                                                    }
+
+                                                    // Helper to render date/time content
+                                                    const renderDateTime = () => {
+                                                        if (date) {
+                                                            const hasTime = date.getHours() !== 0 || date.getMinutes() !== 0;
+                                                            const timeStr = hasTime 
+                                                                ? date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+                                                                : (partido.hora_estimada ? `${partido.hora_estimada}hs` : null);
+                                                                
+                                                            return (
+                                                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                                    <span className="flex items-center gap-1">
+                                                                        <Calendar className="h-3 w-3" />
+                                                                        <span className="capitalize">
+                                                                            {date.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric' })}
+                                                                        </span>
+                                                                    </span>
+                                                                    {timeStr && (
+                                                                        <span className="flex items-center gap-1">
+                                                                            <Clock className="h-3 w-3" />
+                                                                            {timeStr}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        }
+                                                        
+                                                        // Fallback 2: dia_partido
+                                                        if (partido.dia_partido) {
+                                                             const timeFallback = partido.hora_estimada || (typeof partido.fecha_hora_programada === 'string' && /^\d{1,2}:\d{2}/.test(partido.fecha_hora_programada) ? partido.fecha_hora_programada : null);
+                                                             
+                                                             return (
+                                                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                                    <span className="flex items-center gap-1">
+                                                                        <Calendar className="h-3 w-3" />
+                                                                        <span className="capitalize">{partido.dia_partido}</span>
+                                                                    </span>
+                                                                    {timeFallback && (
+                                                                        <span className="flex items-center gap-1">
+                                                                            <Clock className="h-3 w-3" />
+                                                                            {timeFallback}hs
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                             );
+                                                        }
+                                                        
+                                                        return null;
+                                                    };
+
+                                                    return (
                                                     <div key={idx} className="p-4 hover:bg-muted/20 transition-colors">
                                                         <div className="flex items-center justify-between mb-2">
                                                             <span className="text-[10px] uppercase font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
                                                                 Partido {partido.orden}
                                                             </span>
+                                                            {renderDateTime()}
                                                         </div>
                                                         <div className="space-y-2">
                                                             {/* Jugador 1 */}
@@ -220,7 +285,7 @@ export function TournamentView({
                                                             </div>
                                                         </div>
                                                     </div>
-                                                ))
+                                                )})
                                             ) : (
                                                 <div className="p-6 text-center text-sm text-muted-foreground">
                                                     Partidos no generados

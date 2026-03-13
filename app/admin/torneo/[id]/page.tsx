@@ -483,6 +483,35 @@ export default function TorneoManagementPage() {
     setShowRegenerateAlert(true);
   };
 
+  const handleDeleteZone = async (zonaId: number, zonaNombre: string) => {
+    if (!confirm(`¿Estás seguro de eliminar la zona ${zonaNombre}? Se eliminarán los partidos y las asignaciones de parejas.`)) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`/api/admin/torneo/${torneoId}/zonas/${zonaId}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Error al eliminar zona");
+      }
+
+      toast({ title: "Zona eliminada", description: `La zona ${zonaNombre} ha sido eliminada correctamente` });
+      mutateZonas();
+      // If we were in the dialog and deleted the selected zone, clear the selection
+      if (assignZonaId === zonaId.toString()) {
+        setAssignZonaId("");
+      }
+    } catch (error) {
+      toast({ title: "Error", description: getFriendlyError(error), variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleGuardarResultado = async () => {
     if (!selectedPartido) return;
 
@@ -923,6 +952,7 @@ export default function TorneoManagementPage() {
               horaInicioSabado={torneo?.hora_inicio_sabado || "18:00"}
               duracionPartido={torneo?.duracion_partido_min || 60}
               onZonaUpdate={() => { mutateZonas(); mutateLlaves(); }}
+              onDeleteZone={handleDeleteZone}
               modalidad={torneo?.modalidad || "normal"}
               torneoEstado={torneo?.estado}
               formatoZona={torneo?.formato_zona || 4}
@@ -1124,16 +1154,33 @@ export default function TorneoManagementPage() {
                     <div className="flex items-center justify-between">
                       <Label className="text-xs">Zona</Label>
                       {!isCreatingZone && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-5 w-5"
-                          onClick={() => setIsCreatingZone(true)}
-                          title="Nueva Zona"
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-5 w-5"
+                            onClick={() => setIsCreatingZone(true)}
+                            title="Nueva Zona"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                          {assignZonaId && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-5 w-5 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => {
+                                const z = zonas?.find(z => z.id.toString() === assignZonaId);
+                                if (z) handleDeleteZone(z.id, z.nombre);
+                              }}
+                              title="Eliminar Zona Seleccionada"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
                       )}
                     </div>
                     {isCreatingZone ? (
@@ -1518,6 +1565,7 @@ function ZonasTab({
   horaInicioSabado,
   duracionPartido,
   onZonaUpdate,
+  onDeleteZone,
   modalidad,
   torneoEstado,
   formatoZona,
@@ -1531,6 +1579,7 @@ function ZonasTab({
   horaInicioSabado: string;
   duracionPartido: number;
   onZonaUpdate: () => void;
+  onDeleteZone: (id: number, nombre: string) => void;
   modalidad: string;
   torneoEstado?: string;
   formatoZona: number;
@@ -1822,25 +1871,36 @@ function ZonasTab({
                     const pueden = ps.filter(p => p.pareja1_id && p.pareja2_id).length;
                     const fin = ps.filter(p => p.estado === 'finalizado').length;
                     const canClose = zona.estado !== 'finalizada' && pueden > 0 && fin === pueden;
-                    return canClose ? (
-                      <Button
-                        size="sm"
-                        onClick={async () => {
-                          const res = await fetch(`/api/admin/torneo/${torneoId}/zonas/${zona.id}`, {
-                            method: "PUT",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ estado: 'finalizada' }),
-                          });
-                          if (res.ok) {
-                            onZonaUpdate();
-                          } else {
-                            toast({ title: "Error", description: "No se pudo cerrar la zona", variant: "destructive" });
-                          }
-                        }}
-                      >
-                        Cerrar Zona
-                      </Button>
-                    ) : null;
+                    return (
+                      <div className="flex gap-2">
+                        {canClose && (
+                          <Button
+                            size="sm"
+                            onClick={async () => {
+                              const res = await fetch(`/api/admin/torneo/${torneoId}/zonas/${zona.id}`, {
+                                method: "PUT",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ estado: 'finalizada' }),
+                              });
+                              if (res.ok) {
+                                onZonaUpdate();
+                              } else {
+                                toast({ title: "Error", description: "No se pudo cerrar la zona", variant: "destructive" });
+                              }
+                            }}
+                          >
+                            Cerrar Zona
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => onDeleteZone(zona.id, zona.nombre)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    );
                   })()}
                 </div>
               </CardTitle>
@@ -2092,6 +2152,7 @@ function ZonasTab({
                             <Input
                               key={`${m.id}-${m.fecha_hora_programada}`}
                               defaultValue={m.fecha_hora_programada || ""}
+                              placeholder={m.hora_estimada || "HH:mm"}
                               onBlur={async (e) => {
                                 const val = e.target.value;
                                 await fetch(`/api/admin/torneo/${torneoId}/partidos/${m.id}`, {

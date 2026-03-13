@@ -180,7 +180,7 @@ export async function GET(
             ELSE 
               (CASE WHEN COALESCE(set1_pareja2, 0) > COALESCE(set1_pareja1, 0) THEN 1 ELSE 0 END) +
               (CASE WHEN COALESCE(set2_pareja2, 0) > COALESCE(set2_pareja1, 0) THEN 1 ELSE 0 END) +
-              (CASE WHEN set3_pareja2 IS NOT NULL AND set3_pareja2 > set3_pareja1 THEN 1 ELSE 0 END)
+              (CASE WHEN set3_pareja2 IS NOT NULL AND set3_pareja2 < set3_pareja1 THEN 1 ELSE 0 END)
             END), 0) as sets_ganados,
             COALESCE(SUM(CASE WHEN pareja1_id = ${parejaId} THEN 
               (CASE WHEN COALESCE(set1_pareja1, 0) < COALESCE(set1_pareja2, 0) THEN 1 ELSE 0 END) +
@@ -327,6 +327,34 @@ export async function PUT(
     console.error("Error updating zona:", error);
     return NextResponse.json(
       { error: "Error al actualizar zona", details: String(error) },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE - Eliminar zona
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string; zonaId: string }> }
+) {
+  const { zonaId } = await params;
+  const id = parseInt(zonaId);
+
+  try {
+    // 1. Eliminar partidos de la zona
+    await sql`DELETE FROM partidos_zona WHERE zona_id = ${id}`;
+
+    // 2. Eliminar asignaciones de parejas
+    await sql`DELETE FROM parejas_zona WHERE zona_id = ${id}`;
+
+    // 3. Eliminar la zona
+    await sql`DELETE FROM zonas WHERE id = ${id}`;
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting zona:", error);
+    return NextResponse.json(
+      { error: "Error al eliminar zona", details: String(error) },
       { status: 500 }
     );
   }
