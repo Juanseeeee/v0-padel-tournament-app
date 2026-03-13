@@ -176,6 +176,9 @@ export type PartidoZona = {
   ganador_id: number | null;
   fecha_partido: string | null;
   hora_estimada: string | null;
+  fecha_hora_programada?: string | null;
+  cancha_numero?: number | null;
+  dia_partido?: string | null;
   orden_partido: number;
   tipo_partido: string;
   estado: string;

@@ -1,0 +1,1 @@
+NeonDbError: column "hora_estimada" does not exist

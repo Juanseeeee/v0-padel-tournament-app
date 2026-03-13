@@ -119,9 +119,30 @@ export async function GET(
       let partidosRows = "";
       partidos.forEach((pt: any) => {
         const dia = getDiaLabel(pt.dia_partido);
-        const hora = pt.fecha_hora_programada || "";
+        
+        let horaStr = "";
+        // Try parsing fecha_hora_programada
+        if (pt.fecha_hora_programada) {
+             const d = new Date(pt.fecha_hora_programada);
+             if (!isNaN(d.getTime())) {
+                 // Check if it has time component (not 00:00:00)
+                 if (d.getHours() !== 0 || d.getMinutes() !== 0) {
+                    horaStr = d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+                 }
+             } else {
+                 // Maybe it's just a string like "14:00"
+                 horaStr = String(pt.fecha_hora_programada);
+             }
+        }
+        
+        // Fallback to hora_estimada
+        if (!horaStr && pt.hora_estimada) {
+            horaStr = pt.hora_estimada;
+        }
+
+        const horaDisplay = horaStr ? `${horaStr}hs` : "";
         const cancha = pt.cancha_numero ? `Cancha ${pt.cancha_numero}` : "";
-        const schedule = [dia, hora ? `${hora}hs` : "", cancha].filter(Boolean).join(" - ");
+        const schedule = [dia, horaDisplay, cancha].filter(Boolean).join(" - ");
 
         const resultado = pt.estado === "finalizado" && pt.set1_pareja1 != null
           ? `${pt.set1_pareja1}-${pt.set1_pareja2}` +

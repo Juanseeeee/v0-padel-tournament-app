@@ -1,0 +1,166 @@
+Start script...
+Loaded .env.local
+Running query...
+Columns:
+[
+  {
+    "column_name": "orden_partido"
+  },
+  {
+    "column_name": "pareja2_id"
+  },
+  {
+    "column_name": "partido_anterior_id"
+  },
+  {
+    "column_name": "set1_pareja1"
+  },
+  {
+    "column_name": "set1_pareja2"
+  },
+  {
+    "column_name": "set2_pareja1"
+  },
+  {
+    "column_name": "set2_pareja2"
+  },
+  {
+    "column_name": "id"
+  },
+  {
+    "column_name": "set3_pareja1"
+  },
+  {
+    "column_name": "set3_pareja2"
+  },
+  {
+    "column_name": "ganador_id"
+  },
+  {
+    "column_name": "zona_id"
+  },
+  {
+    "column_name": "cancha_numero"
+  },
+  {
+    "column_name": "pareja1_id"
+  },
+  {
+    "column_name": "created_at"
+  },
+  {
+    "column_name": "hora_estimada"
+  },
+  {
+    "column_name": "fecha_hora_programada"
+  },
+  {
+    "column_name": "estado"
+  },
+  {
+    "column_name": "tipo_partido"
+  },
+  {
+    "column_name": "dia_partido"
+  },
+  {
+    "column_name": "set1_tiebreak"
+  },
+  {
+    "column_name": "set2_tiebreak"
+  },
+  {
+    "column_name": "set3_tiebreak"
+  }
+]
+Sample Data:
+[
+  {
+    "id": 398,
+    "fecha_hora_programada": "17.00",
+    "hora_estimada": "17:00",
+    "dia_partido": "sabado"
+  },
+  {
+    "id": 399,
+    "fecha_hora_programada": "19.00",
+    "hora_estimada": "19:00",
+    "dia_partido": "sabado"
+  },
+  {
+    "id": 400,
+    "fecha_hora_programada": "16.00",
+    "hora_estimada": "16:00",
+    "dia_partido": "sabado"
+  },
+  {
+    "id": 401,
+    "fecha_hora_programada": "18.00",
+    "hora_estimada": "18:00",
+    "dia_partido": "sabado"
+  },
+  {
+    "id": 698,
+    "fecha_hora_programada": "20.30",
+    "hora_estimada": "20:30",
+    "dia_partido": "viernes"
+  },
+  {
+    "id": 699,
+    "fecha_hora_programada": "22.30",
+    "hora_estimada": "22:30",
+    "dia_partido": "viernes"
+  },
+  {
+    "id": 701,
+    "fecha_hora_programada": "23.30",
+    "hora_estimada": "23:30",
+    "dia_partido": "viernes"
+  },
+  {
+    "id": 700,
+    "fecha_hora_programada": "00.30",
+    "hora_estimada": "00:30",
+    "dia_partido": "viernes"
+  },
+  {
+    "id": 2693,
+    "fecha_hora_programada": "15.00",
+    "hora_estimada": "15:00",
+    "dia_partido": "sabado"
+  },
+  {
+    "id": 2694,
+    "fecha_hora_programada": "16.00",
+    "hora_estimada": "16:00",
+    "dia_partido": "sabado"
+  }
+]
+Weird Data (len != 5):
+[
+  {
+    "id": 741,
+    "fecha_hora_programada": "17",
+    "hora_estimada": "17:00"
+  },
+  {
+    "id": 742,
+    "fecha_hora_programada": "18",
+    "hora_estimada": "18:00"
+  },
+  {
+    "id": 743,
+    "fecha_hora_programada": "19",
+    "hora_estimada": "19:00"
+  },
+  {
+    "id": 738,
+    "fecha_hora_programada": "14",
+    "hora_estimada": "14:00"
+  },
+  {
+    "id": 739,
+    "fecha_hora_programada": "15",
+    "hora_estimada": "15:00"
+  }
+]

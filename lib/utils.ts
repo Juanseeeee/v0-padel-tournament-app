@@ -22,7 +22,40 @@ export function parseDateOnly(input: unknown): Date {
   }
   // Fallback: try constructing Date and normalize to local Y/M/D
   const d = new Date(raw)
+  if (isNaN(d.getTime())) {
+    return new Date() // Fallback to current date if invalid
+  }
   return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+}
+
+export function parseDateTime(input: unknown): Date | null {
+  if (input instanceof Date) return input
+  if (!input) return null
+  
+  const raw = String(input)
+  // Try standard Date constructor
+  let d = new Date(raw)
+  if (!isNaN(d.getTime())) return d
+  
+  // Try replacing space with T for ISO format (common SQL timestamp issue)
+  d = new Date(raw.replace(" ", "T"))
+  if (!isNaN(d.getTime())) return d
+
+  // Try European format DD/MM/YYYY HH:mm
+  // Regex to match "14/03/2026 14:30" or "14-03-2026 14:30"
+  const euMatch = /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(raw)
+  if (euMatch) {
+    const day = parseInt(euMatch[1], 10)
+    const month = parseInt(euMatch[2], 10) - 1
+    const year = parseInt(euMatch[3], 10)
+    const hour = parseInt(euMatch[4], 10)
+    const minute = parseInt(euMatch[5], 10)
+    const second = euMatch[6] ? parseInt(euMatch[6], 10) : 0
+    d = new Date(year, month, day, hour, minute, second)
+    if (!isNaN(d.getTime())) return d
+  }
+
+  return null
 }
 
 /**

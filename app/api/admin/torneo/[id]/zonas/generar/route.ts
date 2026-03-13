@@ -325,10 +325,10 @@ export async function POST(
         await sql`
           INSERT INTO partidos_zona (
             zona_id, pareja1_id, pareja2_id, orden_partido, tipo_partido, estado,
-            dia_partido, cancha_numero, fecha_hora_programada
+            dia_partido, cancha_numero, fecha_hora_programada, hora_estimada
           ) VALUES (
             ${zonaId}, ${d2.p1}, ${d2.p2}, ${d2.orden}, ${d2.tipo}, 'pendiente',
-            ${slot.dia}, ${slot.cancha}, ${slot.hora}
+            ${slot.dia}, ${slot.cancha}, ${slot.hora}, ${slot.hora}
           )
         `;
       }

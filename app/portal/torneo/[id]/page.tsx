@@ -39,8 +39,12 @@ export default async function TournamentPage({
   const zonas = await sql`
     SELECT z.id, z.nombre, z.estado,
            array_agg(json_build_object(
-             'orden', pz.orden_partido,
-             'jugador1', COALESCE(j1a.nombre || ' ' || LEFT(j1a.apellido, 1) || '. / ' || j1b.nombre || ' ' || LEFT(j1b.apellido, 1) || '.', 'TBD'),
+                 'orden', pz.orden_partido,
+                 'fecha_hora_programada', pz.fecha_hora_programada,
+                 'fecha_partido', pz.fecha_partido,
+                 'hora_estimada', pz.hora_estimada,
+                 'dia_partido', pz.dia_partido,
+                 'jugador1', COALESCE(j1a.nombre || ' ' || LEFT(j1a.apellido, 1) || '. / ' || j1b.nombre || ' ' || LEFT(j1b.apellido, 1) || '.', 'TBD'),
              'jugador2', COALESCE(j2a.nombre || ' ' || LEFT(j2a.apellido, 1) || '. / ' || j2b.nombre || ' ' || LEFT(j2b.apellido, 1) || '.', 'TBD'),
              'ganador', CASE 
                WHEN pz.ganador_id IS NOT NULL THEN 
