@@ -25,7 +25,6 @@ type PartidoZona = {
   set2_tiebreak: string | null
   set3_tiebreak: string | null
   fecha_hora_programada?: string | null
-  fecha_partido?: string | null
   hora_estimada?: string | null
   dia_partido?: string | null
 }
@@ -177,14 +176,6 @@ export function TournamentView({
                                             {zona.partidos && zona.partidos.length > 0 ? (
                                                 zona.partidos.map((partido, idx) => {
                                                     let date = parseDateTime(partido.fecha_hora_programada);
-
-                                                    // Fallback 1: Try constructing from fecha_partido (YYYY-MM-DD) + hora_estimada
-                                                    if (!date && partido.fecha_partido) {
-                                                        const dateTimeStr = partido.hora_estimada 
-                                                        ? `${partido.fecha_partido} ${partido.hora_estimada}`
-                                                        : partido.fecha_partido;
-                                                        date = parseDateTime(dateTimeStr);
-                                                    }
 
                                                     // Helper to render date/time content
                                                     const renderDateTime = () => {

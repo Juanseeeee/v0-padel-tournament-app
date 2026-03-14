@@ -37,12 +37,8 @@ type PartidoZonaDetalle = {
   set1_tiebreak: string | null; set2_tiebreak: string | null; set3_tiebreak: string | null;
   ganador_id: number | null;
   fecha_hora_programada: string | null;
-  fecha_partido?: string | null;
   dia_partido?: string | null;
   hora_estimada?: string | null;
-  horario?: string | null;
-  hora?: string | null;
-  hora_inicio?: string | null;
   cancha_numero: number | null;
   p1_j1_nombre: string; p1_j1_apellido: string;
   p1_j2_nombre: string; p1_j2_apellido: string;
@@ -432,16 +428,8 @@ export default async function FechaDetailPage({ params }: { params: Promise<{ id
                                         {(() => {
                                           let date = parseDateTime(partido.fecha_hora_programada);
 
-                                          // Fallback 1: Try constructing from fecha_partido (YYYY-MM-DD) + hora_estimada
-                                          if (!date && partido.fecha_partido) {
-                                            const dateTimeStr = partido.hora_estimada 
-                                              ? `${partido.fecha_partido} ${partido.hora_estimada}`
-                                              : partido.fecha_partido;
-                                            date = parseDateTime(dateTimeStr);
-                                          }
-
-                                          // Fallback 2: Show dia_partido (e.g. "Viernes") + hora_estimada/horario/hora
-                                          const hora = partido.hora_estimada || partido.horario || partido.hora || partido.hora_inicio;
+                                          // Fallback: Show dia_partido (e.g. "Viernes") + hora_estimada
+                                          const hora = partido.hora_estimada;
 
                                           if (date) {
                                             const hasTime = date.getHours() !== 0 || date.getMinutes() !== 0;
