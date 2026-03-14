@@ -174,7 +174,6 @@ export type PartidoZona = {
   set2_tiebreak: string | null;
   set3_tiebreak: string | null;
   ganador_id: number | null;
-  fecha_partido: string | null;
   hora_estimada: string | null;
   fecha_hora_programada?: string | null;
   cancha_numero?: number | null;
@@ -182,6 +181,8 @@ export type PartidoZona = {
   orden_partido: number;
   tipo_partido: string;
   estado: string;
+  partido_anterior_id?: number | null;
+  created_at?: string;
   pareja1_numero?: number;
   pareja2_numero?: number;
   pareja1_jugadores?: string;
@@ -209,6 +210,8 @@ export type Llave = {
   estado: string;
   p1_seed: string | null;
   p2_seed: string | null;
+  fecha_hora_programada?: string | null;
+  cancha_numero?: number | null;
   siguiente_llave_id?: number | null;
   siguiente_llave_slot?: number | null;
   pareja1_numero?: number;

@@ -2155,6 +2155,18 @@ function ZonasTab({
                               placeholder={m.hora_estimada || "HH:mm"}
                               onBlur={async (e) => {
                                 const val = e.target.value;
+
+                                // Validar formato HH:MM
+                                if (val && !/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(val)) {
+                                  toast({
+                                    variant: "destructive",
+                                    title: "Formato de hora inválido",
+                                    description: "Por favor use el formato HH:MM (ej: 20:00)",
+                                  });
+                                  e.target.value = m.fecha_hora_programada || ""; // Reset to original value
+                                  return;
+                                }
+
                                 await fetch(`/api/admin/torneo/${torneoId}/partidos/${m.id}`, {
                                   method: "PUT",
                                   headers: { "Content-Type": "application/json" },
