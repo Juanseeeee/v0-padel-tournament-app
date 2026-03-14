@@ -41,7 +41,6 @@ export default async function TournamentPage({
            array_agg(json_build_object(
                  'orden', pz.orden_partido,
                  'fecha_hora_programada', pz.fecha_hora_programada,
-                 'fecha_partido', pz.fecha_partido,
                  'hora_estimada', pz.hora_estimada,
                  'dia_partido', pz.dia_partido,
                  'jugador1', COALESCE(j1a.nombre || ' ' || LEFT(j1a.apellido, 1) || '. / ' || j1b.nombre || ' ' || LEFT(j1b.apellido, 1) || '.', 'TBD'),
