@@ -265,13 +265,21 @@ export async function PUT(
     if (estado === 'finalizada') {
       const zonaIdNum = parseInt(zonaId);
       
-      // 1. Obtener parejas ordenadas por lógica genérica (Round Robin)
-      // Se usa como fallback y para obtener datos base
+      // 1. Obtener parejas ordenadas por lógica genérica (Round Robin o adaptado)
+      // Criterios de desempate solicitados:
+      // 1. Partidos ganados
+      // 2. Games a favor (games_ganados) - Prioridad solicitada
+      // 3. Diferencia de sets (fallback)
+      // 4. Diferencia de games (fallback)
       const parejas = await sql`
-        SELECT pareja_id, partidos_ganados, sets_ganados, sets_perdidos
+        SELECT pareja_id, partidos_ganados, sets_ganados, sets_perdidos, games_ganados, games_perdidos
         FROM parejas_zona
         WHERE zona_id = ${zonaIdNum}
-        ORDER BY partidos_ganados DESC, (sets_ganados - sets_perdidos) DESC, sets_ganados DESC
+        ORDER BY 
+          partidos_ganados DESC, 
+          games_ganados DESC,
+          (sets_ganados - sets_perdidos) DESC, 
+          (games_ganados - games_perdidos) DESC
       `;
 
       let ordenParejasIds: number[] = [];
@@ -289,19 +297,13 @@ export async function PUT(
       const partidoPerdedores = partidosEspeciales.find((p: any) => p.tipo_partido === 'perdedores');
 
       if (partidoGanadores && partidoPerdedores && partidoGanadores.ganador_id && partidoPerdedores.ganador_id) {
-        // Lógica específica para Zona de 4:
-        // 1º: Ganador de la final de ganadores
-        // 2º: Perdedor de la final de ganadores
-        // 3º: Ganador de la final de perdedores
-        // 4º: Perdedor de la final de perdedores
-        
-        const primero = partidoGanadores.ganador_id;
-        const segundo = partidoGanadores.ganador_id === partidoGanadores.pareja1_id ? partidoGanadores.pareja2_id : partidoGanadores.pareja1_id;
-        const tercero = partidoPerdedores.ganador_id;
-        const cuarto = partidoPerdedores.ganador_id === partidoPerdedores.pareja1_id ? partidoPerdedores.pareja2_id : partidoPerdedores.pareja1_id;
-        
-        // Filtramos nulls por seguridad
-        ordenParejasIds = [primero, segundo, tercero, cuarto].filter(id => id !== null) as number[];
+        // Lógica específica para Zona de 4 (Formato Americano):
+        // 1º: Ganador de la final de ganadores (tiene 2 partidos ganados)
+        // 4º: Perdedor de la final de perdedores (tiene 0 partidos ganados)
+        // 2º y 3º: Tienen 1 partido ganado cada uno. El usuario solicita que se defina por games a favor.
+        // Como la consulta 'parejas' ya ordena por estos criterios, podemos usar ese orden directamente,
+        // ya que los partidos ganados separarán al 1º y 4º, y los criterios de desempate ordenarán al 2º y 3º.
+        ordenParejasIds = parejas.map((p: any) => p.pareja_id);
       } else {
         // Lógica genérica (Round Robin o incompleto)
         ordenParejasIds = parejas.map((p: any) => p.pareja_id);
