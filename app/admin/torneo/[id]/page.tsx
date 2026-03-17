@@ -2089,6 +2089,8 @@ function ZonasTab({
                         <TableHead>#</TableHead>
                         <TableHead>Pareja</TableHead>
                         <TableHead className="w-32">Partidos</TableHead>
+                        <TableHead className="w-24">Sets</TableHead>
+                        <TableHead className="w-24">Games</TableHead>
                         <TableHead className="w-20">Puntos</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -2191,6 +2193,16 @@ function ZonasTab({
                           <TableCell>
                             <span className="text-xs">
                               {(p.partidos_ganados || 0)}G / {(p.partidos_perdidos || 0)}P
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-xs">
+                              <span className="text-primary">{(p.sets_ganados || 0)}</span>-<span className="text-destructive">{(p.sets_perdidos || 0)}</span>
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-xs text-muted-foreground">
+                              {(p.games_ganados || 0)}-{(p.games_perdidos || 0)}
                             </span>
                           </TableCell>
                           <TableCell>
@@ -3227,8 +3239,7 @@ function ZonaDetailContent({
                         </span>
                         {partido.estado === 'finalizado' ? (
                           <span className="mx-2 font-mono text-xs bg-muted px-2 py-1 rounded">
-                            {partido.set1_pareja1}-{partido.set1_pareja2} / {partido.set2_pareja1}-{partido.set2_pareja2}
-                            {partido.set3_pareja1 !== null && ` / ${partido.set3_pareja1}-${partido.set3_pareja2}`}
+                            {getResultString(partido)}
                           </span>
                         ) : (
                           <span className="mx-2 text-xs text-muted-foreground">vs</span>
