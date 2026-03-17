@@ -67,3 +67,34 @@ export async function GET(
     return NextResponse.json({ error: "Error al obtener llaves", details: error.message }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const { searchParams } = new URL(request.url);
+  const categoriaId = searchParams.get("categoria");
+
+  if (!id || isNaN(parseInt(id))) {
+    return NextResponse.json({ error: "Invalid torneo ID" }, { status: 400 });
+  }
+
+  try {
+    if (categoriaId) {
+       await sql`
+        DELETE FROM llaves 
+        WHERE fecha_torneo_id = ${parseInt(id)} AND categoria_id = ${parseInt(categoriaId)}
+      `;
+    } else {
+      await sql`
+        DELETE FROM llaves 
+        WHERE fecha_torneo_id = ${parseInt(id)}
+      `;
+    }
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error("Error deleting llaves:", error);
+    return NextResponse.json({ error: "Error al eliminar llaves" }, { status: 500 });
+  }
+}

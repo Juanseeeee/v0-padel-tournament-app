@@ -80,6 +80,7 @@ import type {
   PartidoZona,
   Llave,
 } from "@/lib/db";
+import { BRACKET_CONFIGS, RONDAS_ORDER } from "@/lib/bracket-config";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -593,6 +594,31 @@ export default function TorneoManagementPage() {
     }
   };
 
+  const handleEliminarLlaves = async () => {
+    if (!confirm("¿Estás seguro de eliminar las llaves generadas? Se perderán todos los resultados de los partidos de llaves.")) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`/api/admin/torneo/${torneoId}/llaves`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Error al eliminar llaves");
+      }
+
+      mutateLlaves();
+      toast({ title: "Llaves eliminadas", description: "Las llaves han sido eliminadas correctamente." });
+    } catch (error) {
+      toast({ title: "Error al eliminar llaves", description: getFriendlyError(error), variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleGuardarResultadoLlave = async () => {
     if (!selectedLlave) return;
 
@@ -966,6 +992,7 @@ export default function TorneoManagementPage() {
               llaves={llaves}
               onResultadoClick={openLlaveResultadoDialog}
               onFinalizarTorneo={handleFinalizarTorneo}
+              onEliminarLlaves={handleEliminarLlaves}
               torneoEstado={torneo?.estado || 'activo'}
               isSubmitting={isSubmitting}
               onLlaveUpdate={mutateLlaves}
@@ -1554,6 +1581,88 @@ export default function TorneoManagementPage() {
   );
 }
 
+function PreviewLlavesDialog({
+  isOpen,
+  onClose,
+  totalParejas,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  totalParejas: number;
+}) {
+  const config = BRACKET_CONFIGS[totalParejas];
+
+  if (!isOpen) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Previsualización de Llaves ({totalParejas} Parejas)</DialogTitle>
+          <DialogDescription>
+            Estructura estimada basada en la cantidad de parejas.
+            {!config && <span className="text-destructive block mt-2">No hay configuración disponible para esta cantidad de parejas.</span>}
+          </DialogDescription>
+        </DialogHeader>
+
+        {config && (
+          <div className="mt-4">
+            <div className="mb-4 flex gap-4 text-sm text-muted-foreground">
+              <div>
+                <span className="font-semibold text-foreground">Distribución de Zonas:</span>{" "}
+                {config.zonas.length} zonas ({config.zonas.join(" + ")} parejas)
+              </div>
+            </div>
+
+            <div className="flex gap-8 overflow-x-auto pb-4">
+              {RONDAS_ORDER.map((ronda) => {
+                // @ts-ignore
+                const partidos = config.bracket.filter((m) => m.ronda === ronda);
+                if (partidos.length === 0) return null;
+
+                return (
+                  <div key={ronda} className="min-w-[200px]">
+                    <h4 className="mb-4 text-center font-medium text-muted-foreground capitalize">
+                      {ronda}
+                    </h4>
+                    <div className="flex flex-col gap-4">
+                      {partidos.map((match, idx) => (
+                        <div
+                          key={idx}
+                          className="rounded-lg border bg-card p-3 shadow-sm text-xs relative"
+                        >
+                          <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-2 h-[1px] bg-border" />
+                          <div className="flex flex-col gap-2">
+                            <div className="flex justify-between items-center bg-muted/30 p-1 rounded">
+                              <span>{match.p1 || "Ganador anterior"}</span>
+                            </div>
+                            <div className="flex justify-between items-center bg-muted/30 p-1 rounded">
+                              <span>{match.p2 || "Ganador anterior"}</span>
+                            </div>
+                          </div>
+                          {match.posicion && (
+                            <div className="absolute top-0 right-0 -mt-2 -mr-2 bg-primary text-primary-foreground text-[10px] w-5 h-5 flex items-center justify-center rounded-full shadow-sm">
+                              {match.posicion}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button onClick={onClose}>Cerrar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // Componente Zonas Tab
 function ZonasTab({
   torneoId,
@@ -1599,6 +1708,11 @@ function ZonasTab({
   });
 
   const [isCreatingZone, setIsCreatingZone] = useState(false);
+  const [showPreviewDialog, setShowPreviewDialog] = useState(false);
+
+  const totalParejas = Object.keys(zoneDetails).length > 0 
+    ? Object.values(zoneDetails).reduce((acc, z) => acc + z.parejas.length, 0)
+    : zonas?.reduce((acc, z) => acc + ((z as any).parejas_count || 0), 0) || 0;
 
   const loadZoneDetails = useCallback(async () => {
     if (!zonas || zonas.length === 0) return;
@@ -1765,12 +1879,18 @@ function ZonasTab({
             Nueva Zona
           </Button>
         </div>
-        {todasLasZonasFinalizadas && (
-          <Button onClick={onGenerarLlaves} disabled={isSubmitting || torneoEstado === 'finalizada'}>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowPreviewDialog(true)}>
             <GitBranch className="mr-2 h-4 w-4" />
-            Generar Llaves
+            Previsualizar
           </Button>
-        )}
+          {todasLasZonasFinalizadas && (
+            <Button onClick={onGenerarLlaves} disabled={isSubmitting || torneoEstado === 'finalizada'}>
+              <GitBranch className="mr-2 h-4 w-4" />
+              Generar Llaves
+            </Button>
+          )}
+        </div>
       </div>
       
       <div className="grid gap-4 grid-cols-1">
@@ -2474,6 +2594,11 @@ function ZonasTab({
           )}
         </DialogContent>
       </Dialog>
+      <PreviewLlavesDialog
+        isOpen={showPreviewDialog}
+        onClose={() => setShowPreviewDialog(false)}
+        totalParejas={totalParejas}
+      />
     </div>
   );
 }
@@ -3466,6 +3591,7 @@ function LlavesTab({
   llaves,
   onResultadoClick,
   onFinalizarTorneo,
+  onEliminarLlaves,
   torneoEstado,
   isSubmitting,
   onLlaveUpdate,
@@ -3474,6 +3600,7 @@ function LlavesTab({
   llaves: Llave[] | undefined;
   onResultadoClick: (llave: Llave) => void;
   onFinalizarTorneo: () => void;
+  onEliminarLlaves: () => void;
   torneoEstado: string;
   isSubmitting: boolean;
   onLlaveUpdate: () => void;
@@ -3556,7 +3683,8 @@ function LlavesTab({
   }
 
   // Agrupar por ronda
-  const rondasOrder = ["16avos", "8vos", "4tos", "semis", "final"];
+  // Utilizar RONDAS_ORDER importado, pero nos aseguramos que "final" esté al final si no lo está.
+  // En bracket-config.ts: ['32avos', '16avos', '8vos', '4tos', 'semis', 'final']
 
   const getSortKey = (llave: Llave) => {
     if (llave.siguiente_llave_id && llave.siguiente_llave_slot) {
@@ -3569,7 +3697,7 @@ function LlavesTab({
     return llave.posicion * 100;
   };
 
-  const llavesAgrupadas = rondasOrder
+  const llavesAgrupadas = RONDAS_ORDER
     .filter((ronda) => llaves.some((l) => l.ronda === ronda))
     .map((ronda) => ({
       ronda,
@@ -3579,15 +3707,16 @@ function LlavesTab({
     }));
 
   const getRondaLabel = (ronda: string) => {
-            const labels: Record<string, string> = {
-              "16avos": "16avos de Final",
-              "8vos": "Octavos de Final",
-              "4tos": "Cuartos de Final",
-              semis: "Semifinales",
-              final: "Final",
-            };
-            return labels[ronda] || ronda;
-          };
+    const labels: Record<string, string> = {
+      "32avos": "32avos de Final",
+      "16avos": "16avos de Final",
+      "8vos": "Octavos de Final",
+      "4tos": "Cuartos de Final",
+      semis: "Semifinales",
+      final: "Final",
+    };
+    return labels[ronda] || ronda;
+  };
 
           const getTargetMatchInfo = (targetId: number | null | undefined) => {
             if (!targetId) return null;
@@ -3600,6 +3729,19 @@ function LlavesTab({
           };
 
           const finalJugada = llaves.some((l) => l.ronda === 'final' && l.estado === 'finalizado');
+
+  // Helper to check if a round allows outgoing connections (all except final)
+  const canDragConnection = (ronda: string) => {
+      const idx = RONDAS_ORDER.indexOf(ronda);
+      return idx !== -1 && idx < RONDAS_ORDER.length - 1; // Not the last one
+  };
+
+  // Helper to check if connection is valid (consecutive rounds)
+  const isValidConnection = (sourceRonda: string, targetRonda: string) => {
+      const sourceIdx = RONDAS_ORDER.indexOf(sourceRonda);
+      const targetIdx = RONDAS_ORDER.indexOf(targetRonda);
+      return sourceIdx !== -1 && targetIdx !== -1 && targetIdx === sourceIdx + 1;
+  };
 
   const handleDragStart = (e: React.DragEvent, parejaId: number, llaveId: number, ronda: string) => {
     e.stopPropagation();
@@ -3630,11 +3772,8 @@ function LlavesTab({
             isValid = true;
         }
     } else if (draggingType === 'connection') {
-        // Can only drag 8vos to 4tos OR 4tos to semis
-        if (
-            (draggingRonda === '8vos' && targetLlave.ronda === '4tos' && targetLlave.estado !== 'finalizado') ||
-            (draggingRonda === '4tos' && targetLlave.ronda === 'semis' && targetLlave.estado !== 'finalizado')
-        ) {
+        // Can only drag to next round
+        if (isValidConnection(draggingRonda, targetLlave.ronda) && targetLlave.estado !== 'finalizado') {
             isValid = true;
         }
     }
@@ -3708,12 +3847,8 @@ function LlavesTab({
         } else if (type === 'connection') {
             const { llaveId, ronda } = data;
             
-            const isValidConnection = 
-                (ronda === '8vos' && targetLlave.ronda === '4tos') ||
-                (ronda === '4tos' && targetLlave.ronda === 'semis');
-
-            if (!isValidConnection) {
-                 toast({ title: "Conexión inválida", description: "Solo se pueden conectar partidos de 8vos a 4tos o de 4tos a semis", variant: "destructive" });
+            if (!isValidConnection(ronda, targetLlave.ronda)) {
+                 toast({ title: "Conexión inválida", description: "Solo se pueden conectar partidos de fases consecutivas", variant: "destructive" });
                  return;
             }
 
@@ -3751,9 +3886,17 @@ function LlavesTab({
     <>
     <Card className="border-0 shadow-lg backdrop-blur-sm bg-white/50 dark:bg-black/50">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <GitBranch className="h-5 w-5 text-primary" />
-          Cuadro de Llaves
+        <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <GitBranch className="h-5 w-5 text-primary" />
+              Cuadro de Llaves
+            </div>
+            <div className="flex items-center gap-2">
+                <Button variant="destructive" size="sm" onClick={onEliminarLlaves} disabled={isSubmitting}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Eliminar Llaves
+                </Button>
+            </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="relative min-h-[400px]">
@@ -3791,16 +3934,16 @@ function LlavesTab({
                     key={llave.id}
                     ref={(el) => { cardRefs.current[llave.id] = el; }}
                     onClick={() => !isBye && onResultadoClick(llave)}
-                    draggable={(llave.ronda === '8vos' || llave.ronda === '4tos') && llave.estado !== 'finalizado'}
-                    onDragStart={(e) => (llave.ronda === '8vos' || llave.ronda === '4tos') && handleConnectionDragStart(e, llave)}
+                    draggable={canDragConnection(llave.ronda) && llave.estado !== 'finalizado'}
+                    onDragStart={(e) => canDragConnection(llave.ronda) && handleConnectionDragStart(e, llave)}
                     className={`rounded-lg border p-3 cursor-pointer transition-all hover:shadow-md relative group ${
                       isBye ? "border-muted bg-muted/30 opacity-60 cursor-default" :
                       llave.estado === 'finalizado' ? "border-primary/50 bg-primary/5 hover:bg-primary/10" : "bg-card hover:border-primary/50"
                     } ${draggingType === 'connection' && draggingLlaveId === llave.id ? 'opacity-50 border-dashed border-primary' : ''}`}
                   >
-                    {/* Visual indicator for drag handle on 8vos or 4tos */}
-                    {(llave.ronda === '8vos' || llave.ronda === '4tos') && llave.estado !== 'finalizado' && (
-                        <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm z-10 cursor-grab active:cursor-grabbing" title={`Arrastrar para conectar con ${llave.ronda === '8vos' ? '4tos' : 'Semis'}`}>
+                    {/* Visual indicator for drag handle */}
+                    {canDragConnection(llave.ronda) && llave.estado !== 'finalizado' && (
+                        <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm z-10 cursor-grab active:cursor-grabbing" title={`Arrastrar para conectar con siguiente ronda`}>
                             <LinkIcon className="h-3 w-3" />
                         </div>
                     )}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/db";
-import { BRACKET_CONFIGS, ZONA_LETTERS, parseSlot, RONDAS_ORDER } from "@/lib/bracket-config";
+import { BRACKET_CONFIGS, RONDAS_ORDER } from "@/lib/bracket-config";
+// Force rebuild
 
 export async function POST(
   request: NextRequest,
