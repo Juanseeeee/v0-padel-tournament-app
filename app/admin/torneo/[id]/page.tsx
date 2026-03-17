@@ -1993,6 +1993,27 @@ function ZonasTab({
                     const canClose = zona.estado !== 'finalizada' && pueden > 0 && fin === pueden;
                     return (
                       <div className="flex gap-2">
+                        {zona.estado === 'finalizada' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                              const res = await fetch(`/api/admin/torneo/${torneoId}/zonas/${zona.id}`, {
+                                method: "PUT",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ estado: 'en_curso' }),
+                              });
+                              if (res.ok) {
+                                toast({ title: "Zona reabierta", description: "La zona ha sido reabierta correctamente" });
+                                onZonaUpdate();
+                              } else {
+                                toast({ title: "Error", description: "No se pudo reabrir la zona", variant: "destructive" });
+                              }
+                            }}
+                          >
+                            Reabrir Zona
+                          </Button>
+                        )}
                         {canClose && (
                           <Button
                             size="sm"
