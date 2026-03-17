@@ -317,6 +317,16 @@ export async function PUT(
       }
     }
 
+    // Si se está reabriendo la zona, limpiar posiciones finales
+    if (estado === 'en_curso') {
+      const zonaIdNum = parseInt(zonaId);
+      await sql`
+        UPDATE parejas_zona 
+        SET posicion_final = NULL
+        WHERE zona_id = ${zonaIdNum}
+      `;
+    }
+
     // Actualizar estado de la zona
     await sql`
       UPDATE zonas SET estado = ${estado} WHERE id = ${parseInt(zonaId)}
