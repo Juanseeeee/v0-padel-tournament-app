@@ -195,20 +195,18 @@ export const BRACKET_CONFIGS: Record<number, TournamentConfig> = {
   },
 
   16: {
-    // 1 zona de 4 + 4 zonas de 3: A(4), B(3), C(3), D(3), E(3) -> 12 clasificados
-    // Estructura "Damas 4ta"
+    // 1 zona de 4 + 4 zonas de 3: A(4), B(3), C(3), D(3), E(3) -> 11 clasificados
     zonas: [4, 3, 3, 3, 3],
     bracket: [
-      // 8vos (4 partidos)
+      // 8vos (3 partidos)
       { ronda: '8vos', posicion: 1, p1: '2B', p2: '2C' },
-      { ronda: '8vos', posicion: 2, p1: '1E', p2: '3B' },
-      { ronda: '8vos', posicion: 3, p1: '3A', p2: '2E' },
-      { ronda: '8vos', posicion: 4, p1: '2D', p2: '2A' },
+      { ronda: '8vos', posicion: 2, p1: '3A', p2: '2E' },
+      { ronda: '8vos', posicion: 3, p1: '2D', p2: '2A' },
       // 4tos
-      { ronda: '4tos', posicion: 1, p1: '1A', p2: null },    // ganador(2B/2C)
-      { ronda: '4tos', posicion: 2, p1: null, p2: '1D' },    // ganador(1E/3B) vs 1D
-      { ronda: '4tos', posicion: 3, p1: '1C', p2: null },    // ganador(3A/2E)
-      { ronda: '4tos', posicion: 4, p1: null, p2: '1B' },    // ganador(2D/2A)
+      { ronda: '4tos', posicion: 1, p1: '1A', p2: null },    // vs ganador(2B/2C)
+      { ronda: '4tos', posicion: 2, p1: '1E', p2: '1D' },    // 1E vs 1D
+      { ronda: '4tos', posicion: 3, p1: '1C', p2: null },    // vs ganador(3A/2E)
+      { ronda: '4tos', posicion: 4, p1: null, p2: '1B' },    // ganador(2D/2A) vs 1B
       // Semis
       { ronda: 'semis', posicion: 1, p1: null, p2: null },
       { ronda: 'semis', posicion: 2, p1: null, p2: null },
