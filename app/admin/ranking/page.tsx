@@ -55,6 +55,7 @@ export default function RankingPage() {
   const [fechas, setFechas] = useState<Fecha[]>([])
   const [jugadores, setJugadores] = useState<JugadorRanking[]>([])
   const [puntosMap, setPuntosMap] = useState<Record<number, Record<number, { puntos: number; instancia: string }>>>({})
+  const [puntosArrastre, setPuntosArrastre] = useState<Record<number, number>>({})
   const [loading, setLoading] = useState(true)
   const [loadingRanking, setLoadingRanking] = useState(false)
   const [auditResult, setAuditResult] = useState<any[] | null>(null)
@@ -94,6 +95,7 @@ export default function RankingPage() {
       setFechas([])
       setJugadores([])
       setPuntosMap({})
+      setPuntosArrastre({})
       return
     }
     setLoadingRanking(true)
@@ -103,9 +105,10 @@ export default function RankingPage() {
         setFechas(data.fechas || [])
         setJugadores(data.jugadores || [])
         setPuntosMap(data.puntosMap || {})
+        setPuntosArrastre(data.puntosArrastre || {})
+        setLoadingRanking(false)
       })
-      .catch(console.error)
-      .finally(() => setLoadingRanking(false))
+      .catch(() => setLoadingRanking(false))
   }, [selectedCategoria])
 
   return (
@@ -263,9 +266,16 @@ export default function RankingPage() {
                          <span className="text-xs ml-1">{idx + 1}</span>}
                       </td>
                       <td className="sticky left-12 z-10 bg-background/95 backdrop-blur px-4 py-3 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] group-hover:bg-muted/30 transition-colors">
-                        <Link href={`/jugador/${j.id}`} className="font-semibold text-foreground hover:text-primary transition-colors block truncate max-w-[180px]">
-                          {j.nombre} {j.apellido}
-                        </Link>
+                        <div className="flex flex-col">
+                          <Link href={`/jugador/${j.id}`} className="font-semibold text-foreground hover:text-primary transition-colors block truncate max-w-[180px]">
+                            {j.nombre} {j.apellido}
+                          </Link>
+                          {puntosArrastre[j.id] ? (
+                            <Badge variant="outline" className="w-fit mt-1 text-[10px] h-5 px-1 bg-yellow-500/10 text-yellow-600 border-yellow-200">
+                              +{puntosArrastre[j.id]} Arrastre
+                            </Badge>
+                          ) : null}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
                         {j.localidad ? (

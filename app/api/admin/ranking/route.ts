@@ -39,6 +39,18 @@ export async function GET(request: Request) {
       WHERE hp.categoria_id = ${categoriaId}
     `
 
+    // Get transferred points from ascensos
+    const ascensos = await sql`
+      SELECT jugador_id, puntos_transferidos
+      FROM ascensos
+      WHERE categoria_destino_id = ${categoriaId}
+    `
+    
+    const puntosArrastre: Record<number, number> = {}
+    for (const a of ascensos) {
+      puntosArrastre[a.jugador_id] = a.puntos_transferidos
+    }
+
     // Also check participaciones as fallback
     const participaciones = await sql`
       SELECT p.jugador_id, p.fecha_torneo_id, p.puntos_obtenidos, p.instancia_alcanzada
@@ -67,7 +79,7 @@ export async function GET(request: Request) {
       }
     }
 
-    return NextResponse.json({ fechas, jugadores, puntosMap })
+    return NextResponse.json({ fechas, jugadores, puntosMap, puntosArrastre })
   } catch (error) {
     console.error('Error fetching ranking:', error)
     return NextResponse.json({ error: 'Error fetching ranking' }, { status: 500 })

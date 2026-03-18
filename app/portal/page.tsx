@@ -170,6 +170,7 @@ export default function PortalPage() {
   const rankingList = useMemo(() => Array.isArray(rankingData?.jugadores) ? rankingData.jugadores : [], [rankingData]);
   const rankingFechas = useMemo(() => Array.isArray(rankingData?.fechas) ? rankingData.fechas : [], [rankingData]);
   const rankingPuntosMap = useMemo(() => rankingData?.puntosMap || {}, [rankingData]);
+  const rankingPuntosArrastre = useMemo(() => rankingData?.puntosArrastre || {}, [rankingData]);
   const inscripcionesList = useMemo(() => Array.isArray(misInscripciones) ? misInscripciones : [], [misInscripciones]);
 
   // Determine available categories for selector
@@ -705,9 +706,16 @@ export default function PortalPage() {
                                       </TableCell>
                                       <TableCell>
                                         <div className="flex flex-col">
-                                          <span className={`font-bold ${player.id === me.id ? "text-primary" : "text-foreground"}`}>
-                                            {player.nombre} {player.apellido} {player.id === me.id && "(Tú)"}
-                                          </span>
+                                          <div className="flex items-center gap-2 flex-wrap">
+                                            <span className={`font-bold ${player.id === me.id ? "text-primary" : "text-foreground"}`}>
+                                              {player.nombre} {player.apellido} {player.id === me.id && "(Tú)"}
+                                            </span>
+                                            {rankingPuntosArrastre[player.id] ? (
+                                              <Badge variant="outline" className="text-[10px] h-5 px-1 bg-yellow-500/10 text-yellow-600 border-yellow-200">
+                                                +{rankingPuntosArrastre[player.id]} Arrastre
+                                              </Badge>
+                                            ) : null}
+                                          </div>
                                           {player.localidad && (
                                             <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{player.localidad}</span>
                                           )}
