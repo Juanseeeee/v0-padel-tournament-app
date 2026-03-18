@@ -1,0 +1,406 @@
+Script started (test_neon.js modified)
+Run function started...
+--- JUGADORES ---
+[
+  {
+    "id": 396,
+    "nombre": "ZULMA",
+    "apellido": "ULLUA",
+    "categoria_actual_id": 28
+  },
+  {
+    "id": 624,
+    "nombre": "LAUTARO",
+    "apellido": "DE LEON",
+    "categoria_actual_id": 25
+  },
+  {
+    "id": 696,
+    "nombre": "NICOLAS",
+    "apellido": "DUCASSE",
+    "categoria_actual_id": 25
+  },
+  {
+    "id": 688,
+    "nombre": "NICOLAS ",
+    "apellido": "DUCASSE",
+    "categoria_actual_id": 25
+  },
+  {
+    "id": 684,
+    "nombre": "LEO",
+    "apellido": "ULLUA",
+    "categoria_actual_id": 25
+  },
+  {
+    "id": 582,
+    "nombre": "DIONISIO",
+    "apellido": "ULLUA ",
+    "categoria_actual_id": 29
+  },
+  {
+    "id": 629,
+    "nombre": "HERNAN",
+    "apellido": "GHERPELLI",
+    "categoria_actual_id": 25
+  },
+  {
+    "id": 673,
+    "nombre": "GAEL ",
+    "apellido": "ULLUA",
+    "categoria_actual_id": 25
+  },
+  {
+    "id": 567,
+    "nombre": "FEDERICO",
+    "apellido": "ULLUA",
+    "categoria_actual_id": 25
+  },
+  {
+    "id": 519,
+    "nombre": "AGUSTÍN ",
+    "apellido": "ULLUA ",
+    "categoria_actual_id": 25
+  },
+  {
+    "id": 771,
+    "nombre": "SIMON",
+    "apellido": "ULLUA",
+    "categoria_actual_id": 29
+  }
+]
+
+--- PUNTOS CATEGORIA (TOTALES) ---
+[
+  {
+    "id": 442,
+    "jugador_id": 396,
+    "categoria_id": 28,
+    "puntos_acumulados": 60,
+    "partidos_jugados": 0,
+    "torneos_jugados": 1,
+    "mejor_resultado": null,
+    "updated_at": "2026-03-12T23:22:09.330Z"
+  },
+  {
+    "id": 183,
+    "jugador_id": 567,
+    "categoria_id": 25,
+    "puntos_acumulados": 40,
+    "partidos_jugados": 0,
+    "torneos_jugados": 1,
+    "mejor_resultado": "cuartofinalista",
+    "updated_at": "2026-03-09T17:49:48.419Z"
+  },
+  {
+    "id": 190,
+    "jugador_id": 629,
+    "categoria_id": 25,
+    "puntos_acumulados": 60,
+    "partidos_jugados": 0,
+    "torneos_jugados": 1,
+    "mejor_resultado": "zona",
+    "updated_at": "2026-03-09T17:49:55.193Z"
+  },
+  {
+    "id": 181,
+    "jugador_id": 519,
+    "categoria_id": 25,
+    "puntos_acumulados": 60,
+    "partidos_jugados": 0,
+    "torneos_jugados": 1,
+    "mejor_resultado": "zona",
+    "updated_at": "2026-03-09T17:49:54.179Z"
+  },
+  {
+    "id": 198,
+    "jugador_id": 684,
+    "categoria_id": 25,
+    "puntos_acumulados": 10,
+    "partidos_jugados": 0,
+    "torneos_jugados": 1,
+    "mejor_resultado": "zona",
+    "updated_at": "2026-03-09T17:50:00.315Z"
+  },
+  {
+    "id": 193,
+    "jugador_id": 673,
+    "categoria_id": 25,
+    "puntos_acumulados": 40,
+    "partidos_jugados": 0,
+    "torneos_jugados": 1,
+    "mejor_resultado": "cuartofinalista",
+    "updated_at": "2026-03-09T17:49:51.297Z"
+  },
+  {
+    "id": 484,
+    "jugador_id": 684,
+    "categoria_id": 24,
+    "puntos_acumulados": 60,
+    "partidos_jugados": 0,
+    "torneos_jugados": 1,
+    "mejor_resultado": null,
+    "updated_at": "2026-03-16T19:49:47.504Z"
+  },
+  {
+    "id": 187,
+    "jugador_id": 624,
+    "categoria_id": 25,
+    "puntos_acumulados": 60,
+    "partidos_jugados": 0,
+    "torneos_jugados": 1,
+    "mejor_resultado": "zona",
+    "updated_at": "2026-03-09T17:50:04.069Z"
+  },
+  {
+    "id": 202,
+    "jugador_id": 688,
+    "categoria_id": 25,
+    "puntos_acumulados": 60,
+    "partidos_jugados": 0,
+    "torneos_jugados": 1,
+    "mejor_resultado": "zona",
+    "updated_at": "2026-03-09T17:49:39.319Z"
+  },
+  {
+    "id": 560,
+    "jugador_id": 582,
+    "categoria_id": 29,
+    "puntos_acumulados": 40,
+    "partidos_jugados": 0,
+    "torneos_jugados": 1,
+    "mejor_resultado": null,
+    "updated_at": "2026-03-18T20:27:07.245Z"
+  },
+  {
+    "id": 573,
+    "jugador_id": 771,
+    "categoria_id": 29,
+    "puntos_acumulados": 40,
+    "partidos_jugados": 0,
+    "torneos_jugados": 1,
+    "mejor_resultado": null,
+    "updated_at": "2026-03-18T20:27:07.482Z"
+  }
+]
+
+--- PARTICIPACIONES ---
+[
+  {
+    "id": 245,
+    "jugador_id": 396,
+    "fecha_torneo_id": 112,
+    "categoria_id": 28,
+    "instancia_alcanzada": "semifinalista",
+    "puntos_obtenidos": 60,
+    "observaciones": null,
+    "created_at": "2026-03-12T23:22:09.325Z"
+  },
+  {
+    "id": 226,
+    "jugador_id": 567,
+    "fecha_torneo_id": 63,
+    "categoria_id": 25,
+    "instancia_alcanzada": "cuartofinalista",
+    "puntos_obtenidos": 40,
+    "observaciones": null,
+    "created_at": "2026-03-09T17:49:31.844Z"
+  },
+  {
+    "id": 229,
+    "jugador_id": 673,
+    "fecha_torneo_id": 63,
+    "categoria_id": 25,
+    "instancia_alcanzada": "cuartofinalista",
+    "puntos_obtenidos": 40,
+    "observaciones": null,
+    "created_at": "2026-03-09T17:49:32.970Z"
+  },
+  {
+    "id": 238,
+    "jugador_id": 684,
+    "fecha_torneo_id": 63,
+    "categoria_id": 25,
+    "instancia_alcanzada": "zona",
+    "puntos_obtenidos": 10,
+    "observaciones": null,
+    "created_at": "2026-03-09T17:49:36.472Z"
+  },
+  {
+    "id": 242,
+    "jugador_id": 624,
+    "fecha_torneo_id": 63,
+    "categoria_id": 25,
+    "instancia_alcanzada": "semis",
+    "puntos_obtenidos": 60,
+    "observaciones": null,
+    "created_at": "2026-03-09T17:49:38.088Z"
+  },
+  {
+    "id": 243,
+    "jugador_id": 688,
+    "fecha_torneo_id": 63,
+    "categoria_id": 25,
+    "instancia_alcanzada": "semis",
+    "puntos_obtenidos": 60,
+    "observaciones": null,
+    "created_at": "2026-03-09T17:49:38.500Z"
+  },
+  {
+    "id": 232,
+    "jugador_id": 519,
+    "fecha_torneo_id": 63,
+    "categoria_id": 25,
+    "instancia_alcanzada": "semis",
+    "puntos_obtenidos": 60,
+    "observaciones": null,
+    "created_at": "2026-03-09T17:49:34.095Z"
+  },
+  {
+    "id": 233,
+    "jugador_id": 629,
+    "fecha_torneo_id": 63,
+    "categoria_id": 25,
+    "instancia_alcanzada": "semis",
+    "puntos_obtenidos": 60,
+    "observaciones": null,
+    "created_at": "2026-03-09T17:49:34.511Z"
+  },
+  {
+    "id": 282,
+    "jugador_id": 684,
+    "fecha_torneo_id": 98,
+    "categoria_id": 24,
+    "instancia_alcanzada": "semifinalista",
+    "puntos_obtenidos": 60,
+    "observaciones": null,
+    "created_at": "2026-03-16T19:49:47.500Z"
+  },
+  {
+    "id": 358,
+    "jugador_id": 582,
+    "fecha_torneo_id": 99,
+    "categoria_id": 29,
+    "instancia_alcanzada": "cuartofinalista",
+    "puntos_obtenidos": 40,
+    "observaciones": null,
+    "created_at": "2026-03-18T20:27:07.240Z"
+  },
+  {
+    "id": 371,
+    "jugador_id": 771,
+    "fecha_torneo_id": 99,
+    "categoria_id": 29,
+    "instancia_alcanzada": "cuartofinalista",
+    "puntos_obtenidos": 40,
+    "observaciones": null,
+    "created_at": "2026-03-18T20:27:07.476Z"
+  }
+]
+
+--- HISTORIAL PUNTOS ---
+[
+  {
+    "id": 218,
+    "jugador_id": 396,
+    "categoria_id": 28,
+    "fecha_torneo_id": 112,
+    "puntos_acumulados": 60,
+    "motivo": "semifinalista",
+    "created_at": "2026-03-12T23:22:09.337Z"
+  },
+  {
+    "id": 260,
+    "jugador_id": 684,
+    "categoria_id": 24,
+    "fecha_torneo_id": 98,
+    "puntos_acumulados": 60,
+    "motivo": "semifinalista",
+    "created_at": "2026-03-16T19:49:47.508Z"
+  },
+  {
+    "id": 195,
+    "jugador_id": 567,
+    "categoria_id": 25,
+    "fecha_torneo_id": 63,
+    "puntos_acumulados": 40,
+    "motivo": "Fecha 1 - cuartofinalista",
+    "created_at": "2026-03-09T17:49:32.011Z"
+  },
+  {
+    "id": 198,
+    "jugador_id": 673,
+    "categoria_id": 25,
+    "fecha_torneo_id": 63,
+    "puntos_acumulados": 40,
+    "motivo": "Fecha 1 - cuartofinalista",
+    "created_at": "2026-03-09T17:49:33.184Z"
+  },
+  {
+    "id": 201,
+    "jugador_id": 519,
+    "categoria_id": 25,
+    "fecha_torneo_id": 63,
+    "puntos_acumulados": 10,
+    "motivo": "Fecha 1 - zona",
+    "created_at": "2026-03-09T17:49:34.310Z"
+  },
+  {
+    "id": 202,
+    "jugador_id": 629,
+    "categoria_id": 25,
+    "fecha_torneo_id": 63,
+    "puntos_acumulados": 10,
+    "motivo": "Fecha 1 - zona",
+    "created_at": "2026-03-09T17:49:34.726Z"
+  },
+  {
+    "id": 207,
+    "jugador_id": 684,
+    "categoria_id": 25,
+    "fecha_torneo_id": 63,
+    "puntos_acumulados": 10,
+    "motivo": "Fecha 1 - zona",
+    "created_at": "2026-03-09T17:49:36.662Z"
+  },
+  {
+    "id": 211,
+    "jugador_id": 624,
+    "categoria_id": 25,
+    "fecha_torneo_id": 63,
+    "puntos_acumulados": 10,
+    "motivo": "Fecha 1 - zona",
+    "created_at": "2026-03-09T17:49:38.309Z"
+  },
+  {
+    "id": 212,
+    "jugador_id": 688,
+    "categoria_id": 25,
+    "fecha_torneo_id": 63,
+    "puntos_acumulados": 10,
+    "motivo": "Fecha 1 - zona",
+    "created_at": "2026-03-09T17:49:38.696Z"
+  },
+  {
+    "id": 336,
+    "jugador_id": 582,
+    "categoria_id": 29,
+    "fecha_torneo_id": 99,
+    "puntos_acumulados": 40,
+    "motivo": "cuartofinalista",
+    "created_at": "2026-03-18T20:27:07.251Z"
+  },
+  {
+    "id": 349,
+    "jugador_id": 771,
+    "categoria_id": 29,
+    "fecha_torneo_id": 99,
+    "puntos_acumulados": 40,
+    "motivo": "cuartofinalista",
+    "created_at": "2026-03-18T20:27:07.488Z"
+  }
+]
+
+--- ASCENSOS ---
+[]
+Script finished
