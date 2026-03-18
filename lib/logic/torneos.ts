@@ -1,7 +1,7 @@
 export function buildTorneosQuery(
-  filters: { categoryId?: number | null; page?: number; limit?: number }
+  filters: { categoryId?: number | null; page?: number; limit?: number; publicOnly?: boolean }
 ) {
-  const { categoryId, page = 1, limit = 20 } = filters;
+  const { categoryId, page = 1, limit = 20, publicOnly = false } = filters;
   const offset = (page - 1) * limit;
 
   let query = `
@@ -10,6 +10,7 @@ export function buildTorneosQuery(
       f.numero_fecha,
       f.temporada,
       f.estado,
+      f.publicado,
       f.fecha_calendario,
       f.sede,
       f.direccion,
@@ -29,6 +30,7 @@ export function buildTorneosQuery(
   `;
   
   const params: any[] = [];
+  
   if (categoryId) {
     query += ` AND f.categoria_id = $${params.length + 1}`;
     params.push(categoryId);

@@ -5,7 +5,7 @@ import React from "react"
 import { useMemo, useState, useEffect } from "react"
 import Link from "next/link"
 import { Calendar as MonthCalendar } from "@/components/ui/calendar"
-import { Plus, Edit2, Trash2, Calendar as CalendarIcon, MapPin, Users, Filter } from "lucide-react"
+import { Plus, Edit2, Trash2, Calendar as CalendarIcon, MapPin, Users, Filter, Eye, EyeOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -409,6 +409,15 @@ export default function FechasAdminPage() {
                                 <Badge variant="outline" className={`${badgeInfo.className} ml-auto sm:ml-2`}>
                                     {badgeInfo.label}
                                 </Badge>
+                                {fecha.publicado ? (
+                                    <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200">
+                                        <Eye className="mr-1 h-3 w-3" /> Zonas Visibles
+                                    </Badge>
+                                ) : (
+                                    <Badge variant="secondary" className="bg-gray-100 text-gray-500 border-gray-200">
+                                        <EyeOff className="mr-1 h-3 w-3" /> Zonas Ocultas
+                                    </Badge>
+                                )}
                                 </div>
                                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                                 <span className="flex items-center gap-1">
@@ -497,6 +506,15 @@ export default function FechasAdminPage() {
                                 <Badge variant="outline" className={`${badgeInfo.className} ml-auto sm:ml-2`}>
                                     {badgeInfo.label}
                                 </Badge>
+                                {fecha.publicado ? (
+                                    <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200">
+                                        <Eye className="mr-1 h-3 w-3" /> Zonas Visibles
+                                    </Badge>
+                                ) : (
+                                    <Badge variant="secondary" className="bg-gray-100 text-gray-500 border-gray-200">
+                                        <EyeOff className="mr-1 h-3 w-3" /> Zonas Ocultas
+                                    </Badge>
+                                )}
                                 </div>
                                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                                 <span className="flex items-center gap-1">

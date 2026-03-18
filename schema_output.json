@@ -1,0 +1,74 @@
+[
+  {
+    "column_name": "publicado",
+    "data_type": "boolean"
+  },
+  {
+    "column_name": "numero_fecha",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "fecha_calendario",
+    "data_type": "date"
+  },
+  {
+    "column_name": "created_at",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "column_name": "categoria_id",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "dias_torneo",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "formato_zona",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "duracion_partido_min",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "hora_inicio",
+    "data_type": "time without time zone"
+  },
+  {
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "temporada",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "sede",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "direccion",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "estado",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hora_inicio_sabado",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "modalidad",
+    "data_type": "text"
+  },
+  {
+    "column_name": "dias_juego",
+    "data_type": "text"
+  },
+  {
+    "column_name": "hora_inicio_viernes",
+    "data_type": "character varying"
+  }
+]

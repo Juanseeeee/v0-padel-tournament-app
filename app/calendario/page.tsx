@@ -11,6 +11,7 @@ async function getFechasTorneo(): Promise<FechaTorneo[]> {
     SELECT f.*, c.nombre as categoria_nombre
     FROM fechas_torneo f
     LEFT JOIN categorias c ON f.categoria_id = c.id
+    WHERE 1=1
     ORDER BY f.fecha_calendario DESC NULLS LAST, f.temporada DESC, f.numero_fecha DESC
   `
   return result as FechaTorneo[]

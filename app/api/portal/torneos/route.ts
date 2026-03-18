@@ -20,7 +20,8 @@ export async function GET(request: Request) {
   const { query, countQuery, params, countParams } = buildTorneosQuery({ 
     categoryId: targetCategoriaId, 
     page, 
-    limit 
+    limit,
+    publicOnly: true
   });
 
   // Count query

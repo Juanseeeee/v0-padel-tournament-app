@@ -64,6 +64,8 @@ import {
   Clock,
   FileDown,
   ImageIcon,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { FlyerGenerator } from "@/components/flyer-generator";
 import { AdminWrapper } from "@/components/admin-wrapper";
@@ -704,6 +706,27 @@ export default function TorneoManagementPage() {
     }
   };
 
+  const handlePublicarTorneo = async (publicado: boolean) => {
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`/api/admin/torneo/${torneoId}/publicar`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ publicado }),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Error al cambiar estado de publicación");
+      }
+      toast({ title: publicado ? "Torneo publicado" : "Torneo ocultado", description: `El torneo ahora es ${publicado ? 'público' : 'privado'}.` });
+      mutate(`/api/admin/fechas/${torneoId}`);
+    } catch (error) {
+      toast({ title: "Error", description: getFriendlyError(error), variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const resetParejaForm = () => {
     setJugador1Id("");
     setJugador2Id("");
@@ -793,6 +816,24 @@ export default function TorneoManagementPage() {
                 ? "En Juego"
                 : "Finalizada"}
           </Badge>
+          <Button
+            variant={torneo.publicado ? "secondary" : "default"}
+            onClick={() => handlePublicarTorneo(!torneo.publicado)}
+            disabled={isSubmitting}
+            className={torneo.publicado ? "" : "bg-green-600 hover:bg-green-700 text-white"}
+          >
+            {torneo.publicado ? (
+              <>
+                <EyeOff className="mr-2 h-4 w-4" />
+                Ocultar Zonas
+              </>
+            ) : (
+              <>
+                <Eye className="mr-2 h-4 w-4" />
+                Publicar Zonas
+              </>
+            )}
+          </Button>
           {torneo.estado !== "finalizada" && (
             <Button
               onClick={handleFinalizarTorneo}

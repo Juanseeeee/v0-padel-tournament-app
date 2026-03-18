@@ -6,7 +6,7 @@ import { notFound } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Calendar, MapPin, Trophy, Users, Clock, MapPin as MapPinIcon } from "lucide-react"
+import { ArrowLeft, Calendar, MapPin, Trophy, Users, Clock, MapPin as MapPinIcon, Construction } from "lucide-react"
 import { parseDateOnly, parseDateTime, cn } from "@/lib/utils"
 
 // Tipos para Zonas
@@ -335,180 +335,176 @@ export default async function FechaDetailPage({ params }: { params: Promise<{ id
 
         {/* Zonas y Partidos */}
         {zonasPorCategoria.length > 0 && (
-          <section className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
-            <h2 className="mb-6 font-[var(--font-display)] text-2xl font-bold tracking-tight">Fase de Grupos</h2>
-            <div className="space-y-10">
-              {zonasPorCategoria.map(({ categoria, zonas }) => (
-                <div key={categoria.id} className="space-y-4">
-                  <h3 className="flex items-center gap-2 text-xl font-semibold text-primary">
-                    <Trophy className="h-5 w-5" />
-                    {categoria.nombre}
-                  </h3>
-                  
-                  <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-2">
-                    {zonas.map((zona) => (
-                      <Card key={zona.id} className="overflow-hidden border-border/60 shadow-sm">
-                        <CardHeader className="bg-muted/30 px-4 py-3">
-                          <CardTitle className="text-base font-medium">{zona.nombre}</CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                          {/* Tabla de Posiciones */}
-                          <div className="overflow-x-auto border-b border-border/60">
-                            <table className="w-full text-xs">
-                              <thead className="bg-muted/10">
-                                <tr className="text-muted-foreground">
-                                  <th className="px-3 py-2 text-left font-medium">Pareja</th>
-                                  <th className="px-2 py-2 text-center font-medium">PJ</th>
-                                  <th className="px-2 py-2 text-center font-medium">PG</th>
-                                  <th className="px-2 py-2 text-center font-medium">PP</th>
-                                  <th className="px-2 py-2 text-center font-medium">Set</th>
-                                  <th className="px-2 py-2 text-center font-medium">Game</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-border/40">
-                                {zona.parejas.map((pareja, idx) => (
-                                  <tr key={pareja.id} className={idx < 2 ? "bg-primary/5" : ""}>
-                                    <td className="px-3 py-2">
-                                      <div className="flex flex-col">
-                                        <span className="font-medium text-foreground">
-                                          {pareja.j1_apellido} {pareja.j1_nombre?.[0]}.
-                                        </span>
-                                        <span className="font-medium text-foreground">
-                                          {pareja.j2_apellido} {pareja.j2_nombre?.[0]}.
-                                        </span>
-                                      </div>
-                                    </td>
-                                    <td className="px-2 py-2 text-center">{pareja.partidos_ganados + pareja.partidos_perdidos}</td>
-                                    <td className="px-2 py-2 text-center font-semibold text-primary">{pareja.partidos_ganados}</td>
-                                    <td className="px-2 py-2 text-center text-muted-foreground">{pareja.partidos_perdidos}</td>
-                                    <td className="px-2 py-2 text-center text-muted-foreground">
-                                      {pareja.sets_ganados > 0 || pareja.sets_perdidos > 0 
-                                        ? `${pareja.sets_ganados}/${pareja.sets_perdidos}` 
-                                        : '-'}
-                                    </td>
-                                    <td className="px-2 py-2 text-center text-muted-foreground">
-                                      {pareja.games_ganados > 0 || pareja.games_perdidos > 0 
-                                        ? `${pareja.games_ganados}/${pareja.games_perdidos}` 
-                                        : '-'}
-                                    </td>
+          fecha.publicado ? (
+            <section className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
+              <h2 className="mb-6 font-[var(--font-display)] text-2xl font-bold tracking-tight">Fase de Grupos</h2>
+              <div className="space-y-10">
+                {zonasPorCategoria.map(({ categoria, zonas }) => (
+                  <div key={categoria.id} className="space-y-4">
+                    <h3 className="flex items-center gap-2 text-xl font-semibold text-primary">
+                      <Trophy className="h-5 w-5" />
+                      {categoria.nombre}
+                    </h3>
+                    
+                    <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-2">
+                      {zonas.map((zona) => (
+                        <Card key={zona.id} className="overflow-hidden border-border/60 shadow-sm">
+                          <CardHeader className="bg-muted/30 px-4 py-3">
+                            <CardTitle className="text-base font-medium">{zona.nombre}</CardTitle>
+                          </CardHeader>
+                          <CardContent className="p-0">
+                            {/* Tabla de Posiciones */}
+                            <div className="overflow-x-auto border-b border-border/60">
+                              <table className="w-full text-xs">
+                                <thead className="bg-muted/10">
+                                  <tr className="text-muted-foreground">
+                                    <th className="px-3 py-2 text-left font-medium">Pareja</th>
+                                    <th className="px-2 py-2 text-center font-medium">PJ</th>
+                                    <th className="px-2 py-2 text-center font-medium">PG</th>
+                                    <th className="px-2 py-2 text-center font-medium">PP</th>
+                                    <th className="px-2 py-2 text-center font-medium">Set</th>
+                                    <th className="px-2 py-2 text-center font-medium">Game</th>
                                   </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
+                                </thead>
+                                <tbody className="divide-y divide-border/40">
+                                  {zona.parejas.map((pareja, idx) => (
+                                    <tr key={pareja.id} className={idx < 2 ? "bg-primary/5" : ""}>
+                                      <td className="px-3 py-2">
+                                        <div className="flex flex-col">
+                                          <span className="font-medium text-foreground">
+                                            {pareja.j1_apellido} {pareja.j1_nombre?.[0]}.
+                                          </span>
+                                          <span className="font-medium text-foreground">
+                                            {pareja.j2_apellido} {pareja.j2_nombre?.[0]}.
+                                          </span>
+                                        </div>
+                                      </td>
+                                      <td className="px-2 py-2 text-center">{pareja.partidos_ganados + pareja.partidos_perdidos}</td>
+                                      <td className="px-2 py-2 text-center font-semibold text-primary">{pareja.partidos_ganados}</td>
+                                      <td className="px-2 py-2 text-center text-muted-foreground">{pareja.partidos_perdidos}</td>
+                                      <td className="px-2 py-2 text-center text-muted-foreground">
+                                        {pareja.sets_ganados > 0 || pareja.sets_perdidos > 0 
+                                          ? `${pareja.sets_ganados}/${pareja.sets_perdidos}` 
+                                          : '-'}
+                                      </td>
+                                      <td className="px-2 py-2 text-center text-muted-foreground">
+                                        {pareja.games_ganados > 0 || pareja.games_perdidos > 0 
+                                          ? `${pareja.games_ganados}/${pareja.games_perdidos}` 
+                                          : '-'}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
 
-                          {/* Lista de Partidos */}
-                          <div className="bg-muted/5 p-3">
-                            <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Partidos</h4>
-                            <div className="space-y-2">
-                              {zona.partidos.map((partido) => {
-                                const isFinalizado = partido.estado === 'finalizado';
-                                const resultado = isFinalizado 
-                                  ? [
-                                      `${partido.set1_pareja1}-${partido.set1_pareja2}${partido.set1_tiebreak ? `(${partido.set1_tiebreak})` : ''}`,
-                                      partido.set2_pareja1 !== null ? `${partido.set2_pareja1}-${partido.set2_pareja2}${partido.set2_tiebreak ? `(${partido.set2_tiebreak})` : ''}` : null,
-                                      partido.set3_pareja1 !== null ? `${partido.set3_pareja1}-${partido.set3_pareja2}${partido.set3_tiebreak ? `(${partido.set3_tiebreak})` : ''}` : null
-                                    ].filter(Boolean).join('  ')
-                                  : 'vs';
+                            {/* Lista de Partidos */}
+                            <div className="bg-muted/5 p-3">
+                              <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Partidos</h4>
+                              <div className="space-y-2">
+                                {zona.partidos.map((partido) => {
+                                  const isFinalizado = partido.estado === 'finalizado';
+                                  const resultado = isFinalizado 
+                                    ? [
+                                        `${partido.set1_pareja1}-${partido.set1_pareja2}${partido.set1_tiebreak ? `(${partido.set1_tiebreak})` : ''}`,
+                                        partido.set2_pareja1 !== null ? `${partido.set2_pareja1}-${partido.set2_pareja2}${partido.set2_tiebreak ? `(${partido.set2_tiebreak})` : ''}` : null,
+                                        partido.set3_pareja1 !== null ? `${partido.set3_pareja1}-${partido.set3_pareja2}${partido.set3_tiebreak ? `(${partido.set3_tiebreak})` : ''}` : null
+                                      ].filter(Boolean).join('  ')
+                                    : 'vs';
 
-                                const p1Label = partido.pareja1_id 
-                                  ? `${partido.p1_j1_apellido}/${partido.p1_j2_apellido}`
-                                  : 'A definir';
-                                const p2Label = partido.pareja2_id 
-                                  ? `${partido.p2_j1_apellido}/${partido.p2_j2_apellido}`
-                                  : 'A definir';
+                                  const p1Label = partido.pareja1_id 
+                                    ? `${partido.p1_j1_apellido}/${partido.p1_j2_apellido}`
+                                    : 'A definir';
+                                  const p2Label = partido.pareja2_id 
+                                    ? `${partido.p2_j1_apellido}/${partido.p2_j2_apellido}`
+                                    : 'A definir';
 
-                                return (
-                                  <div key={partido.id} className="rounded border border-border bg-background p-2 text-xs shadow-sm">
-                                    <div className="mb-1.5 flex items-center justify-between border-b border-border/50 pb-1.5">
-                                      <div className="flex items-center gap-2 text-muted-foreground">
-                                        <Badge variant="outline" className="h-4 rounded-[4px] px-1 py-0 text-[10px] font-normal text-muted-foreground">
-                                          P{partido.orden_partido}
-                                        </Badge>
-                                        {(() => {
-                                          let date = parseDateTime(partido.fecha_hora_programada);
-
-                                          // Fallback: Show dia_partido (e.g. "Viernes") + hora_estimada
-                                          const hora = partido.hora_estimada;
-
-                                          if (date) {
-                                            const hasTime = date.getHours() !== 0 || date.getMinutes() !== 0;
-                                            const timeStr = hasTime 
-                                              ? date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
-                                              : (hora ? `${hora}hs` : null);
-
+                                  return (
+                                    <div key={partido.id} className="rounded border border-border bg-background p-2 text-xs shadow-sm">
+                                      <div className="mb-1.5 flex items-center justify-between border-b border-border/50 pb-1.5">
+                                        <div className="flex items-center gap-2 text-muted-foreground">
+                                          <Badge variant="outline" className="h-4 rounded-[4px] px-1 py-0 text-[10px] font-normal text-muted-foreground">
+                                            P{partido.orden_partido}
+                                          </Badge>
+                                          {(() => {
+                                            let date = parseDateTime(partido.fecha_hora_programada);
+                                            // Fallback to fecha_partido + hora if needed
+                                            if (!date || isNaN(date.getTime())) {
+                                                if (partido.fecha_partido) {
+                                                    const dateStr = parseDateOnly(partido.fecha_partido).toISOString().split('T')[0];
+                                                    // Try different time fields
+                                                    const timeStr = partido.hora_estimada || partido.horario || partido.hora || partido.hora_inicio || '00:00';
+                                                    date = new Date(`${dateStr}T${timeStr}`);
+                                                }
+                                            }
+                                            
+                                            // Check if date is valid
+                                            if (!date || isNaN(date.getTime())) return null;
+                                            
+                                            // Check if time is 00:00 (likely only date provided)
+                                            const isMidnight = date.getHours() === 0 && date.getMinutes() === 0;
+                                            
                                             return (
-                                              <span className="flex items-center gap-1">
+                                              <span className="flex items-center gap-1 text-[10px]">
                                                 <Calendar className="h-3 w-3" />
-                                                <span className="capitalize">
-                                                  {date.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric' })}
-                                                </span>
-                                                {timeStr && (
-                                                  <>
-                                                    <Clock className="h-3 w-3 ml-1" />
-                                                    {timeStr}
-                                                  </>
+                                                {date.toLocaleDateString('es-AR', { weekday: 'short' })}
+                                                {!isMidnight && (
+                                                    <>
+                                                        <Clock className="ml-1 h-3 w-3" />
+                                                        {date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                                                    </>
                                                 )}
                                               </span>
                                             );
-                                          }
-
-                                          // Last Resort Fallback: If we have dia_partido and a time string in fecha_hora_programada or hora_estimada
-                                          if (partido.dia_partido) {
-                                             const timeFallback = partido.hora_estimada || (typeof partido.fecha_hora_programada === 'string' && /^\d{1,2}:\d{2}/.test(partido.fecha_hora_programada) ? partido.fecha_hora_programada : null);
-                                             if (timeFallback) {
-                                                 return (
-                                                    <span className="flex items-center gap-1">
-                                                        <Calendar className="h-3 w-3" />
-                                                        <span className="capitalize">{partido.dia_partido}</span>
-                                                        <Clock className="h-3 w-3 ml-1" />
-                                                        {timeFallback}hs
-                                                    </span>
-                                                 );
-                                             }
-                                             // Just day
-                                             return (
-                                                <span className="flex items-center gap-1">
-                                                    <Calendar className="h-3 w-3" />
-                                                    <span className="capitalize">{partido.dia_partido}</span>
-                                                </span>
-                                             );
-                                          }
-
-                                          return null;
-                                        })()}
+                                          })()}
+                                        </div>
+                                        {isFinalizado && (
+                                          <Badge variant="secondary" className="h-4 rounded-[4px] px-1 py-0 text-[10px] font-normal text-primary bg-primary/10 hover:bg-primary/20 border-primary/20">
+                                            Finalizado
+                                          </Badge>
+                                        )}
                                       </div>
-                                      {partido.cancha_numero && (
-                                        <span className="flex items-center gap-1 text-muted-foreground">
-                                          <MapPinIcon className="h-3 w-3" />
-                                          Cancha {partido.cancha_numero}
-                                        </span>
-                                      )}
-                                    </div>
-                                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-                                      <div className={`text-right truncate ${partido.ganador_id === partido.pareja1_id ? 'font-bold text-foreground' : 'text-muted-foreground'}`}>
-                                        {p1Label}
-                                      </div>
-                                      <div className={`px-2 py-0.5 rounded text-[10px] font-mono font-medium ${isFinalizado ? 'bg-muted text-foreground' : 'bg-transparent text-muted-foreground'}`}>
-                                        {resultado}
-                                      </div>
-                                      <div className={`text-left truncate ${partido.ganador_id === partido.pareja2_id ? 'font-bold text-foreground' : 'text-muted-foreground'}`}>
-                                        {p2Label}
+                                      <div className="flex items-center justify-between gap-2">
+                                        <div className="flex flex-col gap-1 min-w-0 flex-1">
+                                          <div className={cn("truncate font-medium", isFinalizado && partido.ganador_id === partido.pareja1_id && "text-primary font-bold")}>
+                                            {p1Label}
+                                          </div>
+                                          <div className={cn("truncate font-medium", isFinalizado && partido.ganador_id === partido.pareja2_id && "text-primary font-bold")}>
+                                            {p2Label}
+                                          </div>
+                                        </div>
+                                        <div className="shrink-0 text-right font-mono font-medium tracking-tight text-primary">
+                                          {resultado}
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
-                                )
-                              })}
+                                  );
+                                })}
+                              </div>
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
                   </div>
+                ))}
+              </div>
+            </section>
+          ) : (
+            <section className="mx-auto max-w-7xl px-4 py-12 lg:px-8">
+              <div className="flex flex-col items-center justify-center space-y-4 rounded-xl border border-dashed border-muted-foreground/25 bg-muted/10 p-12 text-center">
+                <div className="rounded-full bg-primary/10 p-4">
+                  <Construction className="h-8 w-8 text-primary" />
                 </div>
-              ))}
-            </div>
-          </section>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold tracking-tight">Zonas en Proceso</h3>
+                  <p className="max-w-md text-muted-foreground">
+                    Las zonas y partidos se están conformando. Pronto estarán disponibles.
+                  </p>
+                </div>
+              </div>
+            </section>
+          )
         )}
 
         {/* Llaves (Playoffs) */}
