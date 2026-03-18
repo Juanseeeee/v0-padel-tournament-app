@@ -14,7 +14,7 @@ async function getProximasFechas(): Promise<FechaTorneo[]> {
       SELECT f.*, c.nombre AS categoria_nombre
       FROM fechas_torneo f
       LEFT JOIN categorias c ON f.categoria_id = c.id
-      WHERE f.estado IN ('programada', 'en_juego')
+      WHERE f.estado IN ('programada', 'en_juego') AND f.publicado = true
       ORDER BY f.fecha_calendario ASC
       LIMIT 3
     `

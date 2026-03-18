@@ -35,6 +35,18 @@ export default async function TournamentPage({
     );
   }
 
+  if (!torneo[0].publicado) {
+    return (
+        <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
+            <div className="text-center">
+                <h1 className="text-2xl font-bold">Torneo no disponible</h1>
+                <p className="text-muted-foreground mt-2">Este torneo aún no ha sido publicado.</p>
+                <a href="/portal" className="mt-4 inline-block text-primary hover:underline">Volver al Portal</a>
+            </div>
+        </div>
+    );
+  }
+
   // 2. Get Zones and Matches
   const zonas = await sql`
     SELECT z.id, z.nombre, z.estado,

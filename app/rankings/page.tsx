@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
 import { Trophy } from "lucide-react"
 
 type Categoria = { id: number; nombre: string }
@@ -32,6 +33,7 @@ export default function RankingsPage() {
   const [jugadores, setJugadores] = useState<JugadorRanking[]>([])
   const [fechas, setFechas] = useState<FechaTorneo[]>([])
   const [puntosMap, setPuntosMap] = useState<Record<number, Record<number, { puntos: number; instancia: string }>>>({})
+  const [puntosArrastre, setPuntosArrastre] = useState<Record<number, number>>({})
   const [loadingCategorias, setLoadingCategorias] = useState(true)
   const [loadingRanking, setLoadingRanking] = useState(false)
 
@@ -47,6 +49,7 @@ export default function RankingsPage() {
       setJugadores([])
       setFechas([])
       setPuntosMap({})
+      setPuntosArrastre({})
       return
     }
     setLoadingRanking(true)
@@ -56,11 +59,13 @@ export default function RankingsPage() {
         setJugadores(data?.jugadores || [])
         setFechas(data?.fechas || [])
         setPuntosMap(data?.puntosMap || {})
+        setPuntosArrastre(data?.puntosArrastre || {})
       })
       .catch(() => {
         setJugadores([])
         setFechas([])
         setPuntosMap({})
+        setPuntosArrastre({})
       })
       .finally(() => setLoadingRanking(false))
   }, [selectedCategoria])
@@ -169,7 +174,14 @@ export default function RankingsPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col">
-                              <span className="font-bold text-foreground">{j.nombre} {j.apellido}</span>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-bold text-foreground">{j.nombre} {j.apellido}</span>
+                                {puntosArrastre[j.id] ? (
+                                  <Badge variant="outline" className="text-[10px] h-5 px-1 bg-yellow-500/10 text-yellow-600 border-yellow-200">
+                                    +{puntosArrastre[j.id]} Arrastre
+                                  </Badge>
+                                ) : null}
+                              </div>
                               {j.localidad && (
                                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{j.localidad}</span>
                               )}

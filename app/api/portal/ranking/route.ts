@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
       ORDER BY numero_fecha ASC
     `;
 
-    // Get all jugadores in this category (including 0 points)
+    // Get all jugadores in this category (only those currently assigned to it)
     const jugadores = await sql`
       SELECT 
         j.id, j.nombre, j.apellido, j.localidad,
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       FROM jugadores j
       LEFT JOIN puntos_categoria pc 
         ON pc.jugador_id = j.id AND pc.categoria_id = ${categoriaId}
-      WHERE (j.categoria_actual_id = ${categoriaId} OR pc.puntos_acumulados > 0)
+      WHERE j.categoria_actual_id = ${categoriaId}
         AND j.estado = 'activo'
       ORDER BY COALESCE(pc.puntos_acumulados, 0) DESC, j.nombre ASC
     `;
@@ -62,6 +62,18 @@ export async function GET(request: NextRequest) {
       FROM historial_puntos hp
       WHERE hp.categoria_id = ${categoriaId}
     `;
+
+    // Get ascensos info (puntos de arrastre)
+    const ascensos = await sql`
+      SELECT jugador_id, puntos_transferidos
+      FROM ascensos
+      WHERE categoria_destino_id = ${categoriaId}
+    `;
+    
+    const puntosArrastre: Record<number, number> = {};
+    for (const a of ascensos) {
+      puntosArrastre[a.jugador_id] = a.puntos_transferidos;
+    }
 
     // Also check participaciones as fallback
     const participaciones = await sql`
@@ -95,7 +107,8 @@ export async function GET(request: NextRequest) {
       fechas,
       jugadores,
       puntosMap,
-      mi_jugador_id: miJugadorId
+      mi_jugador_id: miJugadorId,
+      puntosArrastre,
     });
   } catch (error) {
     console.error("Error fetching ranking:", error);

@@ -34,6 +34,7 @@ export type FechaTorneo = {
   sede: string;
   direccion: string | null;
   estado: "programada" | "en_juego" | "finalizada";
+  publicado?: boolean;
   temporada: number;
   modalidad?: string;
   dias_juego?: string;
