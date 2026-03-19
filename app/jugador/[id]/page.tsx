@@ -9,21 +9,24 @@ import { Button } from "@/components/ui/button"
 import { ArrowLeft, User, Trophy, Calendar, TrendingUp, ArrowUpRight, History } from "lucide-react"
 import { parseDateOnly } from "@/lib/utils"
 
-async function getJugador(id: string): Promise<Jugador | null> {
+async function getJugador(id: string): Promise<Jugador & { puntos_por_categoria?: {categoria_id: number, nombre: string, puntos: number}[] } | null> {
   const result = await sql`
     SELECT j.*, c.nombre as categoria_nombre,
-      COALESCE(pc.total_puntos, 0) as puntos_totales
+      COALESCE(pc.total_puntos, 0) as puntos_totales,
+      pc.puntos_por_categoria
     FROM jugadores j
     LEFT JOIN categorias c ON j.categoria_actual_id = c.id
     LEFT JOIN (
-      SELECT pc.jugador_id, SUM(pc.puntos_acumulados) as total_puntos
+      SELECT pc.jugador_id, SUM(pc.puntos_acumulados) as total_puntos,
+             json_agg(json_build_object('categoria_id', pc.categoria_id, 'nombre', cat.nombre, 'puntos', pc.puntos_acumulados)) as puntos_por_categoria
       FROM puntos_categoria pc
       JOIN jugador_categorias jc ON pc.jugador_id = jc.jugador_id AND pc.categoria_id = jc.categoria_id
+      JOIN categorias cat ON pc.categoria_id = cat.id
       GROUP BY pc.jugador_id
     ) pc ON pc.jugador_id = j.id
     WHERE j.id = ${id}
   `
-  return result[0] as Jugador | null
+  return result[0] as (Jugador & { puntos_por_categoria?: {categoria_id: number, nombre: string, puntos: number}[] }) | null
 }
 
 async function getHistorialPuntos(jugadorId: string): Promise<HistorialPuntos[]> {
@@ -192,7 +195,16 @@ export default async function JugadorPage({ params }: { params: Promise<{ id: st
                     <div className="font-[var(--font-display)] text-2xl text-primary">
                       {jugador.puntos_totales}
                     </div>
-                    <div className="text-xs text-muted-foreground">Puntos</div>
+                    <div className="text-xs text-muted-foreground">Puntos Totales</div>
+                    {jugador.puntos_por_categoria && jugador.puntos_por_categoria.length > 0 && (
+                      <div className="mt-2 flex flex-col gap-1">
+                        {jugador.puntos_por_categoria.map(pc => (
+                          <div key={pc.categoria_id} className="text-[10px] text-muted-foreground">
+                            <span className="font-semibold">{pc.nombre}:</span> {pc.puntos} pts
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="rounded-xl border border-border bg-card/50 p-4 text-center">
                     <div className="font-[var(--font-display)] text-2xl text-accent">

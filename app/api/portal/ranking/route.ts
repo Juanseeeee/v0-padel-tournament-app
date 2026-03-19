@@ -48,10 +48,11 @@ export async function GET(request: NextRequest) {
         j.id, j.nombre, j.apellido, j.localidad,
         COALESCE(pc.puntos_acumulados, 0) AS puntos_totales,
         COALESCE(pc.torneos_jugados, 0) AS torneos_jugados
-      FROM jugadores j
+      FROM jugador_categorias jc
+      JOIN jugadores j ON j.id = jc.jugador_id
       LEFT JOIN puntos_categoria pc 
         ON pc.jugador_id = j.id AND pc.categoria_id = ${categoriaId}
-      WHERE j.categoria_actual_id = ${categoriaId}
+      WHERE jc.categoria_id = ${categoriaId}
         AND j.estado = 'activo'
       ORDER BY COALESCE(pc.puntos_acumulados, 0) DESC, j.nombre ASC
     `;

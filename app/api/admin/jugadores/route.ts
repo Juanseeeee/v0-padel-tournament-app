@@ -13,6 +13,7 @@ export async function GET(request: Request) {
     const jugadores = await sql`
       SELECT j.*, 
         COALESCE(pc.total_puntos, 0) as puntos_totales,
+        pc.puntos_por_categoria,
         jc.cat_names as categorias_nombres,
         jc.cat_ids as categoria_ids,
         u.id as usuario_id,
@@ -21,9 +22,11 @@ export async function GET(request: Request) {
         u.telefono as usuario_telefono
       FROM jugadores j
       LEFT JOIN (
-        SELECT pc.jugador_id, SUM(pc.puntos_acumulados) as total_puntos
+        SELECT pc.jugador_id, SUM(pc.puntos_acumulados) as total_puntos,
+               json_agg(json_build_object('categoria_id', pc.categoria_id, 'nombre', c.nombre, 'puntos', pc.puntos_acumulados)) as puntos_por_categoria
         FROM puntos_categoria pc
         JOIN jugador_categorias jc ON pc.jugador_id = jc.jugador_id AND pc.categoria_id = jc.categoria_id
+        JOIN categorias c ON pc.categoria_id = c.id
         GROUP BY pc.jugador_id
       ) pc ON pc.jugador_id = j.id
       LEFT JOIN (
