@@ -16,11 +16,11 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { titulo, contenido, autor, imagen_url, destacado } = body
+    const { titulo, contenido, autor, imagen_url, destacado, fijado } = body
 
     const result = await sql`
-      INSERT INTO informes (titulo, contenido, autor, imagen_url, destacado, fecha_publicacion)
-      VALUES (${titulo}, ${contenido}, ${autor || null}, ${imagen_url || null}, ${destacado || false}, NOW())
+      INSERT INTO informes (titulo, contenido, autor, imagen_url, destacado, fijado, fecha_publicacion)
+      VALUES (${titulo}, ${contenido}, ${autor || null}, ${imagen_url || null}, ${destacado || false}, ${fijado || false}, NOW())
       RETURNING *
     `
     

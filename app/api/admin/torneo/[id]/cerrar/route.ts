@@ -169,6 +169,48 @@ export async function POST(
           updated_at = NOW()
       `;
 
+      // 3. Verificar si el jugador ya no pertenece a esta categoría (fue ascendido/movido antes de cerrar el torneo)
+      // Si ya no está en la categoría, verificamos si hay un ascenso reciente para transferir el 50% de estos nuevos puntos
+      const enCategoria = await sql`
+        SELECT 1 FROM jugador_categorias 
+        WHERE jugador_id = ${jugadorId} AND categoria_id = ${categoriaId}
+      `;
+
+      if (enCategoria.length === 0) {
+        // Buscar último ascenso desde esta categoría
+        const ultimosAscensos = await sql`
+          SELECT categoria_destino_id 
+          FROM ascensos 
+          WHERE jugador_id = ${jugadorId} 
+            AND categoria_origen_id = ${categoriaId}
+          ORDER BY fecha_ascenso DESC 
+          LIMIT 1
+        `;
+
+        if (ultimosAscensos.length > 0) {
+          const categoriaDestinoId = ultimosAscensos[0].categoria_destino_id;
+          const puntosTransferir = Math.floor(puntos * 0.5);
+
+          if (puntosTransferir > 0) {
+            // Transferir 50% a la nueva categoría
+            await sql`
+              INSERT INTO puntos_categoria (jugador_id, categoria_id, puntos_acumulados)
+              VALUES (${jugadorId}, ${categoriaDestinoId}, ${puntosTransferir})
+              ON CONFLICT (jugador_id, categoria_id)
+              DO UPDATE SET 
+                puntos_acumulados = puntos_categoria.puntos_acumulados + ${puntosTransferir},
+                updated_at = NOW()
+            `;
+
+            // Registrar en historial
+            await sql`
+              INSERT INTO historial_puntos (jugador_id, categoria_id, puntos_acumulados, motivo)
+              VALUES (${jugadorId}, ${categoriaDestinoId}, ${puntosTransferir}, ${`Transferencia 50% puntos torneo anterior (${instancia})`})
+            `;
+          }
+        }
+      }
+
       // Registrar en historial_puntos para tracking por fecha
       await sql`
         INSERT INTO historial_puntos (jugador_id, categoria_id, fecha_torneo_id, puntos_acumulados, motivo)

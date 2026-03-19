@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { 
-  FileText, Edit, Trash2, Plus, Calendar, Star, User
+  FileText, Edit, Trash2, Plus, Calendar, Star, User, Pin
 } from "lucide-react"
 import {
   AlertDialog,
@@ -37,6 +37,21 @@ export default function AdminNoticiasPage() {
   const { data, error, isLoading, mutate } = useSWR<{ informes: Informe[] }>('/api/admin/noticias', fetcher)
 
   const informes = data?.informes || []
+
+  async function toggleFijado(informe: Informe) {
+    try {
+      const res = await fetch(`/api/admin/noticias/${informe.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...informe, fijado: !informe.fijado })
+      })
+      if (res.ok) {
+        mutate()
+      }
+    } catch (err) {
+      console.error('Error toggling fijado:', err)
+    }
+  }
 
   async function handleDelete() {
     if (!deleteId) return
@@ -116,6 +131,12 @@ export default function AdminNoticiasPage() {
                       <Calendar className="mr-1 h-3 w-3" />
                       {formatDate(informe.fecha_publicacion)}
                     </Badge>
+                    {informe.fijado && (
+                      <Badge className="bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 border-blue-500/20 gap-1 shadow-none">
+                        <Pin className="h-3 w-3 fill-blue-600" />
+                        Fijado
+                      </Badge>
+                    )}
                     {informe.destacado && (
                       <Badge className="bg-yellow-500/10 text-yellow-600 hover:bg-yellow-500/20 border-yellow-500/20 gap-1 shadow-none">
                         <Star className="h-3 w-3 fill-yellow-600" />
@@ -142,6 +163,15 @@ export default function AdminNoticiasPage() {
                     </Link>
                     
                     <div className="flex gap-1">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className={`h-8 w-8 ${informe.fijado ? 'text-blue-500 bg-blue-500/10' : 'text-muted-foreground'} hover:bg-blue-500/10`}
+                        onClick={() => toggleFijado(informe)}
+                        title={informe.fijado ? "Desfijar noticia" : "Fijar noticia"}
+                      >
+                        <Pin className={`h-4 w-4 ${informe.fijado ? 'fill-blue-500' : ''}`} />
+                      </Button>
                       <Link href={`/admin/noticias/${informe.id}`}>
                         <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-background/80">
                           <Edit className="h-4 w-4" />
