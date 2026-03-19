@@ -25,7 +25,7 @@ export async function PUT(
   const { id } = await params
   try {
     const body = await request.json()
-    const { titulo, contenido, autor, imagen_url, destacado } = body
+    const { titulo, contenido, autor, imagen_url, destacado, fijado } = body
 
     const result = await sql`
       UPDATE informes 
@@ -34,7 +34,8 @@ export async function PUT(
         contenido = ${contenido},
         autor = ${autor || null},
         imagen_url = ${imagen_url || null},
-        destacado = ${destacado || false}
+        destacado = ${destacado || false},
+        fijado = ${fijado || false}
       WHERE id = ${id}
       RETURNING *
     `

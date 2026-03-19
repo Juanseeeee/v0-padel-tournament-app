@@ -11,7 +11,7 @@ async function getInformes(): Promise<Informe[]> {
   const result = await sql`
     SELECT * FROM informes
     WHERE publicado = true
-    ORDER BY fecha_publicacion DESC
+    ORDER BY fijado DESC, fecha_publicacion DESC
   `
   return result as Informe[]
 }

@@ -102,6 +102,7 @@ export type Informe = {
   autor: string | null;
   imagen_url: string | null;
   destacado: boolean;
+  fijado?: boolean;
 };
 
 export type Sede = {

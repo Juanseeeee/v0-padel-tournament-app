@@ -23,6 +23,7 @@ export default function NuevaNoticiaPage() {
     autor: "",
     imagen_url: "",
     destacado: false,
+    fijado: false,
   })
 
   async function handleSubmit(e: React.FormEvent) {
@@ -118,6 +119,20 @@ export default function NuevaNoticiaPage() {
                   id="destacado"
                   checked={formData.destacado}
                   onCheckedChange={(checked) => setFormData({ ...formData, destacado: checked })}
+                />
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl border border-border p-4 bg-background/50">
+                <div>
+                  <Label htmlFor="fijado" className="text-base">Fijar Noticia</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Las noticias fijadas aparecen siempre al principio de la lista
+                  </p>
+                </div>
+                <Switch
+                  id="fijado"
+                  checked={formData.fijado}
+                  onCheckedChange={(checked) => setFormData({ ...formData, fijado: checked })}
                 />
               </div>
 

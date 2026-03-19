@@ -1,0 +1,40 @@
+﻿On branch feature/password-recovery
+Your branch is up to date with 'origin/feature/password-recovery'.
+
+Changes not staged for commit:
+  (use "git add/rm <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   app/admin/noticias/nueva/page.tsx
+	modified:   app/admin/noticias/page.tsx
+	modified:   app/api/admin/noticias/[id]/route.ts
+	modified:   app/api/admin/noticias/route.ts
+	modified:   app/api/admin/torneo/[id]/cerrar/route.ts
+	modified:   app/noticias/page.tsx
+	modified:   app/page.tsx
+	modified:   app/portal/page.tsx
+	modified:   lib/db.ts
+	deleted:    scripts/check_all_6ta_json.js
+	deleted:    scripts/check_neon_full.log
+	deleted:    scripts/check_neon_output.txt
+	deleted:    scripts/check_pg_output.txt
+	deleted:    scripts/check_tables.js
+	deleted:    scripts/debug.log
+	deleted:    scripts/fix_puntos_6ta.log
+	deleted:    scripts/puntos_6ta_output.txt
+	deleted:    scripts/simple_pg_test.js
+	deleted:    scripts/simple_test.js
+	deleted:    scripts/simple_test.log
+	deleted:    scripts/test.js
+	deleted:    scripts/test_fs.js
+	deleted:    scripts/test_neon_fs.txt
+	deleted:    scripts/test_neon_output.txt
+	deleted:    scripts/test_output.txt
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	app/api/portal/noticias/
+	check_ascensos_out.txt
+	scripts/get_git_info.js
+	status.txt
+
+no changes added to commit (use "git add" and/or "git commit -a")

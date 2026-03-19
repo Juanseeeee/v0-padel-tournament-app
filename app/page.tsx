@@ -30,7 +30,7 @@ async function getUltimosInformes(): Promise<Informe[]> {
     const result = await sql`
       SELECT * FROM informes
       WHERE publicado = true
-      ORDER BY fecha_publicacion DESC
+      ORDER BY fijado DESC, fecha_publicacion DESC
       LIMIT 2
     `
     return result as Informe[]
