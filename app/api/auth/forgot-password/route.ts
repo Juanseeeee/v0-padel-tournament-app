@@ -46,13 +46,13 @@ export async function POST(req: NextRequest) {
       from: process.env.SMTP_FROM || '"Padel App" <noreply@padelapp.com>',
       to: user.email,
       subject: "Recuperación de Contraseña",
-      html: \`
-        <h1>Hola \${user.nombre},</h1>
+      html: `
+        <h1>Hola ${user.nombre},</h1>
         <p>Has solicitado restablecer tu contraseña. Haz clic en el enlace de abajo para crear una nueva:</p>
-        <a href="\${resetUrl}" style="display: inline-block; padding: 10px 20px; margin: 10px 0; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Restablecer Contraseña</a>
+        <a href="${resetUrl}" style="display: inline-block; padding: 10px 20px; margin: 10px 0; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Restablecer Contraseña</a>
         <p>Este enlace expirará en 1 hora.</p>
         <p>Si no solicitaste este cambio, puedes ignorar este correo.</p>
-      \`,
+      `,
     };
 
     // Si no hay configuración de SMTP, mostramos el enlace por consola (útil para desarrollo)
