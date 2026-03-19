@@ -1,1 +1,0 @@
-SELECT * FROM partidos_zona LIMIT 5;
