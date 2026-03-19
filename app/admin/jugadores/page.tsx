@@ -24,7 +24,7 @@ import {
 import type { Jugador, Categoria } from "@/lib/db"
 
 export default function JugadoresAdminPage() {
-  const [jugadores, setJugadores] = useState<(Jugador & { categorias_nombres?: string })[]>([])
+  const [jugadores, setJugadores] = useState<(Jugador & { categorias_nombres?: string; puntos_por_categoria?: {categoria_id: number, nombre: string, puntos: number}[] })[]>([])
   const [categorias, setCategorias] = useState<(Categoria & { genero?: string })[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -348,11 +348,20 @@ export default function JugadoresAdminPage() {
                     
                     <div className="flex-1 w-full sm:w-auto flex justify-between sm:justify-end items-center gap-4 sm:gap-8">
                         <div className="flex flex-col items-end">
-                            <span className="text-[10px] uppercase font-bold text-muted-foreground">Puntos</span>
+                            <span className="text-[10px] uppercase font-bold text-muted-foreground">Puntos Totales</span>
                             <div className="flex items-center gap-1 text-lg font-black text-primary">
                                 <Trophy className="h-3 w-3" />
                                 {jugador.puntos_totales || 0}
                             </div>
+                            {jugador.puntos_por_categoria && jugador.puntos_por_categoria.length > 0 && (
+                                <div className="flex flex-col items-end mt-1 gap-1">
+                                    {jugador.puntos_por_categoria.map(pc => (
+                                        <div key={pc.categoria_id} className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                                            <span className="font-semibold">{pc.nombre}:</span> {pc.puntos} pts
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         <div className="flex gap-1">
