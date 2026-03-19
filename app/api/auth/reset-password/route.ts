@@ -36,20 +36,21 @@ export async function POST(req: NextRequest) {
     // Actualizar la contraseña
     const passwordHash = await hashPassword(newPassword);
 
-    // Iniciar transacción para actualizar contraseña y marcar token como usado
-    await sql.begin(async (sql) => {
-      await sql`
-        UPDATE usuarios
-        SET password_hash = ${passwordHash}
-        WHERE id = ${resetRecord.usuario_id}
-      `;
+    // Actualizar contraseña y marcar token como usado
+    // Nota: @neondatabase/serverless sobre HTTP no soporta transacciones interactivas con sql.begin()
+    // Ejecutamos las consultas secuencialmente.
+    
+    await sql`
+      UPDATE usuarios
+      SET password_hash = ${passwordHash}
+      WHERE id = ${resetRecord.usuario_id}
+    `;
 
-      await sql`
-        UPDATE password_resets
-        SET usado = true
-        WHERE id = ${resetRecord.id}
-      `;
-    });
+    await sql`
+      UPDATE password_resets
+      SET usado = true
+      WHERE id = ${resetRecord.id}
+    `;
 
     return NextResponse.json({ message: "Contraseña actualizada exitosamente" });
 
