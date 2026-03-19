@@ -1,0 +1,1 @@
+[{"id":32,"nombre":"6TA DAMAS","orden_nivel":6,"created_at":"2026-02-10T04:12:01.834Z","genero":"FEMENINO"},{"id":25,"nombre":"6TA MASCULINO","orden_nivel":6,"created_at":"2026-02-10T04:12:00.899Z","genero":"MASCULINO"}]
