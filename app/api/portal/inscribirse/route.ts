@@ -11,13 +11,11 @@ export async function POST(request: Request) {
   const body = await request.json();
   const { fecha_torneo_id, companero_id, dia_preferido, hora_disponible } = body;
 
-  // Get current user's jugador_id and categoria
+  // Get current user's jugador_id
   const user = await sql`
-    SELECT u.jugador_id, jc.categoria_id
+    SELECT u.jugador_id
     FROM usuarios u
-    JOIN jugador_categorias jc ON jc.jugador_id = u.jugador_id
     WHERE u.id = ${session.userId}
-    LIMIT 1
   `;
 
   if (!user[0]?.jugador_id) {
@@ -25,15 +23,25 @@ export async function POST(request: Request) {
   }
 
   const jugadorId = user[0].jugador_id;
-  const categoriaId = user[0].categoria_id;
 
-  // Verify the torneo is open and matches the category
+  // Verify the torneo is open
   const torneo = await sql`
     SELECT id, categoria_id, estado FROM fechas_torneo 
-    WHERE id = ${fecha_torneo_id} AND estado = 'programada' AND categoria_id = ${categoriaId}
+    WHERE id = ${fecha_torneo_id} AND estado = 'programada'
   `;
   if (!torneo[0]) {
     return NextResponse.json({ error: "Torneo no disponible" }, { status: 400 });
+  }
+
+  const categoriaId = torneo[0].categoria_id;
+
+  // Verify current user is assigned to this categoria
+  const yoEnCategoria = await sql`
+    SELECT 1 FROM jugador_categorias 
+    WHERE jugador_id = ${jugadorId} AND categoria_id = ${categoriaId}
+  `;
+  if (yoEnCategoria.length === 0) {
+    return NextResponse.json({ error: "Este torneo no corresponde a tus categorías" }, { status: 400 });
   }
 
   // Verify companion is in the same category
