@@ -121,6 +121,7 @@ export default async function AdminPage() {
                 { href: "/admin/importar", icon: Upload, label: "Importar" },
                 { href: "/admin/noticias", icon: FileText, label: "Noticia" },
                 { href: "/admin/puntos", icon: Settings, label: "Puntos" },
+                { href: "/admin/usuarios", icon: Users, label: "Usuarios" },
             ].map((action, i) => (
                 <Link key={i} href={action.href}>
                     <Card className="h-full border-none shadow-md hover:shadow-lg transition-all hover:-translate-y-1 bg-card/95 backdrop-blur-sm group">
