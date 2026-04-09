@@ -1886,21 +1886,74 @@ function ZonasTab({
       const res = await fetch(`/api/admin/torneo/${torneoId}/zonas/pdf`);
       if (!res.ok) throw new Error("Error al generar PDF");
       const html = await res.text();
-      const blob = new Blob([html], { type: "text/html; charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const w = window.open("", "_blank");
-      if (w) {
-        w.document.write(html);
-        w.document.close();
-      } else {
-        // Fallback: download as HTML
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `fixture-fecha-${torneoId}.html`;
-        a.click();
+      
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'absolute';
+      iframe.style.width = '800px';
+      // height will be determined by content, but give it a good default
+      iframe.style.height = '1200px';
+      iframe.style.top = '-9999px';
+      document.body.appendChild(iframe);
+
+      if (iframe.contentWindow) {
+        iframe.contentWindow.document.open();
+        iframe.contentWindow.document.write(html);
+        iframe.contentWindow.document.close();
       }
-      URL.revokeObjectURL(url);
+
+      // Wait a moment for styles and layout to apply
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      const element = iframe.contentWindow?.document.body;
+      if (element) {
+        // Use html2canvas and jspdf directly to avoid parent document CSS parsing issues (like "lab" color errors)
+        const html2canvas = (await import('html2canvas')).default;
+        const { jsPDF } = await import('jspdf');
+
+        // Resize iframe to fit content to avoid cropping
+        iframe.style.height = `${element.scrollHeight}px`;
+
+        const canvas = await html2canvas(element, {
+          scale: 2,
+          useCORS: true,
+          windowWidth: 800,
+          window: iframe.contentWindow || undefined,
+          logging: false // Prevent noisy console errors if any minor parsing issues occur
+        });
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.98);
+        const pdf = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a4'
+        });
+
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+        // If height exceeds A4 page height (297mm), we can let it add new pages or just scale.
+        // For simplicity, we draw it continuously and add pages if needed
+        let heightLeft = pdfHeight;
+        let position = 0;
+        const pageHeight = pdf.internal.pageSize.getHeight();
+
+        pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pageHeight;
+
+        // Add new pages if content overflows the first page
+        while (heightLeft > 1) { // > 1 to avoid floating point precision issues adding blank pages
+          position = heightLeft - pdfHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+          heightLeft -= pageHeight;
+        }
+
+        pdf.save(`fixture-fecha-${torneoId}.pdf`);
+      }
+
+      document.body.removeChild(iframe);
     } catch (error) {
+      console.error(error);
       toast({ title: "Error al exportar", description: "Intenta de nuevo.", variant: "destructive" });
     } finally {
       setExportingPdf(false);
