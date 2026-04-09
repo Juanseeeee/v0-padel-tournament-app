@@ -21,11 +21,13 @@ export async function GET(
         j1.apellido as jugador1_apellido,
         j2.nombre as jugador2_nombre,
         j2.apellido as jugador2_apellido,
-        c.nombre as categoria_nombre
+        c.nombre as categoria_nombre,
+        pz.zona_id
       FROM parejas_torneo pt
       JOIN jugadores j1 ON pt.jugador1_id = j1.id
       JOIN jugadores j2 ON pt.jugador2_id = j2.id
       JOIN categorias c ON pt.categoria_id = c.id
+      LEFT JOIN parejas_zona pz ON pt.id = pz.pareja_id
       WHERE pt.fecha_torneo_id = ${parseInt(id)}
       ORDER BY pt.categoria_id, pt.cabeza_serie DESC, pt.numero_pareja
     `;

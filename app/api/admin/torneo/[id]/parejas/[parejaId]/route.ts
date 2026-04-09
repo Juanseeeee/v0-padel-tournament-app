@@ -113,3 +113,96 @@ export async function DELETE(
     return NextResponse.json({ error: "Error al eliminar pareja" }, { status: 500 });
   }
 }
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string; parejaId: string }> }
+) {
+  const { id, parejaId } = await params;
+  const pid = parseInt(parejaId);
+  const body = await request.json();
+  const { jugador1_id, jugador2_id, categoria_id, cabeza_serie, dia_preferido, hora_disponible, zona_id } = body;
+
+  try {
+    // Verificar que los jugadores no estén en otra pareja
+    const existingParejas = await sql`
+      SELECT * FROM parejas_torneo 
+      WHERE fecha_torneo_id = ${parseInt(id)}
+      AND id != ${pid}
+      AND (jugador1_id = ${jugador1_id} OR jugador2_id = ${jugador1_id}
+           OR jugador1_id = ${jugador2_id} OR jugador2_id = ${jugador2_id})
+    `;
+
+    if (existingParejas.length > 0) {
+      return NextResponse.json(
+        { error: "Uno o ambos jugadores ya están inscriptos en otra pareja de este torneo" },
+        { status: 400 }
+      );
+    }
+
+    // Actualizar datos básicos de la pareja
+    const result = await sql`
+      UPDATE parejas_torneo
+      SET 
+        jugador1_id = ${jugador1_id},
+        jugador2_id = ${jugador2_id},
+        categoria_id = ${categoria_id},
+        cabeza_serie = ${cabeza_serie || false},
+        dia_preferido = ${dia_preferido || null},
+        hora_disponible = ${hora_disponible || null}
+      WHERE id = ${pid}
+      RETURNING *
+    `;
+
+    if (result.length === 0) {
+      return NextResponse.json({ error: "Pareja no encontrada" }, { status: 404 });
+    }
+
+    // Gestionar la asignación a la zona
+    const asignacionAnterior = await sql`SELECT zona_id FROM parejas_zona WHERE pareja_id = ${pid}`;
+    const zonaAnteriorId = asignacionAnterior.length > 0 ? asignacionAnterior[0].zona_id : null;
+    const nuevaZonaId = zona_id ? parseInt(zona_id) : null;
+
+    if (zonaAnteriorId !== nuevaZonaId) {
+      // Verificar si hay partidos jugados en la zona anterior
+      if (zonaAnteriorId) {
+        const jugados = await sql`
+          SELECT id FROM partidos_zona
+          WHERE zona_id = ${zonaAnteriorId}
+            AND (pareja1_id = ${pid} OR pareja2_id = ${pid})
+            AND estado = 'finalizado'
+        `;
+        if (jugados.length > 0) {
+          return NextResponse.json(
+            { error: "No se puede cambiar la zona de una pareja que ya tiene partidos jugados." },
+            { status: 400 }
+          );
+        }
+      }
+
+      // Remover de zona anterior
+      if (zonaAnteriorId) {
+        await sql`DELETE FROM partidos_zona WHERE zona_id = ${zonaAnteriorId} AND estado = 'pendiente'`;
+        await sql`DELETE FROM parejas_zona WHERE pareja_id = ${pid}`;
+        await regenerateZoneMatches(zonaAnteriorId);
+      }
+
+      // Asignar a nueva zona
+      if (nuevaZonaId) {
+        const countRes = await sql`SELECT COUNT(*) as count FROM parejas_zona WHERE zona_id = ${nuevaZonaId}`;
+        const currentCount = parseInt(countRes[0].count);
+        
+        await sql`
+          INSERT INTO parejas_zona (zona_id, pareja_id, posicion_final)
+          VALUES (${nuevaZonaId}, ${pid}, ${currentCount + 1})
+        `;
+        await regenerateZoneMatches(nuevaZonaId);
+      }
+    }
+
+    return NextResponse.json(result[0]);
+  } catch (error) {
+    console.error("Error updating pareja:", error);
+    return NextResponse.json({ error: "Error al actualizar pareja" }, { status: 500 });
+  }
+}
