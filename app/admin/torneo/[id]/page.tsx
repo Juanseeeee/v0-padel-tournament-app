@@ -132,6 +132,7 @@ export default function TorneoManagementPage() {
   const [selectedPartido, setSelectedPartido] = useState<PartidoZona | null>(null);
   const [selectedLlave, setSelectedLlave] = useState<Llave | null>(null);
   const [parejaToDelete, setParejaToDelete] = useState<number | null>(null);
+  const [editingParejaId, setEditingParejaId] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState("parejas");
   const [showFlyerDialog, setShowFlyerDialog] = useState(false);
@@ -325,8 +326,14 @@ export default function TorneoManagementPage() {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch(`/api/admin/torneo/${torneoId}/parejas`, {
-        method: "POST",
+      const url = editingParejaId
+        ? `/api/admin/torneo/${torneoId}/parejas/${editingParejaId}`
+        : `/api/admin/torneo/${torneoId}/parejas`;
+      
+      const method = editingParejaId ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           jugador1_id: parseInt(jugador1Id),
@@ -341,25 +348,69 @@ export default function TorneoManagementPage() {
 
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.error || "Error al crear pareja");
+        throw new Error(error.error || `Error al ${editingParejaId ? 'actualizar' : 'crear'} pareja`);
       }
 
       const data = await res.json();
       if (data.warning) {
-        toast({ title: "Pareja creada con advertencia", description: data.warning, variant: "warning" });
+        toast({ title: `Pareja ${editingParejaId ? 'actualizada' : 'creada'} con advertencia`, description: data.warning, variant: "warning" });
       } else {
-        toast({ title: "Pareja creada", description: "La pareja se ha inscrito correctamente." });
+        toast({ title: `Pareja ${editingParejaId ? 'actualizada' : 'creada'}`, description: `La pareja se ha ${editingParejaId ? 'actualizado' : 'inscrito'} correctamente.` });
       }
 
       mutateParejas();
+      mutateZonas();
       if (assignZonaId) {
-        mutateZonas();
+        mutate(`/api/admin/torneo/${torneoId}/zonas/${assignZonaId}`);
       }
       setShowConfirmAddPair(false);
       setShowParejaDialog(false);
       resetParejaForm();
     } catch (error) {
-      toast({ title: "Error al crear pareja", description: getFriendlyError(error), variant: "destructive" });
+      toast({ title: `Error al ${editingParejaId ? 'actualizar' : 'crear'} pareja`, description: getFriendlyError(error), variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAddExistingParejaClick = async () => {
+    if (!existingParejaToAdd || !assignZonaId) return;
+    
+    const pareja = parejasCategoria?.find(p => p.id.toString() === existingParejaToAdd);
+    if (!pareja) return;
+
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`/api/admin/torneo/${torneoId}/parejas/${pareja.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jugador1_id: pareja.jugador1_id,
+          jugador2_id: pareja.jugador2_id,
+          categoria_id: pareja.categoria_id,
+          cabeza_serie: pareja.cabeza_serie,
+          dia_preferido: pareja.dia_preferido,
+          hora_disponible: pareja.hora_disponible,
+          zona_id: parseInt(assignZonaId),
+        }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Error al asignar pareja a zona");
+      }
+
+      toast({ title: "Éxito", description: "Pareja asignada a la zona correctamente." });
+      setShowAddExistingParejaDialog(false);
+      setExistingParejaToAdd("");
+      mutateZonas();
+      mutateParejas();
+      mutate(`/api/admin/torneo/${torneoId}/zonas/${assignZonaId}`);
+      if (pareja.zona_id && pareja.zona_id.toString() !== assignZonaId) {
+        mutate(`/api/admin/torneo/${torneoId}/zonas/${pareja.zona_id}`);
+      }
+    } catch (error: any) {
+      toast({ title: "Error", description: getFriendlyError(error.message), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -372,12 +423,12 @@ export default function TorneoManagementPage() {
     }
 
     // Validar disponibilidad
-    if (jugadoresInscritos.has(parseInt(jugador1Id))) {
+    if (jugadoresInscritos.has(parseInt(jugador1Id)) && (!editingParejaId || parseInt(jugador1Id) !== parejas?.find(p => p.id === editingParejaId)?.jugador1_id && parseInt(jugador1Id) !== parejas?.find(p => p.id === editingParejaId)?.jugador2_id)) {
       const j = jugadores?.find(p => p.id === parseInt(jugador1Id));
       toast({ title: "Jugador no disponible", description: `${j?.nombre} ${j?.apellido} ya está inscrito.`, variant: "destructive" });
       return;
     }
-    if (jugadoresInscritos.has(parseInt(jugador2Id))) {
+    if (jugadoresInscritos.has(parseInt(jugador2Id)) && (!editingParejaId || parseInt(jugador2Id) !== parejas?.find(p => p.id === editingParejaId)?.jugador1_id && parseInt(jugador2Id) !== parejas?.find(p => p.id === editingParejaId)?.jugador2_id)) {
       const j = jugadores?.find(p => p.id === parseInt(jugador2Id));
       toast({ title: "Jugador no disponible", description: `${j?.nombre} ${j?.apellido} ya está inscrito.`, variant: "destructive" });
       return;
@@ -727,7 +778,11 @@ export default function TorneoManagementPage() {
     }
   };
 
+  const [showAddExistingParejaDialog, setShowAddExistingParejaDialog] = useState(false);
+  const [existingParejaToAdd, setExistingParejaToAdd] = useState("");
+
   const resetParejaForm = () => {
+
     setJugador1Id("");
     setJugador2Id("");
     setCabezaSerie(false);
@@ -735,6 +790,7 @@ export default function TorneoManagementPage() {
     setHoraDisponible("");
     setAssignZonaId("");
     setPreviewZonaPairs([]);
+    setEditingParejaId(null);
   };
 
   const openResultadoDialog = (partido: PartidoZona) => {
@@ -986,18 +1042,36 @@ export default function TorneoManagementPage() {
                             )}
                           </TableCell>
                           <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => {
-                                setParejaToDelete(pareja.id);
-                                setShowDeleteAlert(true);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setEditingParejaId(pareja.id);
+                        setJugador1Id(pareja.jugador1_id.toString());
+                        setJugador2Id(pareja.jugador2_id.toString());
+                        setCabezaSerie(pareja.cabeza_serie);
+                        setDiaPreferido(pareja.dia_preferido || "");
+                        setHoraDisponible(pareja.hora_disponible || "");
+                        setAssignZonaId(pareja.zona_id ? pareja.zona_id.toString() : "");
+                        setShowParejaDialog(true);
+                      }}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => {
+                        setParejaToDelete(pareja.id);
+                        setShowDeleteAlert(true);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -1023,6 +1097,14 @@ export default function TorneoManagementPage() {
               modalidad={torneo?.modalidad || "normal"}
               torneoEstado={torneo?.estado}
               formatoZona={torneo?.formato_zona || 4}
+              onAddPareja={(zonaId: string) => {
+                setAssignZonaId(zonaId);
+                setShowParejaDialog(true);
+              }}
+              onAddExistingPareja={(zonaId: string) => {
+                setAssignZonaId(zonaId);
+                setShowAddExistingParejaDialog(true);
+              }}
             />
           </TabsContent>
 
@@ -1041,11 +1123,47 @@ export default function TorneoManagementPage() {
           </TabsContent>
         </Tabs>
 
+        {/* Dialog Agregar Pareja Existente */}
+        <Dialog open={showAddExistingParejaDialog} onOpenChange={setShowAddExistingParejaDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Agregar Pareja Existente</DialogTitle>
+              <DialogDescription>
+                Selecciona una pareja inscripta en el torneo para agregarla a la zona.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label>Pareja</Label>
+                <Select value={existingParejaToAdd} onValueChange={setExistingParejaToAdd}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar pareja" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {parejasCategoria?.filter((p: any) => !p.zona_id || p.zona_id.toString() !== assignZonaId).map((p: any) => (
+                      <SelectItem key={p.id} value={p.id.toString()}>
+                        {p.jugador1_nombre} {p.jugador1_apellido} / {p.jugador2_nombre} {p.jugador2_apellido} 
+                        {p.zona_id ? ` (En otra zona)` : ' (Sin zona)'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowAddExistingParejaDialog(false)}>Cancelar</Button>
+              <Button onClick={handleAddExistingParejaClick} disabled={isSubmitting || !existingParejaToAdd}>
+                {isSubmitting ? "Guardando..." : "Agregar a Zona"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Dialog Agregar Pareja */}
         <Dialog open={showParejaDialog} onOpenChange={setShowParejaDialog}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Agregar Pareja</DialogTitle>
+              <DialogTitle>{editingParejaId ? "Editar Pareja" : "Agregar Pareja"}</DialogTitle>
               <DialogDescription>
                 Categoría: <span className="font-semibold text-foreground">
                   {torneo?.categoria_nombre || "Sin categoría"}
@@ -1080,7 +1198,7 @@ export default function TorneoManagementPage() {
                       ?.filter((j) => 
                         j.estado === "activo" && 
                         j.id.toString() !== jugador2Id &&
-                        !jugadoresInscritos.has(j.id) &&
+                        (!jugadoresInscritos.has(j.id) || (editingParejaId && parejas?.find(p => p.id === editingParejaId)?.jugador1_id === j.id) || (editingParejaId && parejas?.find(p => p.id === editingParejaId)?.jugador2_id === j.id)) &&
                         (showAllPlayers || j.categoria_actual_id === torneo?.categoria_id || 
                          (j.categoria_ids && j.categoria_ids.split(',').map(Number).includes(torneo?.categoria_id)))
                       )
@@ -1107,7 +1225,7 @@ export default function TorneoManagementPage() {
                       ?.filter((j) => 
                         j.estado === "activo" && 
                         j.id.toString() !== jugador1Id &&
-                        !jugadoresInscritos.has(j.id) &&
+                        (!jugadoresInscritos.has(j.id) || (editingParejaId && parejas?.find(p => p.id === editingParejaId)?.jugador1_id === j.id) || (editingParejaId && parejas?.find(p => p.id === editingParejaId)?.jugador2_id === j.id)) &&
                         (showAllPlayers || j.categoria_actual_id === torneo?.categoria_id || 
                          (j.categoria_ids && j.categoria_ids.split(',').map(Number).includes(torneo?.categoria_id)))
                       )
@@ -1335,7 +1453,7 @@ export default function TorneoManagementPage() {
                 Cancelar
               </Button>
               <Button onClick={handleAddParejaClick} disabled={isSubmitting || !jugador1Id || !jugador2Id}>
-                {isSubmitting ? "Guardando..." : "Agregar Pareja"}
+                {isSubmitting ? "Guardando..." : (editingParejaId ? "Guardar Cambios" : "Agregar Pareja")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -1719,6 +1837,8 @@ function ZonasTab({
   modalidad,
   torneoEstado,
   formatoZona,
+  onAddPareja,
+  onAddExistingPareja,
 }: {
   torneoId: string;
   categoriaId: string;
@@ -1733,6 +1853,8 @@ function ZonasTab({
   modalidad: string;
   torneoEstado?: string;
   formatoZona: number;
+  onAddPareja: (zonaId: string) => void;
+  onAddExistingPareja: (zonaId: string) => void;
 }) {
   const [selectedZona, setSelectedZona] = useState<Zona | null>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
@@ -2141,10 +2263,24 @@ function ZonasTab({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
                   Arrastrá una pareja entre tarjetas para moverla
                 </p>
+                {zona.estado !== 'finalizada' && !isFull && (
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => onAddExistingPareja(zona.id.toString())}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      <span className="hidden sm:inline">Agregar Existente</span>
+                      <span className="sm:hidden">Existente</span>
+                    </Button>
+                    <Button size="sm" onClick={() => onAddPareja(zona.id.toString())}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      <span className="hidden sm:inline">Agregar Nueva</span>
+                      <span className="sm:hidden">Nueva</span>
+                    </Button>
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-1 gap-4 mt-2">
                 <div
@@ -2717,6 +2853,8 @@ function ZonasTab({
               duracionPartido={duracionPartido}
               modalidad={modalidad}
               formatoZona={formatoZona}
+              onAddPareja={() => onAddPareja(selectedZona.id.toString())}
+              onAddExistingPareja={() => onAddExistingPareja(selectedZona.id.toString())}
             />
           )}
         </DialogContent>
@@ -2742,6 +2880,8 @@ function ZonaDetailContent({
   duracionPartido,
   modalidad,
   formatoZona,
+  onAddPareja,
+  onAddExistingPareja,
 }: {
   zona: Zona;
   torneoId: string;
@@ -2753,6 +2893,8 @@ function ZonaDetailContent({
   duracionPartido?: number;
   modalidad: string;
   formatoZona: number;
+  onAddPareja: () => void;
+  onAddExistingPareja: () => void;
 }) {
   const { data, mutate } = useSWR<{ zona: Zona; parejas: ParejaZona[]; partidos: PartidoZona[] }>(
     `/api/admin/torneo/${torneoId}/zonas/${zona.id}`,
@@ -3149,9 +3291,23 @@ function ZonaDetailContent({
             <Grid3X3 className="h-5 w-5 text-primary" />
             {zonaData.nombre}
           </span>
-          <Badge variant={zonaData.estado === 'finalizada' ? 'default' : 'secondary'}>
-            {zonaData.estado === 'finalizada' ? 'Cerrada' : `${partidosFinalizados}/${totalPartidos} partidos`}
-          </Badge>
+          <div className="flex items-center gap-2">
+            {zonaData.estado !== 'finalizada' && (
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={onAddExistingPareja}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Agregar Existente
+                </Button>
+                <Button size="sm" onClick={onAddPareja}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Agregar Nueva
+                </Button>
+              </div>
+            )}
+            <Badge variant={zonaData.estado === 'finalizada' ? 'default' : 'secondary'}>
+              {zonaData.estado === 'finalizada' ? 'Cerrada' : `${partidosFinalizados}/${totalPartidos} partidos`}
+            </Badge>
+          </div>
         </DialogTitle>
         <DialogDescription>
           {parejas.length === 3 
