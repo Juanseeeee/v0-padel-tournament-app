@@ -1012,10 +1012,10 @@ export default function TorneoManagementPage() {
                         <TableRow key={pareja.id}>
                           <TableCell className="font-medium">{pareja.numero_pareja}</TableCell>
                           <TableCell>
-                            {pareja.jugador1_nombre} {pareja.jugador1_apellido}
+                            {pareja.jugador1_apellido} {pareja.jugador1_nombre}
                           </TableCell>
                           <TableCell>
-                            {pareja.jugador2_nombre} {pareja.jugador2_apellido}
+                            {pareja.jugador2_apellido} {pareja.jugador2_nombre}
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline">{pareja.categoria_nombre}</Badge>
@@ -1142,7 +1142,7 @@ export default function TorneoManagementPage() {
                   <SelectContent>
                     {parejasCategoria?.filter((p: any) => !p.zona_id || p.zona_id.toString() !== assignZonaId).map((p: any) => (
                       <SelectItem key={p.id} value={p.id.toString()}>
-                        {p.jugador1_nombre} {p.jugador1_apellido} / {p.jugador2_nombre} {p.jugador2_apellido} 
+                        {p.jugador1_apellido} {p.jugador1_nombre} / {p.jugador2_apellido} {p.jugador2_nombre} 
                         {p.zona_id ? ` (En otra zona)` : ' (Sin zona)'}
                       </SelectItem>
                     ))}
@@ -1438,7 +1438,7 @@ export default function TorneoManagementPage() {
                         <ul className="space-y-1">
                           {previewZonaPairs.map((pp) => (
                             <li key={pp.pareja_zona_id}>
-                              {pp.j1_nombre} {pp.j1_apellido?.charAt(0)}. / {pp.j2_nombre} {pp.j2_apellido?.charAt(0)}.
+                              {pp.j1_apellido} {pp.j1_nombre?.charAt(0)}. / {pp.j2_apellido} {pp.j2_nombre?.charAt(0)}.
                             </li>
                           ))}
                         </ul>
@@ -1872,10 +1872,84 @@ function ZonasTab({
 
   const [isCreatingZone, setIsCreatingZone] = useState(false);
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
+  const [exportingPreviewPdf, setExportingPreviewPdf] = useState(false);
 
   const totalParejas = Object.keys(zoneDetails).length > 0 
     ? Object.values(zoneDetails).reduce((acc, z) => acc + z.parejas.length, 0)
     : zonas?.reduce((acc, z) => acc + ((z as any).parejas_count || 0), 0) || 0;
+
+  const handleExportPreviewPdf = async () => {
+    setExportingPreviewPdf(true);
+    try {
+      const res = await fetch(`/api/admin/torneo/${torneoId}/llaves/preview-pdf?parejas=${totalParejas}`);
+      if (!res.ok) throw new Error("Error al generar PDF");
+      const html = await res.text();
+      
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'absolute';
+      iframe.style.width = '800px';
+      iframe.style.height = '1200px';
+      iframe.style.top = '-9999px';
+      document.body.appendChild(iframe);
+
+      if (iframe.contentWindow) {
+        iframe.contentWindow.document.open();
+        iframe.contentWindow.document.write(html);
+        iframe.contentWindow.document.close();
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      const element = iframe.contentWindow?.document.body;
+      if (element) {
+        const html2canvas = (await import('html2canvas')).default;
+        const { jsPDF } = await import('jspdf');
+
+        iframe.style.height = `${element.scrollHeight}px`;
+
+        const canvas = await html2canvas(element, {
+          scale: 2,
+          useCORS: true,
+          windowWidth: 800,
+          window: iframe.contentWindow || undefined,
+          logging: false
+        });
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.98);
+        const pdf = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a4'
+        });
+
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+        let heightLeft = pdfHeight;
+        let position = 0;
+        const pageHeight = pdf.internal.pageSize.getHeight();
+
+        pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pageHeight;
+
+        while (heightLeft > 1) {
+          position = heightLeft - pdfHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+          heightLeft -= pageHeight;
+        }
+
+        pdf.save(`esquema-llaves-fecha-${torneoId}.pdf`);
+      }
+
+      document.body.removeChild(iframe);
+    } catch (error) {
+      console.error(error);
+      toast({ title: "Error al exportar", description: "Intenta de nuevo.", variant: "destructive" });
+    } finally {
+      setExportingPreviewPdf(false);
+    }
+  };
 
   const loadZoneDetails = useCallback(async () => {
     if (!zonas || zonas.length === 0) return;
@@ -2096,6 +2170,10 @@ function ZonasTab({
           </Button>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExportPreviewPdf} disabled={exportingPreviewPdf}>
+            {exportingPreviewPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+            Exportar Esquema
+          </Button>
           <Button variant="outline" onClick={() => setShowPreviewDialog(true)}>
             <GitBranch className="mr-2 h-4 w-4" />
             Previsualizar
@@ -2440,7 +2518,7 @@ function ZonasTab({
                                 </div>
                             )}
                           </TableCell>
-                          <TableCell>{p.j1_nombre} {p.j1_apellido?.charAt(0)}. / {p.j2_nombre} {p.j2_apellido?.charAt(0)}.</TableCell>
+                          <TableCell>{p.j1_apellido} {p.j1_nombre?.charAt(0)}. / {p.j2_apellido} {p.j2_nombre?.charAt(0)}.</TableCell>
                           <TableCell>
                             <span className="text-xs">
                               {(p.partidos_ganados || 0)}G / {(p.partidos_perdidos || 0)}P
@@ -2607,10 +2685,10 @@ function ZonasTab({
                               return (
                                 <span className="font-semibold">
                                   <span className="text-primary">
-                                    {`${w.j1_nombre} ${w.j1_apellido?.charAt(0)}. / ${w.j2_nombre} ${w.j2_apellido?.charAt(0)}.`}
+                                    {`${w.j1_apellido} ${w.j1_nombre?.charAt(0)}. / ${w.j2_apellido} ${w.j2_nombre?.charAt(0)}.`}
                                   </span>
                                   {l ? (
-                                    <span className="text-muted-foreground"> {" • "} {`${l.j1_nombre} ${l.j1_apellido?.charAt(0)}. / ${l.j2_nombre} ${l.j2_apellido?.charAt(0)}.`}</span>
+                                    <span className="text-muted-foreground"> {" • "} {`${l.j1_apellido} ${l.j1_nombre?.charAt(0)}. / ${l.j2_apellido} ${l.j2_nombre?.charAt(0)}.`}</span>
                                   ) : null}
                                 </span>
                               );
@@ -3110,7 +3188,7 @@ function ZonaDetailContent({
     if (!parejaId) return "Por definir";
     const pareja = parejas.find(p => p.pareja_torneo_id === parejaId);
     if (!pareja) return "?";
-    return `${pareja.j1_nombre} ${pareja.j1_apellido?.charAt(0)}. / ${pareja.j2_nombre} ${pareja.j2_apellido?.charAt(0)}.`;
+    return `${pareja.j1_apellido} ${pareja.j1_nombre?.charAt(0)}. / ${pareja.j2_apellido} ${pareja.j2_nombre?.charAt(0)}.`;
   };
 
   const getTipoPartidoLabel = (tipo: string) => {
@@ -3353,7 +3431,7 @@ function ZonaDetailContent({
                       <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-1">
                           <span className="text-sm">
-                            {p.j1_nombre} {p.j1_apellido?.charAt(0)}. / {p.j2_nombre} {p.j2_apellido?.charAt(0)}.
+                            {p.j1_apellido} {p.j1_nombre?.charAt(0)}. / {p.j2_apellido} {p.j2_nombre?.charAt(0)}.
                           </span>
                           {p.cabeza_serie && <Badge variant="outline" className="text-xs">CS</Badge>}
                         </div>
@@ -3393,7 +3471,7 @@ function ZonaDetailContent({
                                     <SelectItem value="no_swap">Solo mover (sin intercambio)</SelectItem>
                                     {targetZonePairs.map(tp => (
                                       <SelectItem key={tp.pareja_torneo_id} value={tp.pareja_torneo_id.toString()}>
-                                        {tp.j1_nombre} {tp.j1_apellido?.charAt(0)}. / {tp.j2_nombre} {tp.j2_apellido?.charAt(0)}.
+                                        {tp.j1_apellido} {tp.j1_nombre?.charAt(0)}. / {tp.j2_apellido} {tp.j2_nombre?.charAt(0)}.
                                       </SelectItem>
                                     ))}
                                   </SelectContent>
@@ -3702,7 +3780,7 @@ function ZonaDetailContent({
             <DialogDescription>
               {(() => {
                 const target = parejas.find(pp => pp.pareja_torneo_id === dropPairId);
-                const nombre = target ? `${target.j1_nombre} ${target.j1_apellido?.charAt(0)}. / ${target.j2_nombre} ${target.j2_apellido?.charAt(0)}.` : "";
+                const nombre = target ? `${target.j1_apellido} ${target.j1_nombre?.charAt(0)}. / ${target.j2_apellido} ${target.j2_nombre?.charAt(0)}.` : "";
                 return nombre ? `Se dará de baja: ${nombre}` : "";
               })()}
             </DialogDescription>
@@ -3755,7 +3833,7 @@ function ZonaDetailContent({
                               <SelectContent>
                                 {traerZonaPairs.map(pp => (
                                   <SelectItem key={pp.pareja_torneo_id} value={pp.pareja_torneo_id.toString()}>
-                                    {pp.j1_nombre} {pp.j1_apellido?.charAt(0)}. / {pp.j2_nombre} {pp.j2_apellido?.charAt(0)}.
+                                    {pp.j1_apellido} {pp.j1_nombre?.charAt(0)}. / {pp.j2_apellido} {pp.j2_nombre?.charAt(0)}.
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -3770,7 +3848,7 @@ function ZonaDetailContent({
                   <div className="grid gap-3">
                     {parejas.filter(pp => pp.pareja_torneo_id !== dropPairId).map(pp => (
                       <div key={pp.pareja_torneo_id} className="grid gap-1">
-                        <Label className="text-xs">{pp.j1_nombre} {pp.j1_apellido?.charAt(0)}. / {pp.j2_nombre} {pp.j2_apellido?.charAt(0)}.</Label>
+                        <Label className="text-xs">{pp.j1_apellido} {pp.j1_nombre?.charAt(0)}. / {pp.j2_apellido} {pp.j2_nombre?.charAt(0)}.</Label>
                         <Select
                           value={destinosMap[pp.pareja_torneo_id] || ""}
                           onValueChange={(val) => setDestinosMap(prev => ({ ...prev, [pp.pareja_torneo_id]: val }))}
@@ -3895,6 +3973,80 @@ function LlavesTab({
   const [hoverDropPos, setHoverDropPos] = useState<'p1' | 'p2' | null>(null);
   const [hoverInvalidLlaveId, setHoverInvalidLlaveId] = useState<number | null>(null);
   const [hoverInvalidPos, setHoverInvalidPos] = useState<'p1' | 'p2' | null>(null);
+  const [exportingPdf, setExportingPdf] = useState(false);
+
+  const handleExportPdf = async () => {
+    setExportingPdf(true);
+    try {
+      const res = await fetch(`/api/admin/torneo/${torneoId}/llaves/pdf`);
+      if (!res.ok) throw new Error("Error al generar PDF");
+      const html = await res.text();
+      
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'absolute';
+      iframe.style.width = '800px';
+      iframe.style.height = '1200px';
+      iframe.style.top = '-9999px';
+      document.body.appendChild(iframe);
+
+      if (iframe.contentWindow) {
+        iframe.contentWindow.document.open();
+        iframe.contentWindow.document.write(html);
+        iframe.contentWindow.document.close();
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      const element = iframe.contentWindow?.document.body;
+      if (element) {
+        const html2canvas = (await import('html2canvas')).default;
+        const { jsPDF } = await import('jspdf');
+
+        iframe.style.height = `${element.scrollHeight}px`;
+
+        const canvas = await html2canvas(element, {
+          scale: 2,
+          useCORS: true,
+          windowWidth: 800,
+          window: iframe.contentWindow || undefined,
+          logging: false
+        });
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.98);
+        const pdf = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a4'
+        });
+
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+        let heightLeft = pdfHeight;
+        let position = 0;
+        const pageHeight = pdf.internal.pageSize.getHeight();
+
+        pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pageHeight;
+
+        while (heightLeft > 1) {
+          position = heightLeft - pdfHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+          heightLeft -= pageHeight;
+        }
+
+        pdf.save(`llaves-fecha-${torneoId}.pdf`);
+      }
+
+      document.body.removeChild(iframe);
+    } catch (error) {
+      console.error(error);
+      toast({ title: "Error al exportar", description: "Intenta de nuevo.", variant: "destructive" });
+    } finally {
+      setExportingPdf(false);
+    }
+  };
 
   const cardRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const containerRef = useRef<HTMLDivElement>(null);
@@ -4174,6 +4326,10 @@ function LlavesTab({
               Cuadro de Llaves
             </div>
             <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={exportingPdf}>
+                  {exportingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+                  {exportingPdf ? "Exportando..." : "Exportar para WhatsApp"}
+                </Button>
                 <Button variant="destructive" size="sm" onClick={onEliminarLlaves} disabled={isSubmitting}>
                     <Trash2 className="mr-2 h-4 w-4" />
                     Eliminar Llaves
