@@ -55,15 +55,15 @@ export default async function TournamentPage({
                  'fecha_hora_programada', pz.fecha_hora_programada,
                  'hora_estimada', pz.hora_estimada,
                  'dia_partido', pz.dia_partido,
-                 'jugador1', COALESCE(j1a.nombre || ' ' || LEFT(j1a.apellido, 1) || '. / ' || j1b.nombre || ' ' || LEFT(j1b.apellido, 1) || '.', 'TBD'),
-             'jugador2', COALESCE(j2a.nombre || ' ' || LEFT(j2a.apellido, 1) || '. / ' || j2b.nombre || ' ' || LEFT(j2b.apellido, 1) || '.', 'TBD'),
+                 'jugador1', COALESCE(j1a.apellido || ' ' || LEFT(j1a.nombre, 1) || '. / ' || j1b.apellido || ' ' || LEFT(j1b.nombre, 1) || '.', 'TBD'),
+             'jugador2', COALESCE(j2a.apellido || ' ' || LEFT(j2a.nombre, 1) || '. / ' || j2b.apellido || ' ' || LEFT(j2b.nombre, 1) || '.', 'TBD'),
              'ganador', CASE 
                WHEN pz.ganador_id IS NOT NULL THEN 
                  CASE 
                    WHEN pz.ganador_id = pz.pareja1_id THEN 
-                     COALESCE(j1a.nombre || ' ' || LEFT(j1a.apellido, 1) || '. / ' || j1b.nombre || ' ' || LEFT(j1b.apellido, 1) || '.', 'TBD')
+                     COALESCE(j1a.apellido || ' ' || LEFT(j1a.nombre, 1) || '. / ' || j1b.apellido || ' ' || LEFT(j1b.nombre, 1) || '.', 'TBD')
                    WHEN pz.ganador_id = pz.pareja2_id THEN
-                     COALESCE(j2a.nombre || ' ' || LEFT(j2a.apellido, 1) || '. / ' || j2b.nombre || ' ' || LEFT(j2b.apellido, 1) || '.', 'TBD')
+                     COALESCE(j2a.apellido || ' ' || LEFT(j2a.nombre, 1) || '. / ' || j2b.apellido || ' ' || LEFT(j2b.nombre, 1) || '.', 'TBD')
                  END
                ELSE NULL 
              END,
@@ -98,8 +98,8 @@ export default async function TournamentPage({
       l.set1_tiebreak, l.set2_tiebreak, l.set3_tiebreak,
       pt1.numero_pareja as pareja1_numero,
       pt2.numero_pareja as pareja2_numero,
-      CONCAT(j1a.nombre, ' ', LEFT(j1a.apellido, 1), '. / ', j1b.nombre, ' ', LEFT(j1b.apellido, 1), '.') as pareja1_jugadores,
-      CONCAT(j2a.nombre, ' ', LEFT(j2a.apellido, 1), '. / ', j2b.nombre, ' ', LEFT(j2b.apellido, 1), '.') as pareja2_jugadores
+      CONCAT(j1a.apellido, ' ', LEFT(j1a.nombre, 1), '. / ', j1b.apellido, ' ', LEFT(j1b.nombre, 1), '.') as pareja1_jugadores,
+      CONCAT(j2a.apellido, ' ', LEFT(j2a.nombre, 1), '. / ', j2b.apellido, ' ', LEFT(j2b.nombre, 1), '.') as pareja2_jugadores
     FROM llaves l
     LEFT JOIN parejas_torneo pt1 ON l.pareja1_id = pt1.id
     LEFT JOIN parejas_torneo pt2 ON l.pareja2_id = pt2.id

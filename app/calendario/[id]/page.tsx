@@ -372,10 +372,10 @@ export default async function FechaDetailPage({ params }: { params: Promise<{ id
                                       <td className="px-3 py-2">
                                         <div className="flex flex-col">
                                           <span className="font-medium text-foreground">
-                                            {pareja.j1_apellido} {pareja.j1_nombre?.[0]}.
+                                            {pareja.j1_apellido} {pareja.j1_nombre?.charAt(0)}.
                                           </span>
                                           <span className="font-medium text-foreground">
-                                            {pareja.j2_apellido} {pareja.j2_nombre?.[0]}.
+                                            {pareja.j2_apellido} {pareja.j2_nombre?.charAt(0)}.
                                           </span>
                                         </div>
                                       </td>
@@ -554,10 +554,10 @@ export default async function FechaDetailPage({ params }: { params: Promise<{ id
                                   : 'vs';
 
                                 const p1Label = partido.pareja1_id 
-                                  ? `${partido.p1_j1_apellido} ${partido.p1_j1_nombre?.[0] || ''}. / ${partido.p1_j2_apellido} ${partido.p1_j2_nombre?.[0] || ''}.`
+                                  ? `${partido.p1_j1_apellido} ${partido.p1_j1_nombre?.charAt(0) || ""}. / ${partido.p1_j2_apellido} ${partido.p1_j2_nombre?.charAt(0) || ""}.`
                                   : 'A definir';
                                 const p2Label = partido.pareja2_id 
-                                  ? `${partido.p2_j1_apellido} ${partido.p2_j1_nombre?.[0] || ''}. / ${partido.p2_j2_apellido} ${partido.p2_j2_nombre?.[0] || ''}.`
+                                  ? `${partido.p2_j1_apellido} ${partido.p2_j1_nombre?.charAt(0) || ""}. / ${partido.p2_j2_apellido} ${partido.p2_j2_nombre?.charAt(0) || ""}.`
                                   : 'A definir';
 
                                 return (
