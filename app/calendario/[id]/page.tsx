@@ -362,7 +362,9 @@ export default async function FechaDetailPage({ params }: { params: Promise<{ id
                                     <th className="px-2 py-2 text-center font-medium">PJ</th>
                                     <th className="px-2 py-2 text-center font-medium">PG</th>
                                     <th className="px-2 py-2 text-center font-medium">PP</th>
-                                    <th className="px-2 py-2 text-center font-medium">Set</th>
+                                    <th className="px-2 py-2 text-center font-medium" title="Sets a Favor">SF</th>
+                                    <th className="px-2 py-2 text-center font-medium" title="Sets en Contra">SC</th>
+                                    <th className="px-2 py-2 text-center font-medium" title="Diferencia de Sets">DS</th>
                                     <th className="px-2 py-2 text-center font-medium">Game</th>
                                   </tr>
                                 </thead>
@@ -382,10 +384,14 @@ export default async function FechaDetailPage({ params }: { params: Promise<{ id
                                       <td className="px-2 py-2 text-center">{pareja.partidos_ganados + pareja.partidos_perdidos}</td>
                                       <td className="px-2 py-2 text-center font-semibold text-primary">{pareja.partidos_ganados}</td>
                                       <td className="px-2 py-2 text-center text-muted-foreground">{pareja.partidos_perdidos}</td>
-                                      <td className="px-2 py-2 text-center text-muted-foreground">
-                                        {pareja.sets_ganados > 0 || pareja.sets_perdidos > 0 
-                                          ? `${pareja.sets_ganados}/${pareja.sets_perdidos}` 
-                                          : '-'}
+                                      <td className="px-2 py-2 text-center font-medium text-primary">
+                                        {pareja.sets_ganados || 0}
+                                      </td>
+                                      <td className="px-2 py-2 text-center text-destructive">
+                                        {pareja.sets_perdidos || 0}
+                                      </td>
+                                      <td className="px-2 py-2 text-center font-medium">
+                                        {(pareja.sets_ganados || 0) - (pareja.sets_perdidos || 0) > 0 ? '+' : ''}{(pareja.sets_ganados || 0) - (pareja.sets_perdidos || 0)}
                                       </td>
                                       <td className="px-2 py-2 text-center text-muted-foreground">
                                         {pareja.games_ganados > 0 || pareja.games_perdidos > 0 

@@ -4,6 +4,7 @@ import { Inter, Bebas_Neue } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { ThemeProvider } from '@/components/theme-provider'
 import { MobileBottomNav } from '@/components/mobile-bottom-nav'
+import { SWRProvider } from '@/components/swr-provider'
 import './globals.css'
 import { AppEnhancements } from '@/components/ui/app-enhancements'
 
@@ -59,11 +60,13 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className={`${inter.variable} ${bebasNeue.variable}`}>
       <body className="font-sans antialiased">
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
-          <div className="min-h-svh pb-[calc(env(safe-area-inset-bottom,0px)+6.5rem)] sm:pb-0">
-            {children}
-          </div>
-          <MobileBottomNav />
-          <AppEnhancements />
+          <SWRProvider>
+            <div className="min-h-svh pb-[calc(env(safe-area-inset-bottom,0px)+6.5rem)] sm:pb-0">
+              {children}
+            </div>
+            <MobileBottomNav />
+            <AppEnhancements />
+          </SWRProvider>
         </ThemeProvider>
         <Analytics />
       </body>

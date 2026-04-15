@@ -141,17 +141,17 @@ export default function PortalPage() {
 
   const apiCategory = selectedCategory === "all" ? "" : selectedCategory;
   const torneosUrl = `/api/portal/torneos?page=${page}&limit=10${apiCategory ? `&categoria_id=${apiCategory}` : ""}`;
-  const { data: torneosData, isLoading: isLoadingTorneos } = useSWR(torneosUrl, fetcher);
+  const { data: torneosData, isLoading: isLoadingTorneos } = useSWR(torneosUrl, fetcher, { revalidateOnFocus: false });
   
   const calendarioUrl = `/api/portal/calendario?month=${calendarMonth}${apiCategory ? `&categoria_id=${apiCategory}` : ""}`;
-  const { data: calendarioFechas, isLoading: isLoadingCalendario } = useSWR(calendarioUrl, fetcher);
+  const { data: calendarioFechas, isLoading: isLoadingCalendario } = useSWR(calendarioUrl, fetcher, { revalidateOnFocus: false });
 
-  const { data: misInscripciones, isLoading: isLoadingInscripciones, mutate: mutateInscripciones } = useSWR("/api/portal/mis-inscripciones", fetcher);
+  const { data: misInscripciones, isLoading: isLoadingInscripciones, mutate: mutateInscripciones } = useSWR("/api/portal/mis-inscripciones", fetcher, { revalidateOnFocus: false });
   
   const rankingUrl = apiCategory ? `/api/portal/ranking?categoria_id=${apiCategory}` : null;
-  const { data: rankingData, isLoading: isLoadingRanking } = useSWR(rankingUrl, fetcher);
+  const { data: rankingData, isLoading: isLoadingRanking } = useSWR(rankingUrl, fetcher, { revalidateOnFocus: false });
 
-  const { data: pinnedNews } = useSWR("/api/portal/noticias", fetcher);
+  const { data: pinnedNews } = useSWR("/api/portal/noticias", fetcher, { revalidateOnFocus: false });
   
   const [enrollDialog, setEnrollDialog] = useState<any>(null);
   const [enrolling, setEnrolling] = useState(false);
