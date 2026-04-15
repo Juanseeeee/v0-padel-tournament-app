@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { neon } from "@neondatabase/serverless";
-
-const sql = neon(process.env.DATABASE_URL!);
+import { sql } from "@/lib/db";
 
 const CATEGORIAS = [
   { nombre: "4TA Caballeros", orden: 1 },

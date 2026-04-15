@@ -1,6 +1,11 @@
 import { neon } from "@neondatabase/serverless";
 
-export const sql = neon(process.env.DATABASE_URL!);
+// Fallback to empty string or throw error if not present in runtime to avoid uncaught exceptions initially
+if (!process.env.DATABASE_URL) {
+  console.warn("DATABASE_URL no está definida. La base de datos no podrá conectarse.");
+}
+
+export const sql = neon(process.env.DATABASE_URL || "");
 
 export type Categoria = {
   id: number;

@@ -1,7 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 import { cookies } from "next/headers";
 
-const sql = neon(process.env.DATABASE_URL!);
+const sql = neon(process.env.DATABASE_URL || "");
 
 // Password hashing using Web Crypto API (works in browser and server)
 export async function hashPassword(password: string): Promise<string> {

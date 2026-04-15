@@ -1,7 +1,5 @@
-import { neon } from "@neondatabase/serverless";
+import { sql } from "@/lib/db";
 import { NextResponse } from "next/server";
-
-const sql = neon(process.env.DATABASE_URL!);
 
 export async function PUT(
   request: Request,

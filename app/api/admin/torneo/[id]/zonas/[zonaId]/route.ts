@@ -180,7 +180,7 @@ export async function GET(
             ELSE 
               (CASE WHEN COALESCE(set1_pareja2, 0) > COALESCE(set1_pareja1, 0) THEN 1 ELSE 0 END) +
               (CASE WHEN COALESCE(set2_pareja2, 0) > COALESCE(set2_pareja1, 0) THEN 1 ELSE 0 END) +
-              (CASE WHEN set3_pareja2 IS NOT NULL AND set3_pareja2 < set3_pareja1 THEN 1 ELSE 0 END)
+              (CASE WHEN set3_pareja2 IS NOT NULL AND set3_pareja2 > set3_pareja1 THEN 1 ELSE 0 END)
             END), 0) as sets_ganados,
             COALESCE(SUM(CASE WHEN pareja1_id = ${parejaId} THEN 
               (CASE WHEN COALESCE(set1_pareja1, 0) < COALESCE(set1_pareja2, 0) THEN 1 ELSE 0 END) +

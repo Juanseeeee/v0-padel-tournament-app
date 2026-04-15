@@ -2417,8 +2417,10 @@ function ZonasTab({
                       <TableRow>
                         <TableHead>#</TableHead>
                         <TableHead>Pareja</TableHead>
-                        <TableHead className="w-32">Partidos</TableHead>
-                        <TableHead className="w-24">Sets</TableHead>
+                        <TableHead className="w-24">Partidos</TableHead>
+                        <TableHead className="w-24" title="Sets a Favor">SF</TableHead>
+                        <TableHead className="w-24" title="Sets en Contra">SC</TableHead>
+                        <TableHead className="w-24" title="Diferencia de Sets">DS</TableHead>
                         <TableHead className="w-24">Games</TableHead>
                         <TableHead className="w-20">Puntos</TableHead>
                       </TableRow>
@@ -2525,8 +2527,18 @@ function ZonasTab({
                             </span>
                           </TableCell>
                           <TableCell>
-                            <span className="text-xs">
-                              <span className="text-primary">{(p.sets_ganados || 0)}</span>-<span className="text-destructive">{(p.sets_perdidos || 0)}</span>
+                            <span className="text-xs text-primary font-medium">
+                              {(p.sets_ganados || 0)}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-xs text-destructive">
+                              {(p.sets_perdidos || 0)}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-xs font-medium">
+                              {(p.sets_ganados || 0) - (p.sets_perdidos || 0) > 0 ? '+' : ''}{(p.sets_ganados || 0) - (p.sets_perdidos || 0)}
                             </span>
                           </TableCell>
                           <TableCell>
@@ -3409,9 +3421,11 @@ function ZonaDetailContent({
               <TableRow>
                 <TableHead className="w-8">#</TableHead>
                 <TableHead>Pareja</TableHead>
-                <TableHead className="text-center">Pts</TableHead>
-                <TableHead className="text-center">Sets</TableHead>
-                <TableHead className="text-center">Games</TableHead>
+                <TableHead className="text-center w-16">Pts</TableHead>
+                <TableHead className="text-center w-16" title="Sets a Favor">SF</TableHead>
+                <TableHead className="text-center w-16" title="Sets en Contra">SC</TableHead>
+                <TableHead className="text-center w-16" title="Diferencia de Sets">DS</TableHead>
+                <TableHead className="text-center w-24">Games</TableHead>
                 {zonaData.estado !== 'finalizada' && otherZonas.length > 0 && (
                   <TableHead className="w-10"></TableHead>
                 )}
@@ -3510,8 +3524,14 @@ function ZonaDetailContent({
                       </div>
                     </TableCell>
                     <TableCell className="text-center font-semibold">{p.partidos_ganados || 0}</TableCell>
-                    <TableCell className="text-center text-sm">
-                      <span className="text-primary">{p.sets_ganados || 0}</span>-<span className="text-destructive">{p.sets_perdidos || 0}</span>
+                    <TableCell className="text-center text-sm font-medium text-primary">
+                      {p.sets_ganados || 0}
+                    </TableCell>
+                    <TableCell className="text-center text-sm text-destructive">
+                      {p.sets_perdidos || 0}
+                    </TableCell>
+                    <TableCell className="text-center text-sm font-medium">
+                      {(p.sets_ganados || 0) - (p.sets_perdidos || 0) > 0 ? '+' : ''}{(p.sets_ganados || 0) - (p.sets_perdidos || 0)}
                     </TableCell>
                     <TableCell className="text-center text-sm text-muted-foreground">
                       {p.games_ganados || 0}-{p.games_perdidos || 0}
