@@ -1,4 +1,7 @@
-import { neon } from "@neondatabase/serverless";
+import { neon, neonConfig } from "@neondatabase/serverless";
+
+// Next.js Dev workaround for fetch issues
+neonConfig.fetchConnectionCache = true;
 
 // Fallback to empty string or throw error if not present in runtime to avoid uncaught exceptions initially
 if (!process.env.DATABASE_URL) {

@@ -260,24 +260,34 @@ export default function TorneoManagementPage() {
 
   const { data: torneo, error: torneoError } = useSWR<TorneoExtendido>(
     `/api/admin/fechas/${torneoId}`,
-    fetcher
+    fetcher,
+    { revalidateOnFocus: false }
   );
 
-  const { data: jugadoresData } = useSWR<{ jugadores: Jugador[] }>("/api/admin/jugadores?limit=1000", fetcher);
+  const { data: jugadoresData } = useSWR<{ jugadores: Jugador[] }>(
+    "/api/admin/jugadores?limit=1000", 
+    fetcher,
+    { revalidateOnFocus: false }
+  );
   const jugadores = jugadoresData?.jugadores;
   
   const { data: parejasRaw, mutate: mutateParejas } = useSWR(
     torneoId ? `/api/admin/torneo/${torneoId}/parejas` : null,
-    fetcher
+    fetcher,
+    { revalidateOnFocus: false }
   );
   const parejas: ParejaTorneo[] = Array.isArray(parejasRaw) ? parejasRaw : [];
+  
   const { data: zonas, mutate: mutateZonas } = useSWR<Zona[]>(
     torneo?.categoria_id ? `/api/admin/torneo/${torneoId}/zonas?categoria=${torneo.categoria_id}` : null,
-    fetcher
+    fetcher,
+    { revalidateOnFocus: false }
   );
+  
   const { data: llaves, mutate: mutateLlaves } = useSWR<Llave[]>(
     torneo?.categoria_id ? `/api/admin/torneo/${torneoId}/llaves?categoria=${torneo.categoria_id}` : null,
-    fetcher
+    fetcher,
+    { revalidateOnFocus: false }
   );
   
   // Cargar la config desde el torneo directamente (la config ya está en el torneo)
