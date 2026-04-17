@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Semis
-      const semis = llaves.filter((l: any) => l.ronda === "semifinal" && l.estado === "finalizado");
+      const semis = llaves.filter((l: any) => l.ronda === "semis" && l.estado === "finalizado");
       for (const s of semis) {
           if (s.ganador_id) {
               const perdedor = s.pareja1_id === s.ganador_id ? s.pareja2_id : s.pareja1_id;
