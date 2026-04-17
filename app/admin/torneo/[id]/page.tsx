@@ -2339,6 +2339,28 @@ function ZonasTab({
                         )}
                         <Button
                           size="sm"
+                          variant="outline"
+                          onClick={async () => {
+                            const newName = prompt("Editar nombre de la zona:", zona.nombre);
+                            if (newName && newName !== zona.nombre) {
+                              const res = await fetch(`/api/admin/torneo/${torneoId}/zonas/${zona.id}`, {
+                                method: "PUT",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ nombre: newName }),
+                              });
+                              if (res.ok) {
+                                toast({ title: "Zona actualizada", description: "El nombre de la zona ha sido actualizado" });
+                                onZonaUpdate();
+                              } else {
+                                toast({ title: "Error", description: "No se pudo actualizar la zona", variant: "destructive" });
+                              }
+                            }
+                          }}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
                           variant="destructive"
                           onClick={() => onDeleteZone(zona.id, zona.nombre)}
                         >
