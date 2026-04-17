@@ -835,6 +835,11 @@ export default function TorneoManagementPage() {
     setShowLlaveResultadoDialog(true);
   };
 
+  const onEditPareja = (parejaId: number) => {
+    setEditingParejaId(parejaId);
+    setShowParejaDialog(true);
+  };
+
   if (torneoError) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -1115,6 +1120,7 @@ export default function TorneoManagementPage() {
                 setAssignZonaId(zonaId);
                 setShowAddExistingParejaDialog(true);
               }}
+              onEditPareja={onEditPareja}
             />
           </TabsContent>
 
@@ -1865,6 +1871,7 @@ function ZonasTab({
   formatoZona: number;
   onAddPareja: (zonaId: string) => void;
   onAddExistingPareja: (zonaId: string) => void;
+  onEditPareja: (parejaId: number) => void;
 }) {
   const [selectedZona, setSelectedZona] = useState<Zona | null>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
@@ -1882,6 +1889,7 @@ function ZonasTab({
 
   const [isCreatingZone, setIsCreatingZone] = useState(false);
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
+  const [editingZona, setEditingZona] = useState<{ id: number, nombre: string, formato: number } | null>(null);
   const [exportingPreviewPdf, setExportingPreviewPdf] = useState(false);
 
   const totalParejas = Object.keys(zoneDetails).length > 0 
@@ -2340,22 +2348,7 @@ function ZonasTab({
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={async () => {
-                            const newName = prompt("Editar nombre de la zona:", zona.nombre);
-                            if (newName && newName !== zona.nombre) {
-                              const res = await fetch(`/api/admin/torneo/${torneoId}/zonas/${zona.id}`, {
-                                method: "PUT",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ nombre: newName }),
-                              });
-                              if (res.ok) {
-                                toast({ title: "Zona actualizada", description: "El nombre de la zona ha sido actualizado" });
-                                onZonaUpdate();
-                              } else {
-                                toast({ title: "Error", description: "No se pudo actualizar la zona", variant: "destructive" });
-                              }
-                            }
-                          }}
+                          onClick={() => setEditingZona({ id: zona.id, nombre: zona.nombre, formato: (zona as any).formato || formatoZona || 3 })}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -2779,6 +2772,60 @@ function ZonasTab({
       })}
       </div>
 
+      <Dialog open={!!editingZona} onOpenChange={(open) => !open && setEditingZona(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Zona</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Nombre de la zona</Label>
+              <Input
+                value={editingZona?.nombre || ""}
+                onChange={(e) => setEditingZona(prev => prev ? { ...prev, nombre: e.target.value } : null)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Formato</Label>
+              <Select
+                value={editingZona?.formato?.toString() || "3"}
+                onValueChange={(val) => setEditingZona(prev => prev ? { ...prev, formato: parseInt(val) } : null)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="3">3 Parejas</SelectItem>
+                  <SelectItem value="4">4 Parejas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingZona(null)}>Cancelar</Button>
+            <Button
+              onClick={async () => {
+                if (!editingZona) return;
+                const res = await fetch(`/api/admin/torneo/${torneoId}/zonas/${editingZona.id}`, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ nombre: editingZona.nombre, formato: editingZona.formato }),
+                });
+                if (res.ok) {
+                  toast({ title: "Zona actualizada", description: "La zona ha sido actualizada" });
+                  onZonaUpdate();
+                  setEditingZona(null);
+                } else {
+                  toast({ title: "Error", description: "No se pudo actualizar la zona", variant: "destructive" });
+                }
+              }}
+            >
+              Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={showResDialog} onOpenChange={setShowResDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -2978,6 +3025,7 @@ function ZonasTab({
               onAddPareja={() => onAddPareja(selectedZona.id.toString())}
               onAddExistingPareja={() => onAddExistingPareja(selectedZona.id.toString())}
               totalParejas={totalParejas}
+              onEditPareja={onEditPareja}
             />
           )}
         </DialogContent>
@@ -3005,6 +3053,8 @@ function ZonaDetailContent({
   formatoZona,
   onAddPareja,
   onAddExistingPareja,
+  totalParejas,
+  onEditPareja,
 }: {
   zona: Zona;
   torneoId: string;
@@ -3019,6 +3069,7 @@ function ZonaDetailContent({
   onAddPareja: () => void;
   onAddExistingPareja: () => void;
   totalParejas: number;
+  onEditPareja: (parejaId: number) => void;
 }) {
   const { data, mutate } = useSWR<{ zona: Zona; parejas: ParejaZona[]; partidos: PartidoZona[] }>(
     `/api/admin/torneo/${torneoId}/zonas/${zona.id}`,
@@ -3558,6 +3609,18 @@ function ZonaDetailContent({
                         )}
                         {zonaData.estado !== 'finalizada' && (
                           <div className="flex items-center gap-2 mt-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-muted-foreground"
+                              title="Editar pareja"
+                              onClick={() => {
+                                onClose();
+                                onEditPareja(p.pareja_torneo_id);
+                              }}
+                            >
+                              <Edit className="h-3.5 w-3.5" />
+                            </Button>
                             <Button
                               variant="ghost"
                               size="icon"

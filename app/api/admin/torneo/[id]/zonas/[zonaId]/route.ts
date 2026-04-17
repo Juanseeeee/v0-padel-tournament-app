@@ -258,17 +258,17 @@ export async function PUT(
 ) {
   const { zonaId } = await params;
   const body = await request.json();
-  const { estado, nombre } = body;
+  const { estado, nombre, formato } = body;
 
   try {
     const zonaIdNum = parseInt(zonaId);
 
-    if (nombre) {
-      await sql`
-        UPDATE zonas 
-        SET nombre = ${nombre}
-        WHERE id = ${zonaIdNum}
-      `;
+    if (nombre !== undefined && formato !== undefined) {
+      await sql`UPDATE zonas SET nombre = ${nombre}, formato = ${formato} WHERE id = ${zonaIdNum}`;
+    } else if (nombre !== undefined) {
+      await sql`UPDATE zonas SET nombre = ${nombre} WHERE id = ${zonaIdNum}`;
+    } else if (formato !== undefined) {
+      await sql`UPDATE zonas SET formato = ${formato} WHERE id = ${zonaIdNum}`;
     }
 
     // Si se está cerrando la zona, calcular posiciones finales
