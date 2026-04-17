@@ -62,16 +62,16 @@ export async function POST(
         resultadosParejas.set(final.ganador_id, "campeon");
         // Subcampeón
         const subcampeon = final.pareja1_id === final.ganador_id ? final.pareja2_id : final.pareja1_id;
-        if (subcampeon) resultadosParejas.set(subcampeon, "subcampeon");
+        if (subcampeon) resultadosParejas.set(subcampeon, "finalista");
       }
 
       // Semifinalistas perdedores = 3er puesto
-      const semis = llaves.filter((l) => l.ronda === "semifinal" && l.completado);
+      const semis = llaves.filter((l) => l.ronda === "semis" && l.completado);
       for (const semi of semis) {
         if (semi.ganador_id) {
           const perdedor = semi.pareja1_id === semi.ganador_id ? semi.pareja2_id : semi.pareja1_id;
           if (perdedor && !resultadosParejas.has(perdedor)) {
-            resultadosParejas.set(perdedor, "semifinal");
+            resultadosParejas.set(perdedor, "semifinalista");
           }
         }
       }
@@ -82,7 +82,7 @@ export async function POST(
         if (cuarto.ganador_id) {
           const perdedor = cuarto.pareja1_id === cuarto.ganador_id ? cuarto.pareja2_id : cuarto.pareja1_id;
           if (perdedor && !resultadosParejas.has(perdedor)) {
-            resultadosParejas.set(perdedor, "4tos");
+            resultadosParejas.set(perdedor, "cuartofinalista");
           }
         }
       }
@@ -93,7 +93,7 @@ export async function POST(
         if (octavo.ganador_id) {
           const perdedor = octavo.pareja1_id === octavo.ganador_id ? octavo.pareja2_id : octavo.pareja1_id;
           if (perdedor && !resultadosParejas.has(perdedor)) {
-            resultadosParejas.set(perdedor, "8vos");
+            resultadosParejas.set(perdedor, "octavofinalista");
           }
         }
       }

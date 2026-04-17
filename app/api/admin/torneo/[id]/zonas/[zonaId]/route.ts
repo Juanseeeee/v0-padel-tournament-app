@@ -258,12 +258,21 @@ export async function PUT(
 ) {
   const { zonaId } = await params;
   const body = await request.json();
-  const { estado } = body;
+  const { estado, nombre, formato } = body;
 
   try {
+    const zonaIdNum = parseInt(zonaId);
+
+    if (nombre !== undefined && formato !== undefined) {
+      await sql`UPDATE zonas SET nombre = ${nombre}, formato = ${formato} WHERE id = ${zonaIdNum}`;
+    } else if (nombre !== undefined) {
+      await sql`UPDATE zonas SET nombre = ${nombre} WHERE id = ${zonaIdNum}`;
+    } else if (formato !== undefined) {
+      await sql`UPDATE zonas SET formato = ${formato} WHERE id = ${zonaIdNum}`;
+    }
+
     // Si se está cerrando la zona, calcular posiciones finales
     if (estado === 'finalizada') {
-      const zonaIdNum = parseInt(zonaId);
       
       // 1. Obtener parejas ordenadas por lógica genérica (Round Robin o adaptado)
       // Criterios de desempate solicitados:
@@ -330,9 +339,11 @@ export async function PUT(
     }
 
     // Actualizar estado de la zona
-    await sql`
-      UPDATE zonas SET estado = ${estado} WHERE id = ${parseInt(zonaId)}
-    `;
+    if (estado) {
+      await sql`
+        UPDATE zonas SET estado = ${estado} WHERE id = ${parseInt(zonaId)}
+      `;
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
