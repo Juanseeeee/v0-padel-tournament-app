@@ -239,21 +239,19 @@ export const BRACKET_CONFIGS: Record<number, TournamentConfig> = {
   },
 
   18: {
-    // 6 zonas de 3: A(3), B(3), C(3), D(3), E(3), F(3) -> 14 clasificados
+    // 6 zonas de 3: A(3), B(3), C(3), D(3), E(3), F(3) -> 12 clasificados
     zonas: [3, 3, 3, 3, 3, 3],
     bracket: [
-      // 8vos
-      { ronda: '8vos', posicion: 1, p1: '2C', p2: '2F' },
-      { ronda: '8vos', posicion: 2, p1: '1E', p2: '2B' },
-      { ronda: '8vos', posicion: 3, p1: '3A', p2: '1D' },
-      { ronda: '8vos', posicion: 4, p1: '1C', p2: '3B' },
-      { ronda: '8vos', posicion: 5, p1: '2A', p2: '1F' },
-      { ronda: '8vos', posicion: 6, p1: '2E', p2: '2D' },
+      // 8vos (4 partidos)
+      { ronda: '8vos', posicion: 1, p1: '1E', p2: '2B' },
+      { ronda: '8vos', posicion: 2, p1: '2F', p2: '2C' },
+      { ronda: '8vos', posicion: 3, p1: '1F', p2: '2A' },
+      { ronda: '8vos', posicion: 4, p1: '2E', p2: '2D' },
       // 4tos
-      { ronda: '4tos', posicion: 1, p1: '1A', p2: null },    // ganador(2C/2F)
-      { ronda: '4tos', posicion: 2, p1: null, p2: null },    // ganador(1E/2B) vs ganador(3A/1D)
-      { ronda: '4tos', posicion: 3, p1: null, p2: null },    // ganador(1C/3B) vs ganador(2A/1F)
-      { ronda: '4tos', posicion: 4, p1: null, p2: '1B' },    // ganador(2E/2D)
+      { ronda: '4tos', posicion: 1, p1: '1A', p2: null },    // ganador 8vos-1
+      { ronda: '4tos', posicion: 2, p1: null, p2: '1D' },    // ganador 8vos-2
+      { ronda: '4tos', posicion: 3, p1: '1C', p2: null },    // ganador 8vos-3
+      { ronda: '4tos', posicion: 4, p1: null, p2: '1B' },    // ganador 8vos-4
       // Semis
       { ronda: 'semis', posicion: 1, p1: null, p2: null },
       { ronda: 'semis', posicion: 2, p1: null, p2: null },
@@ -263,21 +261,20 @@ export const BRACKET_CONFIGS: Record<number, TournamentConfig> = {
   },
 
   19: {
-    // 1 zona de 4 + 5 zonas de 3: A(4), B(3), C(3), D(3), E(3), F(3) -> 14 clasificados
+    // 1 zona de 4 + 5 zonas de 3: A(4), B(3), C(3), D(3), E(3), F(3) -> 13 clasificados
     zonas: [4, 3, 3, 3, 3, 3],
     bracket: [
-      // 8vos
-      { ronda: '8vos', posicion: 1, p1: '2C', p2: '2F' },
-      { ronda: '8vos', posicion: 2, p1: '1E', p2: '2B' },
-      { ronda: '8vos', posicion: 3, p1: '3A', p2: '1D' },
-      { ronda: '8vos', posicion: 4, p1: '1C', p2: '3B' },
-      { ronda: '8vos', posicion: 5, p1: '2A', p2: '1F' },
-      { ronda: '8vos', posicion: 6, p1: '2E', p2: '2D' },
+      // 8vos (5 partidos)
+      { ronda: '8vos', posicion: 1, p1: '1D', p2: '3A' },
+      { ronda: '8vos', posicion: 2, p1: '1E', p2: '2F' },
+      { ronda: '8vos', posicion: 3, p1: '1F', p2: '2E' },
+      { ronda: '8vos', posicion: 4, p1: '2A', p2: '2C' },
+      { ronda: '8vos', posicion: 5, p1: '2B', p2: '2D' },
       // 4tos
-      { ronda: '4tos', posicion: 1, p1: '1A', p2: null },
-      { ronda: '4tos', posicion: 2, p1: null, p2: null },
-      { ronda: '4tos', posicion: 3, p1: null, p2: null },
-      { ronda: '4tos', posicion: 4, p1: null, p2: '1B' },
+      { ronda: '4tos', posicion: 1, p1: '1B', p2: null },    // ganador 8vos-1
+      { ronda: '4tos', posicion: 2, p1: '1C', p2: null },    // ganador 8vos-2
+      { ronda: '4tos', posicion: 3, p1: '1A', p2: null },    // ganador 8vos-3
+      { ronda: '4tos', posicion: 4, p1: null, p2: null },    // ganador 8vos-4 vs ganador 8vos-5
       // Semis
       { ronda: 'semis', posicion: 1, p1: null, p2: null },
       { ronda: 'semis', posicion: 2, p1: null, p2: null },

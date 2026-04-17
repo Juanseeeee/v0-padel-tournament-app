@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import useSWR, { mutate } from "swr";
+import { BRACKET_CONFIGS } from "@/lib/bracket-config";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -2955,6 +2956,7 @@ function ZonasTab({
               formatoZona={formatoZona}
               onAddPareja={() => onAddPareja(selectedZona.id.toString())}
               onAddExistingPareja={() => onAddExistingPareja(selectedZona.id.toString())}
+              totalParejas={totalParejas}
             />
           )}
         </DialogContent>
@@ -2995,6 +2997,7 @@ function ZonaDetailContent({
   formatoZona: number;
   onAddPareja: () => void;
   onAddExistingPareja: () => void;
+  totalParejas: number;
 }) {
   const { data, mutate } = useSWR<{ zona: Zona; parejas: ParejaZona[]; partidos: PartidoZona[] }>(
     `/api/admin/torneo/${torneoId}/zonas/${zona.id}`,
@@ -3443,7 +3446,21 @@ function ZonaDetailContent({
             </TableHeader>
             <TableBody>
               {parejasOrdenadas.map((p, idx) => {
-                const clasifica = parejas.length === 3 ? idx < 2 : idx < 3;
+                const config = BRACKET_CONFIGS[totalParejas];
+                let clasifica = false;
+                if (config) {
+                  const expectedSlots = new Set<string>();
+                  config.bracket.forEach(m => {
+                    if (m.p1) expectedSlots.add(m.p1);
+                    if (m.p2) expectedSlots.add(m.p2);
+                  });
+                  const letraZona = zonaData.nombre.replace('Zona ', '');
+                  const slot = `${idx + 1}${letraZona}`;
+                  clasifica = expectedSlots.has(slot);
+                } else {
+                  clasifica = parejas.length === 3 ? idx < 2 : idx < 3;
+                }
+
                 const isMoving = movingPareja === p.pareja_torneo_id;
                 return (
                   <TableRow key={p.pareja_zona_id} className={clasifica ? "bg-primary/10" : ""}>
