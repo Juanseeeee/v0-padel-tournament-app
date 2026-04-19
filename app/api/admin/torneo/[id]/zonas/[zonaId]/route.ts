@@ -41,7 +41,7 @@ export async function GET(
       JOIN jugadores j1 ON j1.id = pt.jugador1_id
       JOIN jugadores j2 ON j2.id = pt.jugador2_id
       WHERE pz.zona_id = ${parseInt(zonaId)}
-      ORDER BY pz.partidos_ganados DESC, (pz.sets_ganados - pz.sets_perdidos) DESC, pz.posicion_final
+      ORDER BY pz.partidos_ganados DESC, (pz.sets_ganados - pz.sets_perdidos) DESC, (pz.games_ganados - pz.games_perdidos) DESC, pz.games_ganados DESC, pz.posicion_final
     `;
 
     // Obtener partidos de la zona
@@ -286,9 +286,9 @@ export async function PUT(
         WHERE zona_id = ${zonaIdNum}
         ORDER BY 
           partidos_ganados DESC, 
-          games_ganados DESC,
           (sets_ganados - sets_perdidos) DESC, 
-          (games_ganados - games_perdidos) DESC
+          (games_ganados - games_perdidos) DESC,
+          games_ganados DESC
       `;
 
       let ordenParejasIds: number[] = [];
