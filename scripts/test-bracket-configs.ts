@@ -4,6 +4,13 @@ function runTests() {
   let hasErrors = false;
   console.log("Iniciando validación de BRACKET_CONFIGS...");
 
+  for (let i = 3; i <= 28; i++) {
+    if (!BRACKET_CONFIGS[i]) {
+      console.error(`❌ ERROR: Falta configuración para torneo de ${i} parejas.`);
+      hasErrors = true;
+    }
+  }
+
   for (const [totalStr, config] of Object.entries(BRACKET_CONFIGS)) {
     const total = parseInt(totalStr);
     
@@ -20,7 +27,7 @@ function runTests() {
         if (p && p.startsWith('3')) {
           const letter = p.charAt(1);
           const zIndex = ZONA_LETTERS.indexOf(letter);
-          if (zIndex !== -1 && config.zonas[zIndex] !== 4) {
+          if (zIndex !== -1 && config.zonas[zIndex] < 4) {
             console.error(`❌ ERROR [${total} parejas]: El slot '${p}' está configurado en la llave (ronda: ${match.ronda}), pero la Zona ${letter} solo tiene ${config.zonas[zIndex]} parejas. ¡Los 3ros no clasifican en zonas de 3!`);
             hasErrors = true;
           }
@@ -28,12 +35,16 @@ function runTests() {
       });
     });
     
-    // Test 3: Ningún 4to (4X) clasifica (nunca debería pasar en este sistema)
+    // Test 3: Ningún 4to (4X) clasifica (nunca debería pasar en este sistema) salvo zonas grandes
     config.bracket.forEach((match) => {
       [match.p1, match.p2].forEach(p => {
         if (p && p.startsWith('4')) {
-          console.error(`❌ ERROR [${total} parejas]: El slot '${p}' es inválido. El sistema no clasifica 4tos lugares.`);
-          hasErrors = true;
+          const letter = p.charAt(1);
+          const zIndex = ZONA_LETTERS.indexOf(letter);
+          if (zIndex !== -1 && config.zonas[zIndex] < 4) {
+            console.error(`❌ ERROR [${total} parejas]: El slot '${p}' es inválido. El sistema no clasifica 4tos lugares si la zona no es de al menos 4.`);
+            hasErrors = true;
+          }
         }
       });
     });

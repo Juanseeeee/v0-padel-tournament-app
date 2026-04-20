@@ -27,6 +27,28 @@ export const ZONA_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
 // Mapa de configuraciones por cantidad de parejas
 export const BRACKET_CONFIGS: Record<number, TournamentConfig> = {
+  3: {
+    zonas: [3],
+    bracket: [
+      { ronda: 'final', posicion: 1, p1: '1A', p2: '2A' },
+    ],
+  },
+  4: {
+    zonas: [4],
+    bracket: [
+      { ronda: 'semis', posicion: 1, p1: '1A', p2: '4A' },
+      { ronda: 'semis', posicion: 2, p1: '2A', p2: '3A' },
+      { ronda: 'final', posicion: 1, p1: null, p2: null },
+    ],
+  },
+  5: {
+    zonas: [5],
+    bracket: [
+      { ronda: 'semis', posicion: 1, p1: '1A', p2: '4A' },
+      { ronda: 'semis', posicion: 2, p1: '2A', p2: '3A' },
+      { ronda: 'final', posicion: 1, p1: null, p2: null },
+    ],
+  },
   6: {
     // 2 zonas de 3: A(3), B(3) -> 4 clasificados
     zonas: [3, 3],
@@ -440,13 +462,10 @@ export const BRACKET_CONFIGS: Record<number, TournamentConfig> = {
   },
 
   26: {
-    // 6 zonas de 3 + 2 zonas de 4: A(4), B(4), C(3), D(3), E(3), F(3), G(3), H(3) -> 18 clasificados
-    zonas: [4, 4, 3, 3, 3, 3, 3, 3],
+    zonas: [4, 4, 3, 3, 3, 3, 3, 3], // 2 de 4, 6 de 3 -> 18 clasificados
     bracket: [
-      // Pre-8vos
       { ronda: '16avos', posicion: 1, p1: '3A', p2: '2B' },
       { ronda: '16avos', posicion: 2, p1: '3B', p2: '2A' },
-      // 8vos
       { ronda: '8vos', posicion: 1, p1: '1A', p2: null },
       { ronda: '8vos', posicion: 2, p1: '2G', p2: '1F' },
       { ronda: '8vos', posicion: 3, p1: '1E', p2: '2H' },
@@ -455,15 +474,57 @@ export const BRACKET_CONFIGS: Record<number, TournamentConfig> = {
       { ronda: '8vos', posicion: 6, p1: '2E', p2: '1H' },
       { ronda: '8vos', posicion: 7, p1: '1G', p2: '2D' },
       { ronda: '8vos', posicion: 8, p1: null, p2: '1B' },
-      // 4tos
       { ronda: '4tos', posicion: 1, p1: null, p2: null },
       { ronda: '4tos', posicion: 2, p1: null, p2: null },
       { ronda: '4tos', posicion: 3, p1: null, p2: null },
       { ronda: '4tos', posicion: 4, p1: null, p2: null },
-      // Semis
       { ronda: 'semis', posicion: 1, p1: null, p2: null },
       { ronda: 'semis', posicion: 2, p1: null, p2: null },
-      // Final
+      { ronda: 'final', posicion: 1, p1: null, p2: null },
+    ],
+  },
+  27: {
+    zonas: [3, 3, 3, 3, 3, 3, 3, 3, 3], // 9 zonas de 3
+    bracket: [
+      { ronda: '16avos', posicion: 1, p1: '2H', p2: '2I' },
+      { ronda: '16avos', posicion: 2, p1: '2G', p2: '2C' },
+      { ronda: '8vos', posicion: 1, p1: '1A', p2: null },
+      { ronda: '8vos', posicion: 2, p1: '1H', p2: '1I' },
+      { ronda: '8vos', posicion: 3, p1: '1E', p2: '2D' },
+      { ronda: '8vos', posicion: 4, p1: '2A', p2: '1D' },
+      { ronda: '8vos', posicion: 5, p1: '1C', p2: '2F' },
+      { ronda: '8vos', posicion: 6, p1: '2E', p2: '1F' },
+      { ronda: '8vos', posicion: 7, p1: '1G', p2: '2B' },
+      { ronda: '8vos', posicion: 8, p1: null, p2: '1B' },
+      { ronda: '4tos', posicion: 1, p1: null, p2: null },
+      { ronda: '4tos', posicion: 2, p1: null, p2: null },
+      { ronda: '4tos', posicion: 3, p1: null, p2: null },
+      { ronda: '4tos', posicion: 4, p1: null, p2: null },
+      { ronda: 'semis', posicion: 1, p1: null, p2: null },
+      { ronda: 'semis', posicion: 2, p1: null, p2: null },
+      { ronda: 'final', posicion: 1, p1: null, p2: null },
+    ],
+  },
+  28: {
+    zonas: [4, 3, 3, 3, 3, 3, 3, 3, 3], // 1 de 4, 8 de 3 -> 19 clasificados
+    bracket: [
+      { ronda: '16avos', posicion: 1, p1: '3A', p2: '2I' },
+      { ronda: '16avos', posicion: 2, p1: '2H', p2: '2C' },
+      { ronda: '16avos', posicion: 3, p1: '2G', p2: '2A' },
+      { ronda: '8vos', posicion: 1, p1: '1A', p2: null },
+      { ronda: '8vos', posicion: 2, p1: '1H', p2: '1I' },
+      { ronda: '8vos', posicion: 3, p1: '1E', p2: '2D' },
+      { ronda: '8vos', posicion: 4, p1: null, p2: '1D' },
+      { ronda: '8vos', posicion: 5, p1: '1C', p2: '2F' },
+      { ronda: '8vos', posicion: 6, p1: '2E', p2: '1F' },
+      { ronda: '8vos', posicion: 7, p1: '1G', p2: '2B' },
+      { ronda: '8vos', posicion: 8, p1: null, p2: '1B' },
+      { ronda: '4tos', posicion: 1, p1: null, p2: null },
+      { ronda: '4tos', posicion: 2, p1: null, p2: null },
+      { ronda: '4tos', posicion: 3, p1: null, p2: null },
+      { ronda: '4tos', posicion: 4, p1: null, p2: null },
+      { ronda: 'semis', posicion: 1, p1: null, p2: null },
+      { ronda: 'semis', posicion: 2, p1: null, p2: null },
       { ronda: 'final', posicion: 1, p1: null, p2: null },
     ],
   },

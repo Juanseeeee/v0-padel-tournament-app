@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 import { BRACKET_CONFIGS, RONDAS_ORDER } from "@/lib/bracket-config";
+import { auditarLlaves } from "@/lib/bracket-auditor";
 // Force rebuild
 
 export async function POST(
@@ -173,6 +174,18 @@ export async function POST(
     // Calcular cuántas rondas hay
     const rondasUsadas = [...new Set(config.bracket.map(m => m.ronda))];
 
+    // Llamar a auditoría cruzada automáticamente
+    try {
+      const audData = await auditarLlaves(torneoId, categoria_id);
+      if (!audData.isValido) {
+         // Auto-rollback si hay inconsistencias críticas
+         await sql`DELETE FROM llaves WHERE fecha_torneo_id = ${torneoId} AND categoria_id = ${categoria_id}`;
+         return NextResponse.json({ error: "Validación cruzada fallida. Se detectaron inconsistencias entre zonas y llaves, se aplicó ROLLBACK automático. " + audData.inconsistencias[0]?.mensaje }, { status: 400 });
+      }
+    } catch(err) {
+      console.warn("No se pudo correr auditoria auto", err);
+    }
+
     return NextResponse.json({ 
       success: true, 
       totalParejas,
@@ -180,6 +193,9 @@ export async function POST(
       rondas: rondasUsadas
     });
   } catch (error: any) {
+    // Rollback manual en caso de fallo
+    await sql`DELETE FROM llaves WHERE fecha_torneo_id = ${torneoId} AND categoria_id = ${categoria_id}`;
+    
     console.error("Error generating llaves:", error?.message || error);
     return NextResponse.json(
       { error: "Error al generar llaves: " + (error?.message || "desconocido") }, 
