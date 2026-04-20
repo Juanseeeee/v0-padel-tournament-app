@@ -66,6 +66,8 @@ import {
   ImageIcon,
   Eye,
   EyeOff,
+  ShieldCheck,
+  AlertCircle
 } from "lucide-react";
 import { FlyerGenerator } from "@/components/flyer-generator";
 import { AdminWrapper } from "@/components/admin-wrapper";
@@ -136,6 +138,12 @@ export default function TorneoManagementPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState("parejas");
   const [showFlyerDialog, setShowFlyerDialog] = useState(false);
+
+  // Auditoria
+  const [showAuditoriaDialog, setShowAuditoriaDialog] = useState(false);
+  const [auditoriaLogs, setAuditoriaLogs] = useState<string[]>([]);
+  const [auditoriaErrors, setAuditoriaErrors] = useState<any[]>([]);
+  const [isAuditando, setIsAuditando] = useState(false);
 
   // Form states
   const [jugador1Id, setJugador1Id] = useState("");
@@ -525,6 +533,33 @@ export default function TorneoManagementPage() {
       toast({ title: "Error al generar zonas", description: getFriendlyError(error), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleAuditarLlaves = async () => {
+    setIsAuditando(true);
+    setShowAuditoriaDialog(true);
+    setAuditoriaLogs(["Iniciando validación cruzada..."]);
+    setAuditoriaErrors([]);
+    try {
+      const res = await fetch(`/api/admin/torneo/${torneoId}/llaves/auditoria`);
+      const data = await res.json();
+      if (data.success) {
+        setAuditoriaLogs(data.logs || []);
+        setAuditoriaErrors(data.inconsistencias || []);
+        if (data.isValido) {
+          toast({ title: "Auditoría Exitosa", description: "No se encontraron discrepancias en las llaves." });
+        } else {
+          toast({ title: "Atención", description: "Se encontraron inconsistencias. Revisa los logs.", variant: "destructive" });
+        }
+      } else {
+        throw new Error(data.error || "Error en auditoría");
+      }
+    } catch (error) {
+      setAuditoriaLogs(prev => [...prev, "[ERROR CRÍTICO] " + getFriendlyError(error)]);
+      toast({ title: "Error", description: "Falló el proceso de auditoría", variant: "destructive" });
+    } finally {
+      setIsAuditando(false);
     }
   };
 
@@ -1135,6 +1170,8 @@ export default function TorneoManagementPage() {
               torneoEstado={torneo?.estado || 'activo'}
               isSubmitting={isSubmitting}
               onLlaveUpdate={mutateLlaves}
+              onAuditarLlaves={handleAuditarLlaves}
+              isAuditando={isAuditando}
             />
           </TabsContent>
         </Tabs>
@@ -1747,6 +1784,63 @@ export default function TorneoManagementPage() {
               <Button variant="outline" onClick={() => setShowLlaveResultadoDialog(false)}>Cancelar</Button>
               <Button onClick={handleGuardarResultadoLlave} disabled={isSubmitting}>
                 {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Guardar"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showAuditoriaDialog} onOpenChange={setShowAuditoriaDialog}>
+          <DialogContent className="sm:max-w-2xl max-h-[80vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-amber-500" />
+                Auditoría de Llaves
+              </DialogTitle>
+              <DialogDescription>
+                Verificando la consistencia entre las posiciones finales de las zonas y los clasificados en las llaves.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto space-y-4 py-4 pr-2">
+              {isAuditando ? (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                  <p className="text-sm text-muted-foreground">Ejecutando validación cruzada...</p>
+                </div>
+              ) : (
+                <>
+                  {auditoriaErrors.length > 0 && (
+                    <div className="bg-destructive/10 text-destructive border border-destructive/20 rounded-md p-4 space-y-2">
+                      <div className="flex items-center gap-2 font-bold">
+                        <AlertCircle className="h-4 w-4" />
+                        Inconsistencias Críticas Detectadas ({auditoriaErrors.length})
+                      </div>
+                      <ul className="text-sm space-y-1 list-disc pl-5">
+                        {auditoriaErrors.map((err, i) => (
+                          <li key={i}>{err.mensaje}</li>
+                        ))}
+                      </ul>
+                      <p className="text-xs font-semibold mt-2">
+                        Se recomienda regenerar las llaves o contactar a soporte si el problema persiste.
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-semibold">Registro de Operaciones (Log)</h4>
+                    <div className="bg-muted rounded-md p-4 text-xs font-mono whitespace-pre-wrap space-y-1 overflow-y-auto max-h-[300px]">
+                      {auditoriaLogs.map((log, i) => (
+                        <div key={i} className={`${log.includes('[ERROR]') ? 'text-destructive font-bold' : log.includes('[WARN]') ? 'text-amber-500' : 'text-muted-foreground'}`}>
+                          {log}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowAuditoriaDialog(false)}>
+                Cerrar
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -4086,6 +4180,8 @@ function LlavesTab({
   torneoEstado,
   isSubmitting,
   onLlaveUpdate,
+  onAuditarLlaves,
+  isAuditando,
 }: {
   torneoId: string;
   llaves: Llave[] | undefined;
@@ -4095,6 +4191,8 @@ function LlavesTab({
   torneoEstado: string;
   isSubmitting: boolean;
   onLlaveUpdate: () => void;
+  onAuditarLlaves: () => void;
+  isAuditando: boolean;
 }) {
   const [draggingPairId, setDraggingPairId] = useState<number | null>(null);
   const [draggingLlaveId, setDraggingLlaveId] = useState<number | null>(null);
@@ -4457,6 +4555,10 @@ function LlavesTab({
               Cuadro de Llaves
             </div>
             <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={onAuditarLlaves} disabled={isAuditando}>
+                  {isAuditando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4 text-amber-500" />}
+                  Auditar
+                </Button>
                 <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={exportingPdf}>
                   {exportingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
                   {exportingPdf ? "Exportando..." : "Exportar para WhatsApp"}
