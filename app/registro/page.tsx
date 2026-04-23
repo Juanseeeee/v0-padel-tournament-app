@@ -1,8 +1,8 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,8 +18,10 @@ import {
 import { Loader2, UserPlus, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-export default function RegistroPage() {
+function RegistroForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get("redirect");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [categorias, setCategorias] = useState<any[]>([]);
@@ -102,7 +104,7 @@ export default function RegistroPage() {
       if (!res.ok) {
         setError(data.error || "Error al registrarse");
       } else {
-        router.push("/portal");
+        router.push(redirectUrl?.startsWith("/portal") ? redirectUrl : "/portal");
       }
     } catch {
       setError("Error de conexión");
@@ -288,5 +290,13 @@ export default function RegistroPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function RegistroPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+      <RegistroForm />
+    </Suspense>
   );
 }

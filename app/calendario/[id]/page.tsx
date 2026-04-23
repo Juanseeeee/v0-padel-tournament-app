@@ -38,7 +38,11 @@ type PartidoZonaDetalle = {
   ganador_id: number | null;
   fecha_hora_programada: string | null;
   dia_partido?: string | null;
+  fecha_partido?: string | null;
   hora_estimada?: string | null;
+  horario?: string | null;
+  hora?: string | null;
+  hora_inicio?: string | null;
   cancha_numero: number | null;
   p1_j1_nombre: string; p1_j1_apellido: string;
   p1_j2_nombre: string; p1_j2_apellido: string;
@@ -301,6 +305,11 @@ export default async function FechaDetailPage({ params }: { params: Promise<{ id
                   <Badge variant="outline" className={badgeInfo.className}>
                     {badgeInfo.label}
                   </Badge>
+                  {fecha.is_double_points && (
+                    <Badge className="bg-yellow-500 text-white border-transparent hover:bg-yellow-600">
+                      x2 Puntos
+                    </Badge>
+                  )}
                 </div>
                 
                 <div className="mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground">
@@ -321,13 +330,28 @@ export default async function FechaDetailPage({ params }: { params: Promise<{ id
                 </div>
               </div>
 
-              <div className="flex gap-2">
-                <div className="rounded-lg border border-border bg-card/50 px-4 py-3 text-center">
-                  <div className="font-[var(--font-display)] text-2xl text-primary">
-                    {participaciones.length}
+              <div className="flex flex-col items-end gap-2">
+                <div className="flex gap-2">
+                  <div className="rounded-lg border border-border bg-card/50 px-4 py-3 text-center">
+                    <div className="font-[var(--font-display)] text-2xl text-primary">
+                      {participaciones.length}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Participantes</div>
                   </div>
-                  <div className="text-xs text-muted-foreground">Participantes</div>
                 </div>
+                
+                {fecha.estado === 'programada' && (
+                  <div className="flex-shrink-0 mt-2 sm:mt-0">
+                    <Link href={`/login?redirect=${encodeURIComponent(`/portal?enroll=${fecha.id}`)}`}>
+                      <Button size="lg" className="w-full sm:w-auto font-bold shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all active:scale-95 text-md px-8 rounded-full">
+                        ¡Inscribirse al Torneo!
+                      </Button>
+                    </Link>
+                    <p className="text-xs text-muted-foreground mt-2 text-center sm:text-right">
+                      Requiere iniciar sesión
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

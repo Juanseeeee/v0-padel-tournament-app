@@ -1,8 +1,8 @@
 
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,8 +11,11 @@ import { Loader2, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get("redirect");
+  
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -40,9 +43,9 @@ export default function LoginPage() {
 
       router.refresh();
       if (data.user.rol === "admin") {
-        router.push("/admin");
+        router.push(redirectUrl?.startsWith("/admin") ? redirectUrl : "/admin");
       } else {
-        router.push("/portal");
+        router.push(redirectUrl?.startsWith("/portal") ? redirectUrl : "/portal");
       }
     } catch {
       setError("Error de conexión");
@@ -52,7 +55,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+    <>
       <div className="absolute top-4 left-4">
         <Link href="/" aria-label="Volver al inicio">
           <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
@@ -125,6 +128,16 @@ export default function LoginPage() {
           </div>
         </CardContent>
       </Card>
+    </>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+      <Suspense fallback={<div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+        <LoginForm />
+      </Suspense>
     </div>
   );
 }
