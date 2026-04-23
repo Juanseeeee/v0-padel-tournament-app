@@ -8,12 +8,12 @@ export default async function TournamentPage({
 }: { 
   params: Promise<{ id: string }> 
 }) {
+  const { id } = await params;
+
   const session = await getSession();
   if (!session || session.rol !== "jugador") {
-    redirect("/login?redirect=/portal");
+    redirect(`/login?redirect=${encodeURIComponent(`/portal/torneo/${id}`)}`);
   }
-
-  const { id } = await params;
 
   // 1. Get Tournament Info
   const torneo = await sql`
@@ -35,89 +35,97 @@ export default async function TournamentPage({
     );
   }
 
-  if (!torneo[0].publicado) {
-    return (
-        <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
-            <div className="text-center">
-                <h1 className="text-2xl font-bold">Torneo no disponible</h1>
-                <p className="text-muted-foreground mt-2">Este torneo aún no ha sido publicado.</p>
-                <a href="/portal" className="mt-4 inline-block text-primary hover:underline">Volver al Portal</a>
-            </div>
-        </div>
-    );
+  // 2. Get Zones (Zonas) - Note: In TournamentView, we should only show zones if torneo.publicado is true
+  let zonas: any[] = [];
+  if (torneo[0].publicado) {
+    zonas = await sql`
+      SELECT z.id, z.nombre, z.estado,
+             array_agg(json_build_object(
+                   'orden', pz.orden_partido,
+                   'fecha_hora_programada', pz.fecha_hora_programada,
+                   'hora_estimada', pz.hora_estimada,
+                   'dia_partido', pz.dia_partido,
+                  'estado', pz.estado,
+                  'p1_id', pz.pareja1_id, 'p2_id', pz.pareja2_id,
+                  'p1_num', pt1.numero_pareja, 'p2_num', pt2.numero_pareja,
+                  'set1_j1', pz.set1_pareja1, 'set1_j2', pz.set1_pareja2,
+                  'set2_j1', pz.set2_pareja1, 'set2_j2', pz.set2_pareja2,
+                  'set3_j1', pz.set3_pareja1, 'set3_j2', pz.set3_pareja2,
+                  'ganador_id', pz.ganador_id,
+                  'jugador1', COALESCE(j1a.apellido || ' ' || LEFT(j1a.nombre, 1) || '. / ' || j1b.apellido || ' ' || LEFT(j1b.nombre, 1) || '.', 'TBD'),
+                  'jugador2', COALESCE(j2a.apellido || ' ' || LEFT(j2a.nombre, 1) || '. / ' || j2b.apellido || ' ' || LEFT(j2b.nombre, 1) || '.', 'TBD'),
+                  'ganador', CASE 
+                    WHEN pz.ganador_id IS NOT NULL THEN 
+                      CASE 
+                        WHEN pz.ganador_id = pz.pareja1_id THEN 
+                          COALESCE(j1a.apellido || ' ' || LEFT(j1a.nombre, 1) || '. / ' || j1b.apellido || ' ' || LEFT(j1b.nombre, 1) || '.', 'TBD')
+                        WHEN pz.ganador_id = pz.pareja2_id THEN
+                          COALESCE(j2a.apellido || ' ' || LEFT(j2a.nombre, 1) || '. / ' || j2b.apellido || ' ' || LEFT(j2b.nombre, 1) || '.', 'TBD')
+                      END
+                    ELSE NULL 
+                  END,
+                  'set1_tiebreak', pz.set1_tiebreak,
+                  'set2_tiebreak', pz.set2_tiebreak,
+                  'set3_tiebreak', pz.set3_tiebreak
+            ) ORDER BY pz.orden_partido) as partidos,
+             (
+                 SELECT array_agg(json_build_object(
+                    'pareja_id', ptor.id,
+                    'numero_pareja', ptor.numero_pareja,
+                    'j1_nombre', ja.nombre, 'j1_apellido', ja.apellido,
+                    'j2_nombre', jb.nombre, 'j2_apellido', jb.apellido
+                 ))
+                 FROM parejas_zona pzo
+                 JOIN parejas_torneo ptor ON pzo.pareja_id = ptor.id
+                 JOIN jugadores ja ON ptor.jugador1_id = ja.id
+                 JOIN jugadores jb ON ptor.jugador2_id = jb.id
+                 WHERE pzo.zona_id = z.id
+              ) as parejas
+      FROM zonas z
+      LEFT JOIN partidos_zona pz ON z.id = pz.zona_id
+      LEFT JOIN parejas_torneo pt1 ON pz.pareja1_id = pt1.id
+      LEFT JOIN parejas_torneo pt2 ON pz.pareja2_id = pt2.id
+      LEFT JOIN jugadores j1a ON pt1.jugador1_id = j1a.id
+      LEFT JOIN jugadores j1b ON pt1.jugador2_id = j1b.id
+      LEFT JOIN jugadores j2a ON pt2.jugador1_id = j2a.id
+      LEFT JOIN jugadores j2b ON pt2.jugador2_id = j2b.id
+      WHERE z.fecha_torneo_id = ${id}
+      GROUP BY z.id, z.nombre, z.estado
+      ORDER BY z.nombre
+    `;
   }
 
-  // 2. Get Zones and Matches
-  const zonas = await sql`
-    SELECT z.id, z.nombre, z.estado,
-           array_agg(json_build_object(
-                 'orden', pz.orden_partido,
-                 'fecha_hora_programada', pz.fecha_hora_programada,
-                 'hora_estimada', pz.hora_estimada,
-                 'dia_partido', pz.dia_partido,
-                 'jugador1', COALESCE(j1a.apellido || ' ' || LEFT(j1a.nombre, 1) || '. / ' || j1b.apellido || ' ' || LEFT(j1b.nombre, 1) || '.', 'TBD'),
-             'jugador2', COALESCE(j2a.apellido || ' ' || LEFT(j2a.nombre, 1) || '. / ' || j2b.apellido || ' ' || LEFT(j2b.nombre, 1) || '.', 'TBD'),
-             'ganador', CASE 
-               WHEN pz.ganador_id IS NOT NULL THEN 
-                 CASE 
-                   WHEN pz.ganador_id = pz.pareja1_id THEN 
-                     COALESCE(j1a.apellido || ' ' || LEFT(j1a.nombre, 1) || '. / ' || j1b.apellido || ' ' || LEFT(j1b.nombre, 1) || '.', 'TBD')
-                   WHEN pz.ganador_id = pz.pareja2_id THEN
-                     COALESCE(j2a.apellido || ' ' || LEFT(j2a.nombre, 1) || '. / ' || j2b.apellido || ' ' || LEFT(j2b.nombre, 1) || '.', 'TBD')
-                 END
-               ELSE NULL 
-             END,
-             'set1_j1', pz.set1_pareja1,
-             'set1_j2', pz.set1_pareja2,
-             'set2_j1', pz.set2_pareja1,
-             'set2_j2', pz.set2_pareja2,
-             'set3_j1', pz.set3_pareja1,
-             'set3_j2', pz.set3_pareja2,
-             'set1_tiebreak', pz.set1_tiebreak,
-             'set2_tiebreak', pz.set2_tiebreak,
-             'set3_tiebreak', pz.set3_tiebreak
-           ) ORDER BY pz.orden_partido) FILTER (WHERE pz.id IS NOT NULL) as partidos
-    FROM zonas z
-    LEFT JOIN partidos_zona pz ON pz.zona_id = z.id
-    LEFT JOIN parejas_torneo pt1 ON pz.pareja1_id = pt1.id
-    LEFT JOIN jugadores j1a ON pt1.jugador1_id = j1a.id
-    LEFT JOIN jugadores j1b ON pt1.jugador2_id = j1b.id
-    LEFT JOIN parejas_torneo pt2 ON pz.pareja2_id = pt2.id
-    LEFT JOIN jugadores j2a ON pt2.jugador1_id = j2a.id
-    LEFT JOIN jugadores j2b ON pt2.jugador2_id = j2b.id
-    WHERE z.fecha_torneo_id = ${id}
-    GROUP BY z.id, z.nombre, z.estado
-    ORDER BY z.nombre
-  `;
-
   // 3. Get Brackets (Llaves)
-  const llaves = await sql`
-    SELECT 
-      l.*,
-      l.pareja1_id, l.pareja2_id, l.ganador_id,
-      l.set1_tiebreak, l.set2_tiebreak, l.set3_tiebreak,
-      pt1.numero_pareja as pareja1_numero,
-      pt2.numero_pareja as pareja2_numero,
-      CONCAT(j1a.apellido, ' ', LEFT(j1a.nombre, 1), '. / ', j1b.apellido, ' ', LEFT(j1b.nombre, 1), '.') as pareja1_jugadores,
-      CONCAT(j2a.apellido, ' ', LEFT(j2a.nombre, 1), '. / ', j2b.apellido, ' ', LEFT(j2b.nombre, 1), '.') as pareja2_jugadores
-    FROM llaves l
-    LEFT JOIN parejas_torneo pt1 ON l.pareja1_id = pt1.id
-    LEFT JOIN parejas_torneo pt2 ON l.pareja2_id = pt2.id
-    LEFT JOIN jugadores j1a ON pt1.jugador1_id = j1a.id
-    LEFT JOIN jugadores j1b ON pt1.jugador2_id = j1b.id
-    LEFT JOIN jugadores j2a ON pt2.jugador1_id = j2a.id
-    LEFT JOIN jugadores j2b ON pt2.jugador2_id = j2b.id
-    WHERE l.fecha_torneo_id = ${id}
-    ORDER BY 
-      CASE l.ronda 
-        WHEN '16avos' THEN 1 
-        WHEN '8vos' THEN 2 
-        WHEN '4tos' THEN 3 
-        WHEN 'semis' THEN 4 
-        WHEN 'final' THEN 5 
-      END,
-      l.posicion
-  `;
+  let llaves: any[] = [];
+  if (torneo[0].publicado) {
+    llaves = await sql`
+      SELECT 
+        l.*,
+        l.pareja1_id, l.pareja2_id, l.ganador_id,
+        l.set1_tiebreak, l.set2_tiebreak, l.set3_tiebreak,
+        pt1.numero_pareja as pareja1_numero,
+        pt2.numero_pareja as pareja2_numero,
+        CONCAT(j1a.apellido, ' ', LEFT(j1a.nombre, 1), '. / ', j1b.apellido, ' ', LEFT(j1b.nombre, 1), '.') as pareja1_jugadores,
+        CONCAT(j2a.apellido, ' ', LEFT(j2a.nombre, 1), '. / ', j2b.apellido, ' ', LEFT(j2b.nombre, 1), '.') as pareja2_jugadores
+      FROM llaves l
+      LEFT JOIN parejas_torneo pt1 ON l.pareja1_id = pt1.id
+      LEFT JOIN parejas_torneo pt2 ON l.pareja2_id = pt2.id
+      LEFT JOIN jugadores j1a ON pt1.jugador1_id = j1a.id
+      LEFT JOIN jugadores j1b ON pt1.jugador2_id = j1b.id
+      LEFT JOIN jugadores j2a ON pt2.jugador1_id = j2a.id
+      LEFT JOIN jugadores j2b ON pt2.jugador2_id = j2b.id
+      WHERE l.fecha_torneo_id = ${id}
+      ORDER BY 
+        CASE l.ronda 
+          WHEN '16avos' THEN 1 
+          WHEN '8vos' THEN 2 
+          WHEN '4tos' THEN 3 
+          WHEN 'semis' THEN 4 
+          WHEN 'final' THEN 5 
+        END,
+        l.posicion
+    `;
+  }
 
   return (
     <TournamentView 

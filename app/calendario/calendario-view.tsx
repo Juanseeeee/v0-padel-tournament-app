@@ -207,9 +207,16 @@ export function CalendarioView({
                       <CardContent className="p-5">
                         <div className="flex items-start justify-between gap-3">
                           <DatePill dateString={fecha.fecha_calendario} />
-                          <Badge variant="outline" className={cn(badge.className, "font-bold tracking-wide")}>
-                            {badge.label}
-                          </Badge>
+                          <div className="flex flex-col items-end gap-1">
+                            <Badge variant="outline" className={cn(badge.className, "font-bold tracking-wide")}>
+                              {badge.label}
+                            </Badge>
+                            {fecha.is_double_points && (
+                              <Badge className="bg-yellow-500 text-white border-transparent font-bold text-[10px] px-1.5 py-0">
+                                x2 Puntos
+                              </Badge>
+                            )}
+                          </div>
                         </div>
 
                         <div className="mt-4">
@@ -283,9 +290,16 @@ export function CalendarioView({
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <Badge variant="outline" className={cn(badge.className, "hidden sm:inline-flex font-bold")}>
-                            {badge.label}
-                          </Badge>
+                          <div className="flex flex-col items-end gap-1">
+                            <Badge variant="outline" className={cn(badge.className, "hidden sm:inline-flex font-bold")}>
+                              {badge.label}
+                            </Badge>
+                            {fecha.is_double_points && (
+                              <Badge className="bg-yellow-500 text-white border-transparent font-bold text-[10px] px-1.5 py-0 hidden sm:inline-flex">
+                                x2 Puntos
+                              </Badge>
+                            )}
+                          </div>
                           <Link href={`/calendario/${fecha.id}`}>
                             <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full hover:bg-primary/10 hover:text-primary transition-colors" aria-label="Ver resultados">
                               <ArrowRight className="h-5 w-5" />

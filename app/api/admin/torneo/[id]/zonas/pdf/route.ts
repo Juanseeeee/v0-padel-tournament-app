@@ -110,7 +110,7 @@ export async function GET(
           <tr>
             <td style="padding:5px 8px;border-bottom:1px solid #e5e5e5;text-align:center;font-weight:bold;width:30px;">${idx + 1}</td>
             <td style="padding:5px 8px;border-bottom:1px solid #e5e5e5;">
-              ${p.j1_nombre} ${p.j1_apellido} / ${p.j2_nombre} ${p.j2_apellido}
+              ${p.j1_apellido} ${p.j1_nombre?.charAt(0) || ""}. / ${p.j2_apellido} ${p.j2_nombre?.charAt(0) || ""}.
               ${p.cabeza_serie ? ' <span style="color:#888;font-size:10px;">(CS)</span>' : ""}
             </td>
           </tr>`;

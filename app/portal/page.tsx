@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from "react";
 import useSWR from "swr";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -25,7 +25,8 @@ import {
   ChevronRight,
   ChevronLeft,
   Trophy,
-  Users
+  Users,
+  TrendingUp
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { parseDateOnly } from "@/lib/utils";
@@ -116,6 +117,7 @@ function MonthCalendar({ monthStr, events }: { monthStr: string, events: any[] }
 
 export default function PortalPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: me } = useSWR("/api/auth/me", fetcher);
   const { data: categories } = useSWR("/api/public/categorias", fetcher);
   
@@ -150,8 +152,6 @@ export default function PortalPage() {
   
   const rankingUrl = apiCategory ? `/api/portal/ranking?categoria_id=${apiCategory}` : null;
   const { data: rankingData, isLoading: isLoadingRanking } = useSWR(rankingUrl, fetcher, { revalidateOnFocus: false });
-
-  const { data: pinnedNews } = useSWR("/api/portal/noticias", fetcher, { revalidateOnFocus: false });
   
   const [enrollDialog, setEnrollDialog] = useState<any>(null);
   const [enrolling, setEnrolling] = useState(false);
@@ -174,6 +174,21 @@ export default function PortalPage() {
   const rankingPuntosMap = useMemo(() => rankingData?.puntosMap || {}, [rankingData]);
   const rankingPuntosArrastre = useMemo(() => rankingData?.puntosArrastre || {}, [rankingData]);
   const inscripcionesList = useMemo(() => Array.isArray(misInscripciones) ? misInscripciones : [], [misInscripciones]);
+
+  // Auto-open enroll dialog if enrollId is in URL
+  useEffect(() => {
+    const enrollId = searchParams.get("enroll");
+    if (enrollId && torneosList.length > 0) {
+      const t = torneosList.find((x: any) => x.id === parseInt(enrollId));
+      if (t) {
+        setEnrollDialog(t);
+        // Remove enroll from URL after opening dialog
+        const url = new URL(window.location.href);
+        url.searchParams.delete("enroll");
+        router.replace(url.pathname + url.search, { scroll: false });
+      }
+    }
+  }, [searchParams, torneosList, router]);
 
   // Determine available categories for selector
   const availableCategories = useMemo(() => {
@@ -383,42 +398,6 @@ export default function PortalPage() {
       {/* Main Content Area - Overlapping */}
       <div className="relative z-20 -mt-16 px-5 space-y-6 pb-10">
         
-        {/* Pinned News */}
-        {pinnedNews?.informes?.length > 0 && (
-            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                <div className="flex items-center gap-2 px-2">
-                    <span className="relative flex h-3 w-3">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
-                    </span>
-                    <h3 className="text-lg font-bold text-foreground drop-shadow-sm">Novedades Importantes</h3>
-                </div>
-                <div className="grid gap-4">
-                    {pinnedNews.informes.map((news: any) => (
-                        <Card key={news.id} className="bg-gradient-to-br from-card to-background border-primary/20 shadow-lg ring-1 ring-primary/10 overflow-hidden group hover:shadow-primary/5 transition-all">
-                            <CardContent className="p-5">
-                                <div className="flex justify-between items-start mb-3">
-                                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 font-bold tracking-wide text-[10px] uppercase">
-                                        Destacado
-                                    </Badge>
-                                    <span className="text-[10px] font-bold text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
-                                        {new Date(news.fecha_publicacion).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}
-                                    </span>
-                                </div>
-                                <h4 className="font-bold text-foreground mb-2 text-lg leading-tight group-hover:text-primary transition-colors">{news.titulo}</h4>
-                                <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed mb-4">{news.contenido}</p>
-                                <Link href={`/noticias/${news.id}`}>
-                                    <Button size="sm" variant="ghost" className="h-8 px-0 text-primary hover:text-primary/80 hover:bg-transparent font-bold text-xs gap-1 group/btn">
-                                        Leer más <ChevronRight className="h-3 w-3 transition-transform group-hover/btn:translate-x-1" />
-                                    </Button>
-                                </Link>
-                            </CardContent>
-                        </Card>
-                    ))}
-                </div>
-            </div>
-        )}
-
         {/* Category Selector */}
         {(activeTab === "ranking" || activeTab === "torneos" || activeTab === "calendario") && availableCategories.length > 0 && (
           <div className="bg-card/95 backdrop-blur-sm shadow-lg rounded-2xl p-4 ring-1 ring-border/50 animate-in fade-in slide-in-from-top-4 duration-500">

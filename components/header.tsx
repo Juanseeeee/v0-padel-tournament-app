@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Menu, X, Trophy, Calendar, Users, FileText, Shield, LogIn, UserPlus } from "lucide-react"
+import { Menu, X, Trophy, Calendar, Users, FileText, Shield, LogIn, UserPlus, TrendingUp } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 
 const navigation = [
@@ -13,6 +13,7 @@ const navigation = [
   { name: "Calendario", href: "/calendario", icon: Calendar },
   { name: "Rankings", href: "/rankings", icon: Users },
   { name: "Noticias", href: "/noticias", icon: FileText },
+  { name: "Ascensos", href: "/ascensos", icon: TrendingUp },
 ]
 
 export function Header() {

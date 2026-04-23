@@ -51,7 +51,8 @@ export async function PUT(
       hora_inicio_viernes,
       hora_inicio_sabado,
       modalidad,
-      dias_juego
+      dias_juego,
+      is_double_points
     } = body
 
     const result = await sql`
@@ -70,7 +71,8 @@ export async function PUT(
         hora_inicio_viernes = ${hora_inicio_viernes || '18:00'},
         hora_inicio_sabado = ${hora_inicio_sabado || '18:00'},
         modalidad = ${modalidad || 'normal_3_sets_6'},
-        dias_juego = ${dias_juego || 'viernes,sabado,domingo'}
+        dias_juego = ${dias_juego || 'viernes,sabado,domingo'},
+        is_double_points = ${is_double_points ?? false}
       WHERE id = ${id}
       RETURNING *
     `

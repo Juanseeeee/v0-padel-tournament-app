@@ -30,8 +30,8 @@ export async function GET(
           l.*,
           pt1.numero_pareja as pareja1_numero,
           pt2.numero_pareja as pareja2_numero,
-          CONCAT(j1a.nombre, ' ', LEFT(j1a.apellido, 1), '. / ', j1b.nombre, ' ', LEFT(j1b.apellido, 1), '.') as pareja1_jugadores,
-          CONCAT(j2a.nombre, ' ', LEFT(j2a.apellido, 1), '. / ', j2b.nombre, ' ', LEFT(j2b.apellido, 1), '.') as pareja2_jugadores,
+          CONCAT(j1a.apellido, ' ', LEFT(j1a.nombre, 1), '. / ', j1b.apellido, ' ', LEFT(j1b.nombre, 1), '.') as pareja1_jugadores,
+          CONCAT(j2a.apellido, ' ', LEFT(j2a.nombre, 1), '. / ', j2b.apellido, ' ', LEFT(j2b.nombre, 1), '.') as pareja2_jugadores,
           l.siguiente_llave_id,
           l.siguiente_llave_slot
         FROM llaves l

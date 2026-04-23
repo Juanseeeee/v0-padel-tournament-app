@@ -46,7 +46,8 @@ export async function POST(
     const puntosConfig = await sql`SELECT * FROM puntos_configuracion ORDER BY orden`;
     const getPuntos = (instancia: string): number => {
       const config = puntosConfig.find((p: any) => p.instancia === instancia);
-      return config ? config.puntos : 0;
+      const basePoints = config ? config.puntos : 0;
+      return torneo.is_double_points ? basePoints * 2 : basePoints;
     };
 
     // Obtener todas las llaves finalizadas

@@ -46,6 +46,7 @@ export type FechaTorneo = {
   temporada: number;
   modalidad?: string;
   dias_juego?: string;
+  is_double_points?: boolean;
   created_at: string;
 };
 

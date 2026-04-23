@@ -6,6 +6,7 @@ import Link from "next/link";
 import useSWR, { mutate } from "swr";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -782,6 +783,27 @@ export default function TorneoManagementPage() {
     }
   };
 
+  const handleToggleDoublePoints = async (is_double_points: boolean) => {
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`/api/admin/torneo/${torneoId}/double-points`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_double_points }),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Error al cambiar estado de puntos dobles");
+      }
+      toast({ title: "Actualizado", description: `El torneo ahora ${is_double_points ? 'otorga puntos dobles' : 'otorga puntos normales'}.` });
+      mutate(`/api/admin/fechas/${torneoId}`);
+    } catch (error) {
+      toast({ title: "Error", description: getFriendlyError(error), variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleEliminarTorneo = async () => {
     setIsSubmitting(true);
     try {
@@ -922,6 +944,20 @@ export default function TorneoManagementPage() {
                 ? "En Juego"
                 : "Finalizada"}
           </Badge>
+          <div className="flex items-center gap-2 mr-2 bg-muted/50 p-2 rounded-md border border-border">
+            <Checkbox 
+              id="doublePoints" 
+              checked={torneo.is_double_points || false}
+              onCheckedChange={(checked) => handleToggleDoublePoints(checked as boolean)}
+              disabled={isSubmitting}
+            />
+            <Label htmlFor="doublePoints" className="text-sm font-medium cursor-pointer whitespace-nowrap">
+              Fecha Doble
+            </Label>
+            {torneo.is_double_points && (
+              <Badge className="bg-yellow-500 hover:bg-yellow-600 text-white ml-1">x2 Puntos</Badge>
+            )}
+          </div>
           <Button
             variant={torneo.publicado ? "secondary" : "default"}
             onClick={() => handlePublicarTorneo(!torneo.publicado)}
@@ -1062,10 +1098,10 @@ export default function TorneoManagementPage() {
                         <TableRow key={pareja.id}>
                           <TableCell className="font-medium">{pareja.numero_pareja}</TableCell>
                           <TableCell>
-                            {pareja.jugador1_apellido} {pareja.jugador1_nombre}
+                            {pareja.jugador1_apellido} {pareja.jugador1_nombre?.charAt(0)}.
                           </TableCell>
                           <TableCell>
-                            {pareja.jugador2_apellido} {pareja.jugador2_nombre}
+                            {pareja.jugador2_apellido} {pareja.jugador2_nombre?.charAt(0)}.
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline">{pareja.categoria_nombre}</Badge>
@@ -1195,7 +1231,7 @@ export default function TorneoManagementPage() {
                   <SelectContent>
                     {parejasCategoria?.filter((p: any) => !p.zona_id || p.zona_id.toString() !== assignZonaId).map((p: any) => (
                       <SelectItem key={p.id} value={p.id.toString()}>
-                        {p.jugador1_apellido} {p.jugador1_nombre} / {p.jugador2_apellido} {p.jugador2_nombre} 
+                        {p.jugador1_apellido} {p.jugador1_nombre?.charAt(0)}. / {p.jugador2_apellido} {p.jugador2_nombre?.charAt(0)}. 
                         {p.zona_id ? ` (En otra zona)` : ' (Sin zona)'}
                       </SelectItem>
                     ))}
@@ -2929,12 +2965,12 @@ function ZonasTab({
                 <span className="block mt-2">
                   {(zoneDetails[resPartido.zona_id!]?.parejas || [])
                     .find(p => p.pareja_torneo_id === resPartido.pareja1_id)
-                    ? `${(zoneDetails[resPartido.zona_id!]?.parejas || []).find(p => p.pareja_torneo_id === resPartido.pareja1_id)!.j1_nombre} ${(zoneDetails[resPartido.zona_id!]?.parejas || []).find(p => p.pareja_torneo_id === resPartido.pareja1_id)!.j1_apellido?.charAt(0)}. / ${(zoneDetails[resPartido.zona_id!]?.parejas || []).find(p => p.pareja_torneo_id === resPartido.pareja1_id)!.j2_nombre} ${(zoneDetails[resPartido.zona_id!]?.parejas || []).find(p => p.pareja_torneo_id === resPartido.pareja1_id)!.j2_apellido?.charAt(0)}.`
+                    ? `${(zoneDetails[resPartido.zona_id!]?.parejas || []).find(p => p.pareja_torneo_id === resPartido.pareja1_id)!.j1_apellido} ${(zoneDetails[resPartido.zona_id!]?.parejas || []).find(p => p.pareja_torneo_id === resPartido.pareja1_id)!.j1_nombre?.charAt(0) || ""}. / ${(zoneDetails[resPartido.zona_id!]?.parejas || []).find(p => p.pareja_torneo_id === resPartido.pareja1_id)!.j2_apellido} ${(zoneDetails[resPartido.zona_id!]?.parejas || []).find(p => p.pareja_torneo_id === resPartido.pareja1_id)!.j2_nombre?.charAt(0) || ""}.`
                     : "Pareja 1"}{" "}
                   vs{" "}
                   {(zoneDetails[resPartido.zona_id!]?.parejas || [])
                     .find(p => p.pareja_torneo_id === resPartido.pareja2_id)
-                    ? `${(zoneDetails[resPartido.zona_id!]?.parejas || []).find(p => p.pareja_torneo_id === resPartido.pareja2_id)!.j1_nombre} ${(zoneDetails[resPartido.zona_id!]?.parejas || []).find(p => p.pareja_torneo_id === resPartido.pareja2_id)!.j1_apellido?.charAt(0)}. / ${(zoneDetails[resPartido.zona_id!]?.parejas || []).find(p => p.pareja_torneo_id === resPartido.pareja2_id)!.j2_nombre} ${(zoneDetails[resPartido.zona_id!]?.parejas || []).find(p => p.pareja_torneo_id === resPartido.pareja2_id)!.j2_apellido?.charAt(0)}.`
+                    ? `${(zoneDetails[resPartido.zona_id!]?.parejas || []).find(p => p.pareja_torneo_id === resPartido.pareja2_id)!.j1_apellido} ${(zoneDetails[resPartido.zona_id!]?.parejas || []).find(p => p.pareja_torneo_id === resPartido.pareja2_id)!.j1_nombre?.charAt(0) || ""}. / ${(zoneDetails[resPartido.zona_id!]?.parejas || []).find(p => p.pareja_torneo_id === resPartido.pareja2_id)!.j2_apellido} ${(zoneDetails[resPartido.zona_id!]?.parejas || []).find(p => p.pareja_torneo_id === resPartido.pareja2_id)!.j2_nombre?.charAt(0) || ""}.`
                     : "Pareja 2"}
                 </span>
               )}

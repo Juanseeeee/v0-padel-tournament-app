@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,9 @@ import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get("redirect");
+  
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -40,9 +43,9 @@ export default function LoginPage() {
 
       router.refresh();
       if (data.user.rol === "admin") {
-        router.push("/admin");
+        router.push(redirectUrl?.startsWith("/admin") ? redirectUrl : "/admin");
       } else {
-        router.push("/portal");
+        router.push(redirectUrl?.startsWith("/portal") ? redirectUrl : "/portal");
       }
     } catch {
       setError("Error de conexión");

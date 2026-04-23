@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,8 @@ import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function RegistroPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get("redirect");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [categorias, setCategorias] = useState<any[]>([]);
@@ -102,7 +104,7 @@ export default function RegistroPage() {
       if (!res.ok) {
         setError(data.error || "Error al registrarse");
       } else {
-        router.push("/portal");
+        router.push(redirectUrl?.startsWith("/portal") ? redirectUrl : "/portal");
       }
     } catch {
       setError("Error de conexión");
