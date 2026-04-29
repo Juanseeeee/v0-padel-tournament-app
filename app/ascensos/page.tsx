@@ -51,9 +51,9 @@ export default async function AscensosPage() {
               <div className="p-2 bg-primary/10 rounded-xl">
                 <TrendingUp className="h-6 w-6 text-primary" />
               </div>
-              Historial de Ascensos
+              Historial de Recategorizaciones
             </h1>
-            <p className="text-muted-foreground mt-1 ml-14">Registro oficial de todos los jugadores promovidos</p>
+            <p className="text-muted-foreground mt-1 ml-14">Registro oficial de todos los jugadores recategorizados</p>
           </div>
         </div>
 
@@ -62,7 +62,7 @@ export default async function AscensosPage() {
             {ascensos.length === 0 ? (
               <div className="p-12 text-center flex flex-col items-center gap-3">
                 <TrendingUp className="h-12 w-12 text-muted-foreground/30" />
-                <p className="text-muted-foreground font-medium">No hay ascensos registrados todavía</p>
+                <p className="text-muted-foreground font-medium">No hay recategorizaciones registradas todavía</p>
               </div>
             ) : (
               <div className="divide-y divide-border/40">
