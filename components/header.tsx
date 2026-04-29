@@ -13,7 +13,7 @@ const navigation = [
   { name: "Calendario", href: "/calendario", icon: Calendar },
   { name: "Rankings", href: "/rankings", icon: Users },
   { name: "Noticias", href: "/noticias", icon: FileText },
-  { name: "Ascensos", href: "/ascensos", icon: TrendingUp },
+  { name: "Recategorizaciones", href: "/ascensos", icon: TrendingUp },
 ]
 
 export function Header() {
