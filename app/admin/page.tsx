@@ -94,6 +94,18 @@ export default async function AdminPage() {
       ]
     },
     {
+      title: "Recategorizaciones",
+      description: "Gestionar ascensos y descensos",
+      icon: TrendingUp,
+      href: "/admin/recategorizaciones",
+      color: "text-green-500",
+      bgColor: "bg-green-500/10",
+      stats: stats.jugadores,
+      actions: [
+        { label: "Recategorizar Jugador", href: "/admin/recategorizaciones", icon: ArrowRight },
+      ]
+    },
+    {
       title: "Noticias",
       description: "Publicar informes y noticias",
       icon: FileText,
