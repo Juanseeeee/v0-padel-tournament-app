@@ -27,6 +27,10 @@ export async function PUT(
     const body = await request.json()
     const { titulo, contenido, autor, imagen_url, destacado, fijado } = body
 
+    if (titulo && titulo.toLowerCase().includes('recategorizacion')) {
+      return NextResponse.json({ error: "Las recategorizaciones deben gestionarse desde la sección 'Recategorizaciones'." }, { status: 400 })
+    }
+
     const result = await sql`
       UPDATE informes 
       SET 

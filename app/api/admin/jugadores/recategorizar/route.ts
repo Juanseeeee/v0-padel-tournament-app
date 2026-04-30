@@ -37,21 +37,11 @@ export async function POST(request: Request) {
       `;
       
       const puntosActuales = puntosStats.length > 0 ? puntosStats[0].puntos_acumulados : 0;
+      let puntosTransferir = 0;
       
       // Logic for Ascenso with Points Transfer
       if (tipo === "ascenso" && puntosActuales > 0) {
-        const puntosTransferir = Math.floor(puntosActuales * 0.5); // 50%
-        
-        // Log in ascensos table
-        await sql`
-          INSERT INTO ascensos (
-            jugador_id, fecha_ascenso, categoria_origen_id, categoria_destino_id, 
-            puntos_origen, puntos_transferidos
-          ) VALUES (
-            ${jugador_id}, NOW(), ${categoria_anterior_id}, ${categoria_nueva_id}, 
-            ${puntosActuales}, ${puntosTransferir}
-          )
-        `;
+        puntosTransferir = Math.floor(puntosActuales * 0.5); // 50%
         
         // Add points to new category
         // Check if entry exists in puntos_categoria for new category
@@ -81,6 +71,17 @@ export async function POST(request: Request) {
         `;
       }
 
+      // Log in ascensos table for ALL recategorizations (ascenso or descenso)
+      await sql`
+        INSERT INTO ascensos (
+          jugador_id, fecha_ascenso, categoria_origen_id, categoria_destino_id, 
+          puntos_origen, puntos_transferidos
+        ) VALUES (
+          ${jugador_id}, NOW(), ${categoria_anterior_id}, ${categoria_nueva_id}, 
+          ${puntosActuales}, ${puntosTransferir}
+        )
+      `;
+
       await sql`
         DELETE FROM jugador_categorias 
         WHERE jugador_id = ${jugador_id} AND categoria_id = ${categoria_anterior_id}
@@ -101,26 +102,9 @@ export async function POST(request: Request) {
     // Update categoria_actual_id on jugadores table
     await sql`UPDATE jugadores SET categoria_actual_id = ${categoria_nueva_id} WHERE id = ${jugador_id}`;
 
-    // Generate automatic news/informe
-    const nombreJugador = `${jugador[0].nombre} ${jugador[0].apellido}`;
-    const tipoTexto = tipo === "ascenso" ? "ASCENSO" : "DESCENSO";
-    const titulo = `Recategorizacion: ${tipoTexto} de ${nombreJugador}`;
-    const contenido = `El jugador ${nombreJugador} ha sido recategorizado.\n\n` +
-      `Tipo: ${tipoTexto}\n` +
-      `Categoria anterior: ${catAnterior[0]?.nombre || "Sin categoria"}\n` +
-      `Categoria nueva: ${catNueva[0].nombre}\n\n` +
-      `Esta recategorizacion fue aplicada el ${new Date().toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.`;
-
-    const etiquetas = JSON.stringify(["recategorizacion", tipo, catNueva[0].nombre.toLowerCase()]);
-
-    await sql`
-      INSERT INTO informes (titulo, contenido, fecha_publicacion, categoria_relacionada_id, etiquetas, publicado)
-      VALUES (${titulo}, ${contenido}, NOW(), ${categoria_nueva_id}, ${etiquetas}, true)
-    `;
-
     return NextResponse.json({
       success: true,
-      message: `${nombreJugador} recategorizado: ${tipoTexto} a ${catNueva[0].nombre}`,
+      message: `Jugador recategorizado exitosamente a ${catNueva[0].nombre}`,
     });
   } catch (error) {
     console.error("Error en recategorizacion:", error);

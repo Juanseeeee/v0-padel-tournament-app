@@ -7,6 +7,8 @@ import { TrendingUp, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 
+export const dynamic = "force-dynamic";
+
 async function getAscensos() {
   try {
     const result = await sql`

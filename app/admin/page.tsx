@@ -10,13 +10,14 @@ import {
 } from "lucide-react"
 
 async function getEstadisticas() {
-  const [jugadores, fechas, participaciones, informes, categorias, sedes] = await Promise.all([
+  const [jugadores, fechas, participaciones, informes, categorias, sedes, ascensos] = await Promise.all([
     sql`SELECT COUNT(*) as count FROM jugadores WHERE estado = 'activo'`,
     sql`SELECT COUNT(*) as count FROM fechas_torneo`,
     sql`SELECT COUNT(*) as count FROM participaciones`,
     sql`SELECT COUNT(*) as count FROM informes`,
     sql`SELECT COUNT(*) as count FROM categorias`,
-    sql`SELECT COUNT(*) as count FROM sedes WHERE activa = true`
+    sql`SELECT COUNT(*) as count FROM sedes WHERE activa = true`,
+    sql`SELECT COUNT(*) as count FROM ascensos`
   ])
 
   return {
@@ -26,6 +27,7 @@ async function getEstadisticas() {
     informes: Number(informes[0]?.count) || 0,
     categorias: Number(categorias[0]?.count) || 0,
     sedes: Number(sedes[0]?.count) || 0,
+    ascensos: Number(ascensos[0]?.count) || 0,
   }
 }
 
@@ -91,6 +93,18 @@ export default async function AdminPage() {
       stats: stats.participaciones,
       actions: [
         { label: "Ver Ranking", href: "/admin/ranking", icon: Medal },
+      ]
+    },
+    {
+      title: "Recategorizaciones",
+      description: "Gestionar ascensos y descensos",
+      icon: TrendingUp,
+      href: "/admin/recategorizaciones",
+      color: "text-green-500",
+      bgColor: "bg-green-500/10",
+      stats: stats.ascensos,
+      actions: [
+        { label: "Recategorizar Jugador", href: "/admin/recategorizaciones", icon: ArrowRight },
       ]
     },
     {
