@@ -18,6 +18,10 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { titulo, contenido, autor, imagen_url, destacado, fijado } = body
 
+    if (titulo && titulo.toLowerCase().includes('recategorizacion')) {
+      return NextResponse.json({ error: "Las recategorizaciones deben gestionarse desde la sección 'Recategorizaciones'." }, { status: 400 })
+    }
+
     const result = await sql`
       INSERT INTO informes (titulo, contenido, autor, imagen_url, destacado, fijado, fecha_publicacion)
       VALUES (${titulo}, ${contenido}, ${autor || null}, ${imagen_url || null}, ${destacado || false}, ${fijado || false}, NOW())

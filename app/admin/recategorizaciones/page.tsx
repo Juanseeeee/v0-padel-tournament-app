@@ -6,25 +6,48 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowUp, ArrowDown, TrendingUp, Loader2 } from "lucide-react"
+import { ArrowUp, ArrowDown, TrendingUp, Loader2, Calendar, ArrowRight } from "lucide-react"
 import { PlayerCombobox } from "@/components/player-combobox"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
 
 export default function RecategorizacionesAdminPage() {
   const [jugadorId, setJugadorId] = useState<string>("")
   const [jugador, setJugador] = useState<any>(null)
   const [categorias, setCategorias] = useState<any[]>([])
+  const [historial, setHistorial] = useState<any[]>([])
   
   const [catAnteriorId, setCatAnteriorId] = useState<string>("")
   const [catNuevaId, setCatNuevaId] = useState<string>("")
   const [tipo, setTipo] = useState<"ascenso" | "descenso">("ascenso")
   const [saving, setSaving] = useState(false)
+  const [loadingHistorial, setLoadingHistorial] = useState(true)
   const [successMsg, setSuccessMsg] = useState("")
   const [errorMsg, setErrorMsg] = useState("")
+
+  const fetchHistorial = () => {
+    setLoadingHistorial(true)
+    fetch("/api/portal/ascensos")
+      .then(res => res.json())
+      .then(data => {
+        setHistorial(data.ascensos || [])
+      })
+      .finally(() => setLoadingHistorial(false))
+  }
 
   useEffect(() => {
     fetch("/api/admin/categorias")
       .then(res => res.json())
       .then(data => setCategorias(data.categorias || []))
+      
+    fetchHistorial()
   }, [])
 
   useEffect(() => {
@@ -78,6 +101,7 @@ export default function RecategorizacionesAdminPage() {
       setJugadorId("") // Reset
       setCatAnteriorId("")
       setCatNuevaId("")
+      fetchHistorial() // Refresh the history table
     } catch (error: any) {
       setErrorMsg(error.message)
     } finally {
@@ -201,6 +225,74 @@ export default function RecategorizacionesAdminPage() {
                 )}
               </Button>
             </form>
+          </CardContent>
+        </Card>
+
+        <Card className="border-none shadow-xl bg-card/95 backdrop-blur-sm rounded-3xl ring-1 ring-border/50 mt-8 mb-12">
+          <CardHeader>
+            <CardTitle className="text-xl flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-primary" />
+              Últimas Recategorizaciones
+            </CardTitle>
+            <CardDescription>
+              Historial de movimientos de categoría de los jugadores.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loadingHistorial ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : historial.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No hay recategorizaciones registradas
+              </div>
+            ) : (
+              <div className="rounded-xl border border-border/50 overflow-hidden bg-background/50">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50 hover:bg-muted/50">
+                      <TableHead className="w-[100px]">Fecha</TableHead>
+                      <TableHead>Jugador</TableHead>
+                      <TableHead>Movimiento</TableHead>
+                      <TableHead className="text-right">Arrastre</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {historial.map((item) => (
+                      <TableRow key={item.id} className="hover:bg-muted/30">
+                        <TableCell className="font-medium whitespace-nowrap text-muted-foreground">
+                          {new Date(item.fecha_ascenso).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="font-bold">
+                          {item.jugador_nombre} {item.jugador_apellido}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="bg-background text-xs font-normal">
+                              {item.categoria_origen || "Ninguna"}
+                            </Badge>
+                            <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                            <Badge className="bg-primary/10 text-primary hover:bg-primary/20 text-xs font-bold border-transparent">
+                              {item.categoria_destino}
+                            </Badge>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {item.puntos_transferidos > 0 ? (
+                            <span className="text-green-600 bg-green-500/10 px-2 py-1 rounded-md text-xs font-bold">
+                              +{item.puntos_transferidos} pts
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
