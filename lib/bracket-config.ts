@@ -95,11 +95,11 @@ export const BRACKET_CONFIGS: Record<number, TournamentConfig> = {
     zonas: [3, 3, 3],
     bracket: [
       // 4tos
-      { ronda: '4tos', posicion: 1, p1: '1A', p2: '2C' },
-      { ronda: '4tos', posicion: 2, p1: '2A', p2: '1B' },
+      { ronda: '4tos', posicion: 1, p1: '1C', p2: '2B' },
+      { ronda: '4tos', posicion: 2, p1: '2A', p2: '2C' },
       // Semis
-      { ronda: 'semis', posicion: 1, p1: null, p2: '1C' },   // ganador(1A/2C) vs 1C
-      { ronda: 'semis', posicion: 2, p1: null, p2: '2B' },   // ganador(2A/1B) vs 2B
+      { ronda: 'semis', posicion: 1, p1: '1A', p2: null },   // 1A vs ganador(1C/2B)
+      { ronda: 'semis', posicion: 2, p1: null, p2: '1B' },   // ganador(2A/2C) vs 1B
       // Final
       { ronda: 'final', posicion: 1, p1: null, p2: null },
     ],
