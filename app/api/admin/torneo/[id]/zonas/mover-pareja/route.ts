@@ -7,6 +7,9 @@ export async function POST(
 ) {
   const { id: torneoId } = await params;
   const { pareja_torneo_id, zona_origen_id, zona_destino_id, pareja_intercambio_id, accion } = await request.json();
+  // #region debug-point E:move-pair-entry
+  fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"zones-drag-drop",runId:"pre-fix",hypothesisId:"E",location:"app/api/admin/torneo/[id]/zonas/mover-pareja/route.ts:9",msg:"[DEBUG] move pair request received",data:{torneoId,pareja_torneo_id,zona_origen_id,zona_destino_id,pareja_intercambio_id,accion},ts:Date.now()})}).catch(()=>{});
+  // #endregion
   const PID = parseInt(String(pareja_torneo_id));
   const ZID_ORIG = parseInt(String(zona_origen_id));
   const ZID_DEST = parseInt(String(zona_destino_id));
@@ -48,44 +51,42 @@ export async function POST(
       `;
       */
 
-      // Reflect swap in parejas_zona preserving row IDs (to maintain visual order)
-      // We need to swap content (pareja_id AND stats) between the two rows.
+      await normalizeZonePositions(ZID_ORIG);
+
       const rows = await sql`
-        SELECT id, posicion_final, partidos_ganados, partidos_perdidos, sets_ganados, sets_perdidos, games_ganados, games_perdidos, pareja_id
+        SELECT id, posicion_final, pareja_id
         FROM parejas_zona
-        WHERE zona_id = ${ZID_ORIG} AND pareja_id IN (${PID}, ${SWAP_ID})
+        WHERE zona_id = ${ZID_ORIG}
+        ORDER BY posicion_final ASC, id ASC
       `;
-      if (rows.length !== 2) {
+      // #region debug-point F:same-zone-rows
+      fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"zones-drag-drop",runId:"pre-fix",hypothesisId:"F",location:"app/api/admin/torneo/[id]/zonas/mover-pareja/route.ts:58",msg:"[DEBUG] same-zone rows loaded for reorder",data:{torneoId,zonaId:ZID_ORIG,parejaId:PID,swapId:SWAP_ID,rows},ts:Date.now()})}).catch(()=>{});
+      // #endregion
+      const sourceIndex = rows.findIndex((r: any) => r.pareja_id === PID);
+      const targetIndex = rows.findIndex((r: any) => r.pareja_id === SWAP_ID);
+      if (sourceIndex === -1 || targetIndex === -1) {
         return NextResponse.json({ error: "Parejas a reordenar no encontradas en la zona" }, { status: 404 });
       }
-      
-      const rowA = rows.find((r: any) => r.pareja_id === PID); // The one being dragged
-      const rowB = rows.find((r: any) => r.pareja_id === SWAP_ID); // The target
-      
-      // We want to swap their contents effectively.
-      // rowA.id should contain rowB data
-      // rowB.id should contain rowA data
-      // But since we are "moving A to B's position", we actually just want to SWAP them.
-      
-      // 2. We want to swap visual positions (posicion_final) ONLY.
-      // We do NOT swap 'pareja_id' or stats, because we want Row A (ID 1) to still contain Pair 1,
-      // and Row B (ID 2) to still contain Pair 2. This ensures that 'ORDER BY id' (used in match generation)
-      // preserves the original match pairings (Pair 1 vs Pair 2), while 'ORDER BY posicion_final' (used in table)
-      // reflects the new visual order.
-      
-      // Swap posicion_final between the two rows
-      try {
-        await sql`
-            UPDATE parejas_zona
-            SET posicion_final = ${rowB.posicion_final}
-            WHERE id = ${rowA.id}
-        `;
 
-        await sql`
+      const reorderedRows = [...rows];
+      if (accion === 'reordenar') {
+        const [movedRow] = reorderedRows.splice(sourceIndex, 1);
+        reorderedRows.splice(targetIndex, 0, movedRow);
+      } else {
+        [reorderedRows[sourceIndex], reorderedRows[targetIndex]] = [reorderedRows[targetIndex], reorderedRows[sourceIndex]];
+      }
+
+      try {
+        for (let index = 0; index < reorderedRows.length; index++) {
+          await sql`
             UPDATE parejas_zona
-            SET posicion_final = ${rowA.posicion_final}
-            WHERE id = ${rowB.id}
-        `;
+            SET posicion_final = ${index + 1}
+            WHERE id = ${reorderedRows[index].id}
+          `;
+        }
+        // #region debug-point G:same-zone-swap-committed
+        fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"zones-drag-drop",runId:"pre-fix",hypothesisId:"G",location:"app/api/admin/torneo/[id]/zonas/mover-pareja/route.ts:89",msg:"[DEBUG] same-zone swap committed",data:{torneoId,zonaId:ZID_ORIG,reorderedRows:reorderedRows.map((row: any, index: number) => ({id: row.id, parejaId: row.pareja_id, posicionFinal: index + 1}))},ts:Date.now()})}).catch(()=>{});
+        // #endregion
       } catch (e: any) {
         console.error("Swap parejas_zona failed:", e);
         return NextResponse.json({ error: "Error reordenando parejas: " + e.message }, { status: 500 });
@@ -145,14 +146,26 @@ export async function POST(
       }
 
       if (targetId) {
+        await normalizeZonePositions(ZID_ORIG);
+        await normalizeZonePositions(ZID_DEST);
+
+        const sourceRow = await sql`
+          SELECT id, posicion_final FROM parejas_zona
+          WHERE zona_id = ${ZID_ORIG} AND pareja_id = ${PID}
+          LIMIT 1
+        `;
+
         // Verify target pair belongs to destination zone
         const targetPairCheck = await sql`
-            SELECT id FROM parejas_zona
+            SELECT id, posicion_final FROM parejas_zona
             WHERE zona_id = ${ZID_DEST} AND pareja_id = ${targetId}
         `;
         
         if (targetPairCheck.length === 0) {
             return NextResponse.json({ error: "La pareja de intercambio no pertenece a la zona de destino" }, { status: 400 });
+        }
+        if (sourceRow.length === 0) {
+            return NextResponse.json({ error: "La pareja a mover no pertenece a la zona de origen" }, { status: 400 });
         }
 
         // Check no played games in destination zone for target pair
@@ -172,8 +185,10 @@ export async function POST(
         // 1. Swap in parejas_zona (Delete and Insert to handle constraints cleanly)
         await sql`DELETE FROM parejas_zona WHERE pareja_id = ${PID} AND zona_id = ${ZID_ORIG}`;
         await sql`DELETE FROM parejas_zona WHERE pareja_id = ${targetId} AND zona_id = ${ZID_DEST}`;
-        await sql`INSERT INTO parejas_zona (zona_id, pareja_id) VALUES (${ZID_DEST}, ${PID})`;
-        await sql`INSERT INTO parejas_zona (zona_id, pareja_id) VALUES (${ZID_ORIG}, ${targetId})`;
+        await sql`INSERT INTO parejas_zona (zona_id, pareja_id, posicion_final) VALUES (${ZID_DEST}, ${PID}, ${targetPairCheck[0].posicion_final})`;
+        await sql`INSERT INTO parejas_zona (zona_id, pareja_id, posicion_final) VALUES (${ZID_ORIG}, ${targetId}, ${sourceRow[0].posicion_final})`;
+        await normalizeZonePositions(ZID_ORIG);
+        await normalizeZonePositions(ZID_DEST);
 
         // 2. Swap in partidos_zona (Update IDs directly to preserve matches)
         // DEPRECATED: We will regenerate matches instead to ensure consistency
@@ -220,6 +235,9 @@ export async function POST(
     // Standard Move
     // Note: Removed BEGIN/COMMIT because Neon serverless HTTP driver doesn't support interactive transactions
     try {
+        await normalizeZonePositions(ZID_ORIG);
+        await normalizeZonePositions(ZID_DEST);
+
         // Remove pareja from origin zone
         await sql`
         DELETE FROM parejas_zona WHERE pareja_id = ${PID} AND zona_id = ${ZID_ORIG}
@@ -235,11 +253,15 @@ export async function POST(
         `;
 
         // Add pareja to destination zone
+        const nextDestPosition = await getNextZonePosition(ZID_DEST);
         await sql`
-        INSERT INTO parejas_zona (zona_id, pareja_id)
-        VALUES (${ZID_DEST}, ${PID})
+        INSERT INTO parejas_zona (zona_id, pareja_id, posicion_final)
+        VALUES (${ZID_DEST}, ${PID}, ${nextDestPosition})
         ON CONFLICT DO NOTHING
         `;
+
+        await normalizeZonePositions(ZID_ORIG);
+        await normalizeZonePositions(ZID_DEST);
 
         // Regenerate round-robin matches for both zones
         await regenerateZoneMatches(ZID_ORIG, parseInt(torneoId));
@@ -271,6 +293,33 @@ async function logAudit(torneoId: number, accion: string, detalle: string) {
     } catch (e) {
         console.error("Audit log failed", e);
     }
+}
+
+async function normalizeZonePositions(zonaId: number) {
+  const rows = await sql`
+    SELECT id
+    FROM parejas_zona
+    WHERE zona_id = ${zonaId}
+    ORDER BY COALESCE(posicion_final, 2147483647), id ASC
+  `;
+
+  for (let index = 0; index < rows.length; index++) {
+    await sql`
+      UPDATE parejas_zona
+      SET posicion_final = ${index + 1}
+      WHERE id = ${rows[index].id}
+    `;
+  }
+}
+
+async function getNextZonePosition(zonaId: number) {
+  const rows = await sql`
+    SELECT COALESCE(MAX(posicion_final), 0) + 1 AS next_position
+    FROM parejas_zona
+    WHERE zona_id = ${zonaId}
+  `;
+
+  return parseInt(String(rows[0]?.next_position || 1), 10);
 }
 
 async function regenerateZoneMatches(zonaId: number, torneoId: number) {
