@@ -5,109 +5,76 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id: torneoId } = await params;
-  const { pareja_torneo_id, zona_origen_id, zona_destino_id, pareja_intercambio_id, accion } = await request.json();
-  // #region debug-point E:move-pair-entry
-  fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"zones-drag-drop",runId:"pre-fix",hypothesisId:"E",location:"app/api/admin/torneo/[id]/zonas/mover-pareja/route.ts:9",msg:"[DEBUG] move pair request received",data:{torneoId,pareja_torneo_id,zona_origen_id,zona_destino_id,pareja_intercambio_id,accion},ts:Date.now()})}).catch(()=>{});
-  // #endregion
-  const PID = parseInt(String(pareja_torneo_id));
-  const ZID_ORIG = parseInt(String(zona_origen_id));
-  const ZID_DEST = parseInt(String(zona_destino_id));
-  const SWAP_ID = pareja_intercambio_id != null ? parseInt(String(pareja_intercambio_id)) : null;
-
-  if (!PID || !ZID_ORIG || !ZID_DEST) {
-    return NextResponse.json({ error: "Faltan datos" }, { status: 400 });
-  }
-
-  // Handle reordering within the same zone
-  if (ZID_ORIG === ZID_DEST) {
-    if ((accion === 'reordenar' || accion === 'intercambiar') && SWAP_ID) {
-       // Verify matches played check
-      const partidosJugados = await sql`
-        SELECT COUNT(*) as count FROM partidos_zona
-        WHERE zona_id = ${ZID_ORIG}
-          AND (pareja1_id = ${PID} OR pareja2_id = ${PID} OR pareja1_id = ${SWAP_ID} OR pareja2_id = ${SWAP_ID})
-          AND estado = 'finalizado'
-      `;
-      if (parseInt(partidosJugados[0].count) > 0) {
-        return NextResponse.json({ error: "No se puede reordenar parejas que ya jugaron partidos" }, { status: 400 });
-      }
-
-      // Swap IDs in pending matches (single pass without violating FKs)
-      /* DEPRECATED: We will regenerate matches instead
-      await sql`
-        UPDATE partidos_zona
-        SET pareja1_id = CASE 
-                           WHEN pareja1_id = ${PID} THEN ${SWAP_ID}
-                           WHEN pareja1_id = ${SWAP_ID} THEN ${PID}
-                           ELSE pareja1_id 
-                         END,
-            pareja2_id = CASE 
-                           WHEN pareja2_id = ${PID} THEN ${SWAP_ID}
-                           WHEN pareja2_id = ${SWAP_ID} THEN ${PID}
-                           ELSE pareja2_id 
-                         END
-        WHERE zona_id = ${ZID_ORIG} AND estado = 'pendiente'
-      `;
-      */
-
-      await normalizeZonePositions(ZID_ORIG);
-
-      const rows = await sql`
-        SELECT id, posicion_final, pareja_id
-        FROM parejas_zona
-        WHERE zona_id = ${ZID_ORIG}
-        ORDER BY posicion_final ASC, id ASC
-      `;
-      // #region debug-point F:same-zone-rows
-      fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"zones-drag-drop",runId:"pre-fix",hypothesisId:"F",location:"app/api/admin/torneo/[id]/zonas/mover-pareja/route.ts:58",msg:"[DEBUG] same-zone rows loaded for reorder",data:{torneoId,zonaId:ZID_ORIG,parejaId:PID,swapId:SWAP_ID,rows},ts:Date.now()})}).catch(()=>{});
-      // #endregion
-      const sourceIndex = rows.findIndex((r: any) => r.pareja_id === PID);
-      const targetIndex = rows.findIndex((r: any) => r.pareja_id === SWAP_ID);
-      if (sourceIndex === -1 || targetIndex === -1) {
-        return NextResponse.json({ error: "Parejas a reordenar no encontradas en la zona" }, { status: 404 });
-      }
-
-      const reorderedRows = [...rows];
-      if (accion === 'reordenar') {
-        const [movedRow] = reorderedRows.splice(sourceIndex, 1);
-        reorderedRows.splice(targetIndex, 0, movedRow);
-      } else {
-        [reorderedRows[sourceIndex], reorderedRows[targetIndex]] = [reorderedRows[targetIndex], reorderedRows[sourceIndex]];
-      }
-
-      try {
-        for (let index = 0; index < reorderedRows.length; index++) {
-          await sql`
-            UPDATE parejas_zona
-            SET posicion_final = ${index + 1}
-            WHERE id = ${reorderedRows[index].id}
-          `;
-        }
-        // #region debug-point G:same-zone-swap-committed
-        fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"zones-drag-drop",runId:"pre-fix",hypothesisId:"G",location:"app/api/admin/torneo/[id]/zonas/mover-pareja/route.ts:89",msg:"[DEBUG] same-zone swap committed",data:{torneoId,zonaId:ZID_ORIG,reorderedRows:reorderedRows.map((row: any, index: number) => ({id: row.id, parejaId: row.pareja_id, posicionFinal: index + 1}))},ts:Date.now()})}).catch(()=>{});
-        // #endregion
-      } catch (e: any) {
-        console.error("Swap parejas_zona failed:", e);
-        return NextResponse.json({ error: "Error reordenando parejas: " + e.message }, { status: 500 });
-      }
-
-      // Regenerate matches for this zone to ensure correct ordering/structure (especially for Zone of 3)
-      try {
-        await regenerateZoneMatches(ZID_ORIG, parseInt(torneoId));
-        await scheduleZoneMatches(ZID_ORIG, parseInt(torneoId));
-        await logAudit(parseInt(torneoId), 'reordenar_zona', `Reordenar parejas ${PID} y ${SWAP_ID} en Zona ${ZID_ORIG}`);
-      } catch (e) {
-        console.error("Regenerate after swap failed:", e);
-        // Even if regeneration fails, the swap is committed. User can retry or manual fix.
-      }
-
-      return NextResponse.json({ success: true });
-    }
-    return NextResponse.json({ error: "La zona de origen y destino son iguales" }, { status: 400 });
-  }
-
   try {
+    const { id: torneoId } = await params;
+    const { pareja_torneo_id, zona_origen_id, zona_destino_id, pareja_intercambio_id, accion } = await request.json();
+    const PID = parseInt(String(pareja_torneo_id));
+    const ZID_ORIG = parseInt(String(zona_origen_id));
+    const ZID_DEST = parseInt(String(zona_destino_id));
+    const SWAP_ID = pareja_intercambio_id != null ? parseInt(String(pareja_intercambio_id)) : null;
+
+    if (!PID || !ZID_ORIG || !ZID_DEST) {
+      return NextResponse.json({ error: "Faltan datos" }, { status: 400 });
+    }
+
+    // Handle reordering within the same zone
+    if (ZID_ORIG === ZID_DEST) {
+      if ((accion === 'reordenar' || accion === 'intercambiar') && SWAP_ID) {
+        const partidosJugados = await sql`
+          SELECT COUNT(*) as count FROM partidos_zona
+          WHERE zona_id = ${ZID_ORIG}
+            AND (pareja1_id = ${PID} OR pareja2_id = ${PID} OR pareja1_id = ${SWAP_ID} OR pareja2_id = ${SWAP_ID})
+            AND estado = 'finalizado'
+        `;
+        if (parseInt(partidosJugados[0].count) > 0) {
+          return NextResponse.json({ error: "No se puede reordenar parejas que ya jugaron partidos" }, { status: 400 });
+        }
+
+        await normalizeZonePositions(ZID_ORIG);
+
+        const rows = await sql`
+          SELECT id, posicion_final, pareja_id
+          FROM parejas_zona
+          WHERE zona_id = ${ZID_ORIG}
+          ORDER BY posicion_final ASC, id ASC
+        `;
+        const sourceIndex = rows.findIndex((r: any) => r.pareja_id === PID);
+        const targetIndex = rows.findIndex((r: any) => r.pareja_id === SWAP_ID);
+        if (sourceIndex === -1 || targetIndex === -1) {
+          return NextResponse.json({ error: "Parejas a reordenar no encontradas en la zona" }, { status: 404 });
+        }
+
+        const reorderedRows = [...rows];
+        if (accion === 'reordenar') {
+          const [movedRow] = reorderedRows.splice(sourceIndex, 1);
+          reorderedRows.splice(targetIndex, 0, movedRow);
+        } else {
+          [reorderedRows[sourceIndex], reorderedRows[targetIndex]] = [reorderedRows[targetIndex], reorderedRows[sourceIndex]];
+        }
+
+        try {
+          await writeZonePositions(
+            ZID_ORIG,
+            reorderedRows.map((row: any) => row.id)
+          );
+        } catch (e: any) {
+          console.error("Swap parejas_zona failed:", e);
+          return NextResponse.json({ error: "Error reordenando parejas: " + e.message }, { status: 500 });
+        }
+
+        try {
+          await regenerateZoneMatches(ZID_ORIG, parseInt(torneoId));
+          await scheduleZoneMatches(ZID_ORIG, parseInt(torneoId));
+          await logAudit(parseInt(torneoId), 'reordenar_zona', `Reordenar parejas ${PID} y ${SWAP_ID} en Zona ${ZID_ORIG}`);
+        } catch (e) {
+          console.error("Regenerate after swap failed:", e);
+        }
+
+        return NextResponse.json({ success: true });
+      }
+      return NextResponse.json({ error: "La zona de origen y destino son iguales" }, { status: 400 });
+    }
+
     // Verify both zones belong to this tournament and aren't finalized
     const zonas = await sql`
       SELECT id, nombre, estado FROM zonas 
@@ -303,11 +270,24 @@ async function normalizeZonePositions(zonaId: number) {
     ORDER BY COALESCE(posicion_final, 2147483647), id ASC
   `;
 
-  for (let index = 0; index < rows.length; index++) {
+  await writeZonePositions(
+    zonaId,
+    rows.map((row: any) => row.id)
+  );
+}
+
+async function writeZonePositions(zonaId: number, orderedRowIds: number[]) {
+  await sql`
+    UPDATE parejas_zona
+    SET posicion_final = NULL
+    WHERE zona_id = ${zonaId}
+  `;
+
+  for (let index = 0; index < orderedRowIds.length; index++) {
     await sql`
       UPDATE parejas_zona
       SET posicion_final = ${index + 1}
-      WHERE id = ${rows[index].id}
+      WHERE id = ${orderedRowIds[index]}
     `;
   }
 }

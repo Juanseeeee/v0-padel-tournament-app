@@ -120,6 +120,13 @@ const isMatchDecided = (r: {set1_p1: string, set1_p2: string, set2_p1: string, s
   return w1 !== 0 && w1 === w2;
 };
 
+const getMovePairErrorMessage = (error: unknown, fallback: string) => {
+  const message = getFriendlyError(error);
+  return message.toLowerCase().includes("failed to fetch")
+    ? fallback
+    : message;
+};
+
 export default function TorneoManagementPage() {
   const params = useParams();
   const router = useRouter();
@@ -2435,7 +2442,15 @@ function ZonasTab({
                 } else {
                   onZonaUpdate();
                 }
-              } catch {
+              } catch (error) {
+                toast({
+                  title: "Error al mover la pareja",
+                  description: getMovePairErrorMessage(
+                    error,
+                    "No se pudo conectar con el servidor para mover la pareja. Intenta nuevamente."
+                  ),
+                  variant: "destructive",
+                });
                 return;
               }
             }}
@@ -2634,9 +2649,6 @@ function ZonasTab({
                                 pareja_torneo_id: p.pareja_torneo_id, 
                                 zona_origen_id: zona.id 
                             }));
-                            // #region debug-point A:zone-drag-start
-                            fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"zones-drag-drop",runId:"pre-fix",hypothesisId:"A",location:"app/admin/torneo/[id]/page.tsx:2587",msg:"[DEBUG] zone pair drag started",data:{torneoId,zonaId:zona.id,parejaId:p.pareja_torneo_id,posicionFinal:p.posicion_final},ts:Date.now()})}).catch(()=>{});
-                            // #endregion
                           }}
                           onDragEnd={() => {
                             setDraggingPair(null);
@@ -2686,14 +2698,10 @@ function ZonasTab({
                                 previousPairs = isSameZone
                                   ? (zoneDetails[zona.id]?.parejas || []).map((pair) => ({ ...pair }))
                                   : null;
-                                // #region debug-point B:zone-row-drop
-                                fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"zones-drag-drop",runId:"pre-fix",hypothesisId:"B",location:"app/admin/torneo/[id]/page.tsx:2638",msg:"[DEBUG] zone row drop detected",data:{torneoId,zonaOrigenId:zona_origen_id,zonaDestinoId:zona.id,parejaId:pareja_torneo_id,targetParejaId:p.pareja_torneo_id,isSameZone,accion,targetPosicionFinal:p.posicion_final},ts:Date.now()})}).catch(()=>{});
-                                // #endregion
 
                                 if (isSameZone) {
                                     applyLocalPairSwap(zona.id, pareja_torneo_id, p.pareja_torneo_id);
                                 }
-                                
                                 const res = await fetch(`/api/admin/torneo/${torneoId}/zonas/mover-pareja`, {
                                     method: "POST",
                                     headers: { "Content-Type": "application/json" },
@@ -2710,14 +2718,8 @@ function ZonasTab({
                                     if (isSameZone && previousPairs) {
                                         restoreZonePairs(zona.id, previousPairs);
                                     }
-                                    // #region debug-point C:zone-row-drop-error
-                                    fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"zones-drag-drop",runId:"pre-fix",hypothesisId:"C",location:"app/admin/torneo/[id]/page.tsx:2651",msg:"[DEBUG] zone row drop request failed",data:{torneoId,status:res.status,error:err?.error || null},ts:Date.now()})}).catch(()=>{});
-                                    // #endregion
                                     toast({ title: "No se pudo guardar el nuevo orden", description: err.error || "Se revirtió el cambio visual.", variant: "destructive" });
                                 } else {
-                                    // #region debug-point D:zone-row-drop-success
-                                    fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"zones-drag-drop",runId:"pre-fix",hypothesisId:"D",location:"app/admin/torneo/[id]/page.tsx:2655",msg:"[DEBUG] zone row drop request succeeded",data:{torneoId,zonaOrigenId:zona_origen_id,zonaDestinoId:zona.id,parejaId:pareja_torneo_id,targetParejaId:p.pareja_torneo_id,isSameZone},ts:Date.now()})}).catch(()=>{});
-                                    // #endregion
                                     toast({ title: "Orden actualizado", description: isSameZone ? "El nuevo orden se guardó correctamente." : "La pareja se ha movido correctamente" });
                                     onZonaUpdate();
                                     loadZoneDetails();
@@ -2727,7 +2729,14 @@ function ZonasTab({
                                   restoreZonePairs(zona.id, previousPairs);
                                 }
                                 console.error("Drop error:", error);
-                                toast({ title: "Error", description: "Ocurrió un error inesperado al guardar el orden", variant: "destructive" });
+                                toast({
+                                  title: "Error",
+                                  description: getMovePairErrorMessage(
+                                    error,
+                                    "No se pudo conectar con el servidor para guardar el nuevo orden. Se revirtió el cambio visual."
+                                  ),
+                                  variant: "destructive"
+                                });
                             }
                           }}
                           className={`cursor-grab active:cursor-grabbing relative group transition-colors duration-200 
@@ -3536,7 +3545,14 @@ function ZonaDetailContent({
         toast({ title: "Error", description: getFriendlyError("No se pudo guardar el resultado"), variant: "destructive" });
       }
     } catch (error) {
-      toast({ title: "Error", description: getFriendlyError(error), variant: "destructive" });
+      toast({
+        title: "Error",
+        description: getMovePairErrorMessage(
+          error,
+          "No se pudo conectar con el servidor para mover la pareja. Intenta nuevamente."
+        ),
+        variant: "destructive"
+      });
     } finally {
       setSaving(false);
     }
