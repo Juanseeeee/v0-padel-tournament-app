@@ -2126,6 +2126,47 @@ function ZonasTab({
     loadZoneDetails();
   }, [loadZoneDetails]);
 
+  const applyLocalPairSwap = useCallback((zonaId: number, sourceParejaId: number, targetParejaId: number) => {
+    setZoneDetails((current) => {
+      const zone = current[zonaId];
+      if (!zone) return current;
+
+      const pairs = [...zone.parejas];
+      const sourceIndex = pairs.findIndex((pair) => pair.pareja_torneo_id === sourceParejaId);
+      const targetIndex = pairs.findIndex((pair) => pair.pareja_torneo_id === targetParejaId);
+
+      if (sourceIndex === -1 || targetIndex === -1) return current;
+
+      [pairs[sourceIndex], pairs[targetIndex]] = [pairs[targetIndex], pairs[sourceIndex]];
+
+      return {
+        ...current,
+        [zonaId]: {
+          ...zone,
+          parejas: pairs.map((pair, index) => ({
+            ...pair,
+            posicion_final: index + 1,
+          })),
+        },
+      };
+    });
+  }, []);
+
+  const restoreZonePairs = useCallback((zonaId: number, previousPairs: ParejaZona[]) => {
+    setZoneDetails((current) => {
+      const zone = current[zonaId];
+      if (!zone) return current;
+
+      return {
+        ...current,
+        [zonaId]: {
+          ...zone,
+          parejas: previousPairs,
+        },
+      };
+    });
+  }, []);
+
   const handleCreateZone = async () => {
     if (!categoriaId) return;
     setIsCreatingZone(true);
@@ -2593,6 +2634,9 @@ function ZonasTab({
                                 pareja_torneo_id: p.pareja_torneo_id, 
                                 zona_origen_id: zona.id 
                             }));
+                            // #region debug-point A:zone-drag-start
+                            fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"zones-drag-drop",runId:"pre-fix",hypothesisId:"A",location:"app/admin/torneo/[id]/page.tsx:2587",msg:"[DEBUG] zone pair drag started",data:{torneoId,zonaId:zona.id,parejaId:p.pareja_torneo_id,posicionFinal:p.posicion_final},ts:Date.now()})}).catch(()=>{});
+                            // #endregion
                           }}
                           onDragEnd={() => {
                             setDraggingPair(null);
@@ -2601,6 +2645,7 @@ function ZonasTab({
                           onDragOver={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
+                            e.dataTransfer.dropEffect = "move";
                           }}
                           onDragEnter={(e) => {
                             e.preventDefault();
@@ -2627,6 +2672,8 @@ function ZonasTab({
                             
                             const data = e.dataTransfer.getData("text/plain");
                             if (!data) return;
+                            let previousPairs: ParejaZona[] | null = null;
+                            let isSameZone = false;
                             try {
                                 const parsed = JSON.parse(data);
                                 const { pareja_torneo_id, zona_origen_id } = parsed;
@@ -2634,8 +2681,18 @@ function ZonasTab({
                                 
                                 if (pareja_torneo_id === p.pareja_torneo_id) return;
                         
-                                const isSameZone = String(zona_origen_id) === String(zona.id);
+                                isSameZone = String(zona_origen_id) === String(zona.id);
                                 const accion = 'intercambiar'; // Siempre intercambiar si cae sobre otra pareja
+                                previousPairs = isSameZone
+                                  ? (zoneDetails[zona.id]?.parejas || []).map((pair) => ({ ...pair }))
+                                  : null;
+                                // #region debug-point B:zone-row-drop
+                                fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"zones-drag-drop",runId:"pre-fix",hypothesisId:"B",location:"app/admin/torneo/[id]/page.tsx:2638",msg:"[DEBUG] zone row drop detected",data:{torneoId,zonaOrigenId:zona_origen_id,zonaDestinoId:zona.id,parejaId:pareja_torneo_id,targetParejaId:p.pareja_torneo_id,isSameZone,accion,targetPosicionFinal:p.posicion_final},ts:Date.now()})}).catch(()=>{});
+                                // #endregion
+
+                                if (isSameZone) {
+                                    applyLocalPairSwap(zona.id, pareja_torneo_id, p.pareja_torneo_id);
+                                }
                                 
                                 const res = await fetch(`/api/admin/torneo/${torneoId}/zonas/mover-pareja`, {
                                     method: "POST",
@@ -2650,15 +2707,27 @@ function ZonasTab({
                                 });
                                 if (!res.ok) {
                                     const err = await res.json();
-                                    toast({ title: "No se pudo mover la pareja", description: err.error || "Error al mover", variant: "destructive" });
+                                    if (isSameZone && previousPairs) {
+                                        restoreZonePairs(zona.id, previousPairs);
+                                    }
+                                    // #region debug-point C:zone-row-drop-error
+                                    fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"zones-drag-drop",runId:"pre-fix",hypothesisId:"C",location:"app/admin/torneo/[id]/page.tsx:2651",msg:"[DEBUG] zone row drop request failed",data:{torneoId,status:res.status,error:err?.error || null},ts:Date.now()})}).catch(()=>{});
+                                    // #endregion
+                                    toast({ title: "No se pudo guardar el nuevo orden", description: err.error || "Se revirtió el cambio visual.", variant: "destructive" });
                                 } else {
-                                    toast({ title: "Movimiento exitoso", description: "La pareja se ha movido correctamente" });
+                                    // #region debug-point D:zone-row-drop-success
+                                    fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"zones-drag-drop",runId:"pre-fix",hypothesisId:"D",location:"app/admin/torneo/[id]/page.tsx:2655",msg:"[DEBUG] zone row drop request succeeded",data:{torneoId,zonaOrigenId:zona_origen_id,zonaDestinoId:zona.id,parejaId:pareja_torneo_id,targetParejaId:p.pareja_torneo_id,isSameZone},ts:Date.now()})}).catch(()=>{});
+                                    // #endregion
+                                    toast({ title: "Orden actualizado", description: isSameZone ? "El nuevo orden se guardó correctamente." : "La pareja se ha movido correctamente" });
                                     onZonaUpdate();
                                     loadZoneDetails();
                                 }
                             } catch (error) {
+                                if (isSameZone && previousPairs) {
+                                  restoreZonePairs(zona.id, previousPairs);
+                                }
                                 console.error("Drop error:", error);
-                                toast({ title: "Error", description: "Ocurrió un error inesperado al mover", variant: "destructive" });
+                                toast({ title: "Error", description: "Ocurrió un error inesperado al guardar el orden", variant: "destructive" });
                             }
                           }}
                           className={`cursor-grab active:cursor-grabbing relative group transition-colors duration-200 

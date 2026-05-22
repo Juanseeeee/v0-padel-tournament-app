@@ -41,7 +41,7 @@ export async function GET(
       JOIN jugadores j1 ON j1.id = pt.jugador1_id
       JOIN jugadores j2 ON j2.id = pt.jugador2_id
       WHERE pz.zona_id = ${parseInt(zonaId)}
-      ORDER BY pz.partidos_ganados DESC, (pz.sets_ganados - pz.sets_perdidos) DESC, (pz.games_ganados - pz.games_perdidos) DESC, pz.games_ganados DESC, pz.posicion_final
+      ORDER BY pz.partidos_ganados DESC, (pz.sets_ganados - pz.sets_perdidos) DESC, (pz.games_ganados - pz.games_perdidos) DESC, pz.games_ganados DESC, COALESCE(pz.posicion_final, 2147483647), pz.id
     `;
 
     // Obtener partidos de la zona
