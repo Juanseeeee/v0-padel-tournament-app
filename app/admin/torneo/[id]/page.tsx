@@ -74,7 +74,7 @@ import { FlyerGenerator } from "@/components/flyer-generator";
 import { AdminWrapper } from "@/components/admin-wrapper";
 import { toast } from "@/hooks/use-toast";
 import { Spinner } from "@/components/ui/spinner";
-import { getFriendlyError } from "@/lib/utils";
+import { getFriendlyError, parseDateTime } from "@/lib/utils";
 import type {
   FechaTorneo,
   Categoria,
@@ -1212,6 +1212,7 @@ export default function TorneoManagementPage() {
               onEliminarLlaves={handleEliminarLlaves}
               torneoEstado={torneo?.estado || 'activo'}
               isSubmitting={isSubmitting}
+              fechaCalendario={torneo?.fecha_calendario || ""}
               onLlaveUpdate={mutateLlaves}
               onAuditarLlaves={handleAuditarLlaves}
               isAuditando={isAuditando}
@@ -4300,6 +4301,7 @@ function LlavesTab({
   onEliminarLlaves,
   torneoEstado,
   isSubmitting,
+  fechaCalendario,
   onLlaveUpdate,
   onAuditarLlaves,
   isAuditando,
@@ -4311,6 +4313,7 @@ function LlavesTab({
   onEliminarLlaves: () => void;
   torneoEstado: string;
   isSubmitting: boolean;
+  fechaCalendario: string;
   onLlaveUpdate: () => void;
   onAuditarLlaves: () => void;
   isAuditando: boolean;
@@ -4324,6 +4327,54 @@ function LlavesTab({
   const [hoverInvalidLlaveId, setHoverInvalidLlaveId] = useState<number | null>(null);
   const [hoverInvalidPos, setHoverInvalidPos] = useState<'p1' | 'p2' | null>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
+
+  const formatLlaveTime = (value?: string | null) => {
+    const parsed = parseDateTime(value);
+    if (parsed) {
+      return parsed.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+    }
+
+    if (typeof value === "string") {
+      const match = value.match(/(\d{1,2}:\d{2})/);
+      if (match) return match[1];
+    }
+
+    return "";
+  };
+
+  const buildSundayDateTime = (time: string) => {
+    if (!fechaCalendario || !/^\d{2}:\d{2}$/.test(time)) return null;
+
+    const [year, month, day] = String(fechaCalendario).split("-").map(Number);
+    const baseDate = new Date(year, (month || 1) - 1, day || 1);
+    const sundayOffset = (7 - baseDate.getDay()) % 7;
+    const sunday = new Date(baseDate);
+    sunday.setDate(baseDate.getDate() + sundayOffset);
+
+    const yyyy = sunday.getFullYear();
+    const mm = String(sunday.getMonth() + 1).padStart(2, "0");
+    const dd = String(sunday.getDate()).padStart(2, "0");
+
+    return `${yyyy}-${mm}-${dd} ${time}:00`;
+  };
+
+  const updateLlaveSchedule = async (
+    llave: Llave,
+    payload: { fecha_hora_programada?: string | null; cancha_numero?: number | null }
+  ) => {
+    const res = await fetch(`/api/admin/torneo/${torneoId}/llaves/${llave.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "No se pudo actualizar el horario de la llave");
+    }
+
+    onLlaveUpdate();
+  };
 
   const handleExportPdf = async () => {
     setExportingPdf(true);
@@ -4721,6 +4772,7 @@ function LlavesTab({
               <div className="flex flex-col justify-around gap-4" style={{ minHeight: `${partidos.length * 100}px` }}>
                 {partidos.map((llave) => {
                   const isBye = llave.estado === 'bye';
+                  const horarioLlave = formatLlaveTime(llave.fecha_hora_programada);
                   return (
                   <div
                     key={llave.id}
@@ -4754,6 +4806,22 @@ function LlavesTab({
                     })()}
 
                     <div className="space-y-2">
+                      {(horarioLlave || llave.cancha_numero) && (
+                        <div className="flex items-center gap-2 text-[10px] font-semibold text-muted-foreground">
+                          {horarioLlave && (
+                            <span className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-primary">
+                              <Clock className="h-2.5 w-2.5" />
+                              DOM {horarioLlave}hs
+                            </span>
+                          )}
+                          {llave.cancha_numero && (
+                            <span className="inline-flex items-center rounded bg-accent/10 px-1.5 py-0.5 text-accent-foreground">
+                              Cancha {llave.cancha_numero}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
                       {/* Pareja 1 */}
                       <div
                         className={`relative flex items-center justify-between rounded px-2 py-1 text-sm ${
@@ -4806,6 +4874,88 @@ function LlavesTab({
                         )}
                       </div>
                     </div>
+                    {!isBye && torneoEstado !== "finalizada" && (
+                      <div
+                        className="mt-2 grid grid-cols-[1fr_88px] gap-2"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="space-y-1">
+                          <Label className="text-[10px] uppercase text-muted-foreground">Domingo</Label>
+                          <Input
+                            type="time"
+                            key={`${llave.id}-${llave.fecha_hora_programada || "sin-hora"}`}
+                            defaultValue={horarioLlave}
+                            className="h-8"
+                            onBlur={async (e) => {
+                              const value = e.target.value.trim();
+                              const previousValue = formatLlaveTime(llave.fecha_hora_programada);
+
+                              if (value === previousValue) return;
+                              if (value && !/^\d{2}:\d{2}$/.test(value)) {
+                                toast({
+                                  title: "Formato de hora inválido",
+                                  description: "Por favor use el formato HH:MM (ej: 10:30)",
+                                  variant: "destructive",
+                                });
+                                e.target.value = previousValue;
+                                return;
+                              }
+
+                              try {
+                                await updateLlaveSchedule(llave, {
+                                  fecha_hora_programada: value ? buildSundayDateTime(value) : null,
+                                });
+                              } catch (error) {
+                                toast({
+                                  title: "Error al guardar horario",
+                                  description: getFriendlyError(error),
+                                  variant: "destructive",
+                                });
+                                e.target.value = previousValue;
+                              }
+                            }}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px] uppercase text-muted-foreground">Cancha</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            key={`${llave.id}-${llave.cancha_numero ?? "sin-cancha"}`}
+                            defaultValue={llave.cancha_numero?.toString() || ""}
+                            className="h-8"
+                            onBlur={async (e) => {
+                              const rawValue = e.target.value.trim();
+                              const previousValue = llave.cancha_numero?.toString() || "";
+
+                              if (rawValue === previousValue) return;
+
+                              const cancha = rawValue ? parseInt(rawValue, 10) : null;
+                              if (rawValue && (!cancha || cancha < 1)) {
+                                toast({
+                                  title: "Cancha inválida",
+                                  description: "Ingresá un número de cancha válido.",
+                                  variant: "destructive",
+                                });
+                                e.target.value = previousValue;
+                                return;
+                              }
+
+                              try {
+                                await updateLlaveSchedule(llave, { cancha_numero: cancha });
+                              } catch (error) {
+                                toast({
+                                  title: "Error al guardar cancha",
+                                  description: getFriendlyError(error),
+                                  variant: "destructive",
+                                });
+                                e.target.value = previousValue;
+                              }
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
                     {!isBye && llave.pareja1_id && llave.pareja2_id && llave.estado !== 'finalizado' && (
                       <Button
                         variant="ghost"
