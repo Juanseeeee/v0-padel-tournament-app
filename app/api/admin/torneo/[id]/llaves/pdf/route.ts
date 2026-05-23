@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/db";
-import { parseDateOnly } from "@/lib/utils";
+import { parseDateOnly, parseDateTime } from "@/lib/utils";
 
 export async function GET(
   request: NextRequest,
@@ -10,6 +10,32 @@ export async function GET(
   const torneoId = parseInt(id);
 
   try {
+    const formatLlaveScheduleTime = (value?: string | null) => {
+      const parsed = parseDateTime(value);
+      if (parsed) {
+        return parsed.toLocaleTimeString("es-AR", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        });
+      }
+
+      if (typeof value === "string") {
+        const match = value.match(/(\d{1,2}:\d{2})/);
+        if (match) return match[1].padStart(5, "0");
+      }
+
+      return "";
+    };
+
+    const getScheduleSummary = (llave: any) => {
+      const parts: string[] = [];
+      const hora = formatLlaveScheduleTime(llave.fecha_hora_programada);
+      if (hora) parts.push(`DOM ${hora}hs`);
+      if (llave.cancha_numero) parts.push(`Cancha ${llave.cancha_numero}`);
+      return parts.join(" | ");
+    };
+
     // Obtener info del torneo
     const torneoResult = await sql`
       SELECT f.*, c.nombre as categoria_nombre, s.nombre as sede_nombre
@@ -101,9 +127,14 @@ export async function GET(
               (m.set2_pareja1 != null ? ` / ${m.set2_pareja1}-${m.set2_pareja2}` : "") +
               (m.set3_pareja1 != null ? ` / ${m.set3_pareja1}-${m.set3_pareja2}` : "")
             : "";
+          const scheduleSummary = getScheduleSummary(m);
 
           matchesHtml += `
             <div style="border:1px solid #ddd;border-radius:6px;margin-bottom:8px;overflow:hidden;page-break-inside:avoid;">
+              ${scheduleSummary ? `
+              <div style="padding:6px 12px;font-size:10px;font-weight:bold;color:#475569;background:#f8fafc;border-bottom:1px solid #eee;">
+                ${scheduleSummary}
+              </div>` : ""}
               <div style="display:flex;border-bottom:1px solid #eee;">
                 <div style="flex:1;padding:8px 12px;font-size:12px;${isP1Winner ? "font-weight:bold;background:#e8f5e9;" : ""}">
                   ${p1Name}

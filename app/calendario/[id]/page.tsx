@@ -66,6 +66,8 @@ type LlaveDetalle = {
   set3_pareja1: number | null; set3_pareja2: number | null;
   set1_tiebreak: string | null; set2_tiebreak: string | null; set3_tiebreak: string | null;
   ganador_id: number | null;
+  fecha_hora_programada: string | null;
+  cancha_numero: number | null;
   p1_j1_nombre: string; p1_j1_apellido: string;
   p1_j2_nombre: string; p1_j2_apellido: string;
   p2_j1_nombre: string; p2_j1_apellido: string;
@@ -214,6 +216,57 @@ function formatDate(dateString: string) {
     month: 'long',
     year: 'numeric'
   })
+}
+
+function extractTimeLabel(value?: string | null) {
+  if (!value) return null
+  const match = String(value).match(/(\d{1,2}):(\d{2})/)
+  if (!match) return null
+  return `${match[1].padStart(2, '0')}:${match[2]}`
+}
+
+function getWeekdayLabelFromDate(date: Date) {
+  return date.toLocaleDateString('es-AR', { weekday: 'short' }).replace('.', '')
+}
+
+function getZonaScheduleInfo(partido: PartidoZonaDetalle) {
+  const parsed = parseDateTime(partido.fecha_hora_programada)
+  if (parsed && !isNaN(parsed.getTime())) {
+    const timeLabel = `${String(parsed.getHours()).padStart(2, '0')}:${String(parsed.getMinutes()).padStart(2, '0')}`
+    const isMidnight = timeLabel === '00:00'
+    return {
+      dayLabel: getWeekdayLabelFromDate(parsed),
+      timeLabel: isMidnight ? (extractTimeLabel(partido.hora_estimada || partido.horario || partido.hora || partido.hora_inicio) ?? null) : timeLabel,
+      canchaLabel: partido.cancha_numero ? `Cancha ${partido.cancha_numero}` : null,
+    }
+  }
+
+  const dayLabel = partido.fecha_partido
+    ? getWeekdayLabelFromDate(parseDateOnly(partido.fecha_partido))
+    : (partido.dia_partido ? partido.dia_partido.slice(0, 3) : null)
+
+  return {
+    dayLabel,
+    timeLabel: extractTimeLabel(partido.hora_estimada || partido.horario || partido.hora || partido.hora_inicio),
+    canchaLabel: partido.cancha_numero ? `Cancha ${partido.cancha_numero}` : null,
+  }
+}
+
+function getLlaveScheduleInfo(partido: LlaveDetalle) {
+  const parsed = parseDateTime(partido.fecha_hora_programada)
+  if (parsed && !isNaN(parsed.getTime())) {
+    return {
+      dayLabel: getWeekdayLabelFromDate(parsed),
+      timeLabel: `${String(parsed.getHours()).padStart(2, '0')}:${String(parsed.getMinutes()).padStart(2, '0')}`,
+      canchaLabel: partido.cancha_numero ? `Cancha ${partido.cancha_numero}` : null,
+    }
+  }
+
+  return {
+    dayLabel: null,
+    timeLabel: extractTimeLabel(partido.fecha_hora_programada),
+    canchaLabel: partido.cancha_numero ? `Cancha ${partido.cancha_numero}` : null,
+  }
 }
 
 function getEstadoBadge(estado: FechaTorneo['estado']) {
@@ -434,6 +487,7 @@ export default async function FechaDetailPage({ params }: { params: Promise<{ id
                               <div className="space-y-2">
                                 {zona.partidos.map((partido) => {
                                   const isFinalizado = partido.estado === 'finalizado';
+                                  const schedule = getZonaScheduleInfo(partido);
                                   const resultado = isFinalizado 
                                     ? [
                                         `${partido.set1_pareja1}-${partido.set1_pareja2}${partido.set1_tiebreak ? `(${partido.set1_tiebreak})` : ''}`,
@@ -452,41 +506,28 @@ export default async function FechaDetailPage({ params }: { params: Promise<{ id
                                   return (
                                     <div key={partido.id} className="rounded border border-border bg-background p-2 text-xs shadow-sm">
                                       <div className="mb-1.5 flex items-center justify-between border-b border-border/50 pb-1.5">
-                                        <div className="flex items-center gap-2 text-muted-foreground">
+                                        <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
                                           <Badge variant="outline" className="h-4 rounded-[4px] px-1 py-0 text-[10px] font-normal text-muted-foreground">
                                             P{partido.orden_partido}
                                           </Badge>
-                                          {(() => {
-                                            let date = parseDateTime(partido.fecha_hora_programada);
-                                            // Fallback to fecha_partido + hora if needed
-                                            if (!date || isNaN(date.getTime())) {
-                                                if (partido.fecha_partido) {
-                                                    const dateStr = parseDateOnly(partido.fecha_partido).toISOString().split('T')[0];
-                                                    // Try different time fields
-                                                    const timeStr = partido.hora_estimada || partido.horario || partido.hora || partido.hora_inicio || '00:00';
-                                                    date = new Date(`${dateStr}T${timeStr}`);
-                                                }
-                                            }
-                                            
-                                            // Check if date is valid
-                                            if (!date || isNaN(date.getTime())) return null;
-                                            
-                                            // Check if time is 00:00 (likely only date provided)
-                                            const isMidnight = date.getHours() === 0 && date.getMinutes() === 0;
-                                            
-                                            return (
-                                              <span className="flex items-center gap-1 text-[10px]">
-                                                <Calendar className="h-3 w-3" />
-                                                {date.toLocaleDateString('es-AR', { weekday: 'short' })}
-                                                {!isMidnight && (
-                                                    <>
-                                                        <Clock className="ml-1 h-3 w-3" />
-                                                        {date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
-                                                    </>
-                                                )}
-                                              </span>
-                                            );
-                                          })()}
+                                          {schedule.dayLabel && (
+                                            <span className="flex items-center gap-1 text-[10px]">
+                                              <Calendar className="h-3 w-3" />
+                                              {schedule.dayLabel}
+                                            </span>
+                                          )}
+                                          {schedule.timeLabel && (
+                                            <span className="flex items-center gap-1 text-[10px]">
+                                              <Clock className="h-3 w-3" />
+                                              {schedule.timeLabel}hs
+                                            </span>
+                                          )}
+                                          {schedule.canchaLabel && (
+                                            <span className="flex items-center gap-1 text-[10px]">
+                                              <MapPinIcon className="h-3 w-3" />
+                                              {schedule.canchaLabel}
+                                            </span>
+                                          )}
                                         </div>
                                         {isFinalizado && (
                                           <Badge variant="secondary" className="h-4 rounded-[4px] px-1 py-0 text-[10px] font-normal text-primary bg-primary/10 hover:bg-primary/20 border-primary/20">
@@ -575,6 +616,7 @@ export default async function FechaDetailPage({ params }: { params: Promise<{ id
                             <CardContent className="p-3 space-y-3">
                               {partidosRonda.map(partido => {
                                 const isFinalizado = partido.ganador_id !== null;
+                                const schedule = getLlaveScheduleInfo(partido);
                                 const resultado = isFinalizado 
                                   ? [
                                       `${partido.set1_pareja1}-${partido.set1_pareja2}${partido.set1_tiebreak ? `(${partido.set1_tiebreak})` : ''}`,
@@ -592,6 +634,28 @@ export default async function FechaDetailPage({ params }: { params: Promise<{ id
 
                                 return (
                                   <div key={partido.id} className="relative flex flex-col gap-1 rounded-lg border border-border bg-background p-3 text-sm shadow-sm">
+                                    {(schedule.dayLabel || schedule.timeLabel || schedule.canchaLabel) && (
+                                      <div className="mb-1 flex flex-wrap items-center gap-2 text-[10px] font-medium text-muted-foreground">
+                                        {schedule.dayLabel && (
+                                          <span className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-primary">
+                                            <Calendar className="h-3 w-3" />
+                                            {schedule.dayLabel}
+                                          </span>
+                                        )}
+                                        {schedule.timeLabel && (
+                                          <span className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-primary">
+                                            <Clock className="h-3 w-3" />
+                                            {schedule.timeLabel}hs
+                                          </span>
+                                        )}
+                                        {schedule.canchaLabel && (
+                                          <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5">
+                                            <MapPinIcon className="h-3 w-3" />
+                                            {schedule.canchaLabel}
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
                                     <div className="flex justify-between items-center gap-2">
                                       <span className={cn("truncate font-medium", partido.ganador_id === partido.pareja1_id && "text-primary font-bold")}>
                                         {p1Label}

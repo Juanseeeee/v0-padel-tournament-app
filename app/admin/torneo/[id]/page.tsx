@@ -4328,15 +4328,33 @@ function LlavesTab({
   const [hoverInvalidPos, setHoverInvalidPos] = useState<'p1' | 'p2' | null>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
 
-  const formatLlaveTime = (value?: string | null) => {
+  const formatLlaveTimeDisplay = (value?: string | null) => {
     const parsed = parseDateTime(value);
     if (parsed) {
-      return parsed.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+      return parsed.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false });
     }
 
     if (typeof value === "string") {
       const match = value.match(/(\d{1,2}:\d{2})/);
-      if (match) return match[1];
+      if (match) return match[1].padStart(5, "0");
+    }
+
+    return "";
+  };
+
+  const formatLlaveTimeInput = (value?: string | null) => {
+    const parsed = parseDateTime(value);
+    if (parsed) {
+      const hours = String(parsed.getHours()).padStart(2, "0");
+      const minutes = String(parsed.getMinutes()).padStart(2, "0");
+      return `${hours}:${minutes}`;
+    }
+
+    if (typeof value === "string") {
+      const match = value.match(/(\d{1,2}):(\d{2})/);
+      if (match) {
+        return `${match[1].padStart(2, "0")}:${match[2]}`;
+      }
     }
 
     return "";
@@ -4772,7 +4790,8 @@ function LlavesTab({
               <div className="flex flex-col justify-around gap-4" style={{ minHeight: `${partidos.length * 100}px` }}>
                 {partidos.map((llave) => {
                   const isBye = llave.estado === 'bye';
-                  const horarioLlave = formatLlaveTime(llave.fecha_hora_programada);
+                  const horarioLlave = formatLlaveTimeDisplay(llave.fecha_hora_programada);
+                  const horarioLlaveInput = formatLlaveTimeInput(llave.fecha_hora_programada);
                   return (
                   <div
                     key={llave.id}
@@ -4884,11 +4903,11 @@ function LlavesTab({
                           <Input
                             type="time"
                             key={`${llave.id}-${llave.fecha_hora_programada || "sin-hora"}`}
-                            defaultValue={horarioLlave}
+                            defaultValue={horarioLlaveInput}
                             className="h-8"
                             onBlur={async (e) => {
                               const value = e.target.value.trim();
-                              const previousValue = formatLlaveTime(llave.fecha_hora_programada);
+                              const previousValue = formatLlaveTimeInput(llave.fecha_hora_programada);
 
                               if (value === previousValue) return;
                               if (value && !/^\d{2}:\d{2}$/.test(value)) {
