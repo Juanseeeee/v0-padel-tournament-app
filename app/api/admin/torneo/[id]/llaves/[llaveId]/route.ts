@@ -8,7 +8,19 @@ export async function PUT(
 ) {
   const { llaveId } = await params;
   const body = await request.json();
-  const { set1_p1, set1_p2, set2_p1, set2_p2, set3_p1, set3_p2, set1_tiebreak, set2_tiebreak, set3_tiebreak } = body;
+  const {
+    set1_p1,
+    set1_p2,
+    set2_p1,
+    set2_p2,
+    set3_p1,
+    set3_p2,
+    set1_tiebreak,
+    set2_tiebreak,
+    set3_tiebreak,
+    fecha_hora_programada,
+    cancha_numero,
+  } = body;
 
   const safeInt = (val: any): number | null => {
     if (val === null || val === undefined || val === "") return null;
@@ -23,6 +35,40 @@ export async function PUT(
     }
 
     const l = llave[0];
+    const shouldUpdateSchedule =
+      fecha_hora_programada !== undefined || cancha_numero !== undefined;
+    const hasScorePayload =
+      set1_p1 !== undefined ||
+      set1_p2 !== undefined ||
+      set2_p1 !== undefined ||
+      set2_p2 !== undefined ||
+      set3_p1 !== undefined ||
+      set3_p2 !== undefined ||
+      set1_tiebreak !== undefined ||
+      set2_tiebreak !== undefined ||
+      set3_tiebreak !== undefined;
+
+    if (shouldUpdateSchedule) {
+      const nextFechaHora =
+        fecha_hora_programada === undefined
+          ? l.fecha_hora_programada
+          : fecha_hora_programada || null;
+      const nextCancha =
+        cancha_numero === undefined
+          ? l.cancha_numero
+          : safeInt(cancha_numero);
+
+      await sql`
+        UPDATE llaves SET
+          fecha_hora_programada = ${nextFechaHora},
+          cancha_numero = ${nextCancha}
+        WHERE id = ${parseInt(llaveId)}
+      `;
+
+      if (!hasScorePayload) {
+        return NextResponse.json({ success: true });
+      }
+    }
 
     if (!l.pareja1_id || !l.pareja2_id) {
       return NextResponse.json({ error: "La llave no tiene ambas parejas asignadas" }, { status: 400 });
