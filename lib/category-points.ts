@@ -10,6 +10,31 @@ const RESULT_RANK_TO_NAME: Record<number, string> = {
   0: "zona",
 };
 
+export async function syncAllPlayersTotalPoints() {
+  await sql`
+    UPDATE jugadores j
+    SET
+      puntos_totales = COALESCE(pc.total_puntos, 0),
+      updated_at = NOW()
+    FROM (
+      SELECT jugador_id, SUM(puntos_acumulados) AS total_puntos
+      FROM puntos_categoria
+      GROUP BY jugador_id
+    ) pc
+    WHERE j.id = pc.jugador_id
+      AND COALESCE(j.puntos_totales, 0) <> COALESCE(pc.total_puntos, 0)
+  `;
+
+  await sql`
+    UPDATE jugadores
+    SET
+      puntos_totales = 0,
+      updated_at = NOW()
+    WHERE COALESCE(puntos_totales, 0) <> 0
+      AND id NOT IN (SELECT DISTINCT jugador_id FROM puntos_categoria)
+  `;
+}
+
 export async function rebuildCategoryPoints(categoriaId: number) {
   if (!categoriaId) return;
 
@@ -87,4 +112,6 @@ export async function rebuildCategoryPoints(categoriaId: number) {
       )
     `;
   }
+
+  await syncAllPlayersTotalPoints();
 }
