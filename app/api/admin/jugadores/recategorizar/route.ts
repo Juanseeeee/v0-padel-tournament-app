@@ -27,16 +27,38 @@ export async function POST(request: Request) {
 
     // Remove old category association if exists
     if (categoria_anterior_id) {
-      // 1. Get current points before deleting relation
-      // Usamos puntos_categoria si existe, o calculamos basado en historial/participaciones si no.
-      // Asumimos que puntos_categoria es la fuente de verdad actual.
-      const puntosStats = await sql`
-        SELECT puntos_acumulados 
-        FROM puntos_categoria 
-        WHERE jugador_id = ${jugador_id} AND categoria_id = ${categoria_anterior_id}
+      // Tomamos la mejor fuente disponible para evitar ascensos con arrastre en 0
+      // cuando puntos_categoria todavia no existe o quedo desincronizada.
+      const puntosSnapshot = await sql`
+        WITH puntos_categoria_actual AS (
+          SELECT MAX(puntos_acumulados) AS total
+          FROM puntos_categoria
+          WHERE jugador_id = ${jugador_id} AND categoria_id = ${categoria_anterior_id}
+        ),
+        puntos_historial AS (
+          SELECT SUM(puntos_acumulados) AS total
+          FROM historial_puntos
+          WHERE jugador_id = ${jugador_id}
+            AND categoria_id = ${categoria_anterior_id}
+            AND (
+              fecha_torneo_id IS NOT NULL
+              OR motivo IS NULL
+              OR motivo NOT ILIKE 'Transferencia 50% por ascenso%'
+            )
+        ),
+        puntos_participaciones AS (
+          SELECT SUM(puntos_obtenidos) AS total
+          FROM participaciones
+          WHERE jugador_id = ${jugador_id} AND categoria_id = ${categoria_anterior_id}
+        )
+        SELECT GREATEST(
+          COALESCE((SELECT total FROM puntos_categoria_actual), 0),
+          COALESCE((SELECT total FROM puntos_historial), 0),
+          COALESCE((SELECT total FROM puntos_participaciones), 0)
+        ) AS puntos_actuales
       `;
-      
-      const puntosActuales = puntosStats.length > 0 ? puntosStats[0].puntos_acumulados : 0;
+
+      const puntosActuales = Number(puntosSnapshot[0]?.puntos_actuales || 0);
       let puntosTransferir = 0;
       
       // Logic for Ascenso with Points Transfer

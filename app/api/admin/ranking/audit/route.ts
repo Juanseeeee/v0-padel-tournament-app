@@ -109,6 +109,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const ascensos = await sql`
+      SELECT jugador_id, puntos_transferidos
+      FROM ascensos
+      WHERE categoria_destino_id = ${categoria_id}
+    `;
+
+    for (const ascenso of ascensos) {
+      const jugadorId = Number(ascenso.jugador_id);
+      const puntosTransferidos = Number(ascenso.puntos_transferidos || 0);
+      if (puntosTransferidos <= 0) continue;
+
+      if (!expectedPoints[jugadorId]) {
+        expectedPoints[jugadorId] = { total: 0, details: [] };
+      }
+
+      expectedPoints[jugadorId].total += puntosTransferidos;
+      expectedPoints[jugadorId].details.push(`Ascenso: arrastre (${puntosTransferidos})`);
+    }
+
     // 3. Get Actual Points from DB
     const actualPoints = await sql`
       SELECT pc.jugador_id, pc.puntos_acumulados, j.nombre, j.apellido

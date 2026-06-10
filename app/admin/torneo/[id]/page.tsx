@@ -4327,22 +4327,34 @@ function LlavesTab({
   const [hoverInvalidLlaveId, setHoverInvalidLlaveId] = useState<number | null>(null);
   const [hoverInvalidPos, setHoverInvalidPos] = useState<'p1' | 'p2' | null>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [scheduleDrafts, setScheduleDrafts] = useState<Record<number, { time: string; cancha: string }>>({});
+
+  const extractLlaveTime = (value?: string | null) => {
+    if (typeof value === "string") {
+      const match = value.match(/(?:T|\s)?(\d{1,2}):(\d{2})/);
+      if (match) {
+        return `${match[1].padStart(2, "0")}:${match[2]}`;
+      }
+    }
+    return "";
+  };
 
   const formatLlaveTimeDisplay = (value?: string | null) => {
+    const literalTime = extractLlaveTime(value);
+    if (literalTime) return literalTime;
+
     const parsed = parseDateTime(value);
     if (parsed) {
       return parsed.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false });
-    }
-
-    if (typeof value === "string") {
-      const match = value.match(/(\d{1,2}:\d{2})/);
-      if (match) return match[1].padStart(5, "0");
     }
 
     return "";
   };
 
   const formatLlaveTimeInput = (value?: string | null) => {
+    const literalTime = extractLlaveTime(value);
+    if (literalTime) return literalTime;
+
     const parsed = parseDateTime(value);
     if (parsed) {
       const hours = String(parsed.getHours()).padStart(2, "0");
@@ -4359,6 +4371,32 @@ function LlavesTab({
 
     return "";
   };
+
+  useEffect(() => {
+    if (!llaves?.length) {
+      setScheduleDrafts({});
+      return;
+    }
+
+    setScheduleDrafts((prev) => {
+      const next: Record<number, { time: string; cancha: string }> = {};
+      for (const llave of llaves) {
+        next[llave.id] = {
+          time: formatLlaveTimeInput(llave.fecha_hora_programada),
+          cancha: llave.cancha_numero?.toString() || "",
+        };
+      }
+
+      const sameValues =
+        Object.keys(next).length === Object.keys(prev).length &&
+        Object.entries(next).every(([llaveId, value]) => {
+          const current = prev[Number(llaveId)];
+          return current?.time === value.time && current?.cancha === value.cancha;
+        });
+
+      return sameValues ? prev : next;
+    });
+  }, [llaves]);
 
   const buildSundayDateTime = (time: string) => {
     if (!fechaCalendario || !/^\d{2}:\d{2}$/.test(time)) return null;
@@ -4391,7 +4429,7 @@ function LlavesTab({
       throw new Error(err.error || "No se pudo actualizar el horario de la llave");
     }
 
-    onLlaveUpdate();
+    await Promise.resolve(onLlaveUpdate());
   };
 
   const handleExportPdf = async () => {
@@ -4791,7 +4829,7 @@ function LlavesTab({
                 {partidos.map((llave) => {
                   const isBye = llave.estado === 'bye';
                   const horarioLlave = formatLlaveTimeDisplay(llave.fecha_hora_programada);
-                  const horarioLlaveInput = formatLlaveTimeInput(llave.fecha_hora_programada);
+                  const scheduleDraft = scheduleDrafts[llave.id] || { time: formatLlaveTimeInput(llave.fecha_hora_programada), cancha: llave.cancha_numero?.toString() || "" };
                   return (
                   <div
                     key={llave.id}
@@ -4902,9 +4940,18 @@ function LlavesTab({
                           <Label className="text-[10px] uppercase text-muted-foreground">Domingo</Label>
                           <Input
                             type="time"
-                            key={`${llave.id}-${llave.fecha_hora_programada || "sin-hora"}`}
-                            defaultValue={horarioLlaveInput}
+                            value={scheduleDraft.time}
                             className="h-8"
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setScheduleDrafts((prev) => ({
+                                ...prev,
+                                [llave.id]: {
+                                  time: value,
+                                  cancha: prev[llave.id]?.cancha ?? (llave.cancha_numero?.toString() || ""),
+                                },
+                              }));
+                            }}
                             onBlur={async (e) => {
                               const value = e.target.value.trim();
                               const previousValue = formatLlaveTimeInput(llave.fecha_hora_programada);
@@ -4916,7 +4963,13 @@ function LlavesTab({
                                   description: "Por favor use el formato HH:MM (ej: 10:30)",
                                   variant: "destructive",
                                 });
-                                e.target.value = previousValue;
+                                setScheduleDrafts((prev) => ({
+                                  ...prev,
+                                  [llave.id]: {
+                                    time: previousValue,
+                                    cancha: prev[llave.id]?.cancha ?? (llave.cancha_numero?.toString() || ""),
+                                  },
+                                }));
                                 return;
                               }
 
@@ -4930,7 +4983,13 @@ function LlavesTab({
                                   description: getFriendlyError(error),
                                   variant: "destructive",
                                 });
-                                e.target.value = previousValue;
+                                setScheduleDrafts((prev) => ({
+                                  ...prev,
+                                  [llave.id]: {
+                                    time: previousValue,
+                                    cancha: prev[llave.id]?.cancha ?? (llave.cancha_numero?.toString() || ""),
+                                  },
+                                }));
                               }
                             }}
                           />
@@ -4940,9 +4999,18 @@ function LlavesTab({
                           <Input
                             type="number"
                             min="1"
-                            key={`${llave.id}-${llave.cancha_numero ?? "sin-cancha"}`}
-                            defaultValue={llave.cancha_numero?.toString() || ""}
+                            value={scheduleDraft.cancha}
                             className="h-8"
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setScheduleDrafts((prev) => ({
+                                ...prev,
+                                [llave.id]: {
+                                  time: prev[llave.id]?.time ?? formatLlaveTimeInput(llave.fecha_hora_programada),
+                                  cancha: value,
+                                },
+                              }));
+                            }}
                             onBlur={async (e) => {
                               const rawValue = e.target.value.trim();
                               const previousValue = llave.cancha_numero?.toString() || "";
@@ -4956,7 +5024,13 @@ function LlavesTab({
                                   description: "Ingresá un número de cancha válido.",
                                   variant: "destructive",
                                 });
-                                e.target.value = previousValue;
+                                setScheduleDrafts((prev) => ({
+                                  ...prev,
+                                  [llave.id]: {
+                                    time: prev[llave.id]?.time ?? formatLlaveTimeInput(llave.fecha_hora_programada),
+                                    cancha: previousValue,
+                                  },
+                                }));
                                 return;
                               }
 
@@ -4968,7 +5042,13 @@ function LlavesTab({
                                   description: getFriendlyError(error),
                                   variant: "destructive",
                                 });
-                                e.target.value = previousValue;
+                                setScheduleDrafts((prev) => ({
+                                  ...prev,
+                                  [llave.id]: {
+                                    time: prev[llave.id]?.time ?? formatLlaveTimeInput(llave.fecha_hora_programada),
+                                    cancha: previousValue,
+                                  },
+                                }));
                               }
                             }}
                           />

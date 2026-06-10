@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { compactPairNumbers } from "@/lib/pair-numbering";
 
 export async function POST(request: NextRequest) {
   const session = await getSession(request);
@@ -46,6 +47,7 @@ export async function POST(request: NextRequest) {
   
   // Delete pareja
   await sql`DELETE FROM parejas_torneo WHERE id = ${parejaId}`;
+  await compactPairNumbers(pareja[0].fecha_torneo_id, pareja[0].categoria_id);
 
   return NextResponse.json({ success: true });
 }

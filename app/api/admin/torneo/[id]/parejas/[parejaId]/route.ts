@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/db";
+import { compactPairNumbers } from "@/lib/pair-numbering";
 
 async function regenerateZoneMatches(zonaId: number) {
   try {
@@ -70,10 +71,18 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; parejaId: string }> }
 ) {
-  const { parejaId } = await params;
+  const { id, parejaId } = await params;
   const pid = parseInt(parejaId);
+  const torneoId = parseInt(id);
 
   try {
+    const [pareja] = await sql`
+      SELECT categoria_id FROM parejas_torneo WHERE id = ${pid}
+    `;
+    if (!pareja) {
+      return NextResponse.json({ error: "Pareja no encontrada" }, { status: 404 });
+    }
+
     // 1. Verificar si está en zona y obtener zona_id
     const asignacion = await sql`SELECT zona_id FROM parejas_zona WHERE pareja_id = ${pid}`;
     const zonaId = asignacion.length > 0 ? asignacion[0].zona_id : null;
@@ -106,6 +115,7 @@ export async function DELETE(
 
     // 6. Eliminar la pareja de parejas_torneo
     await sql`DELETE FROM parejas_torneo WHERE id = ${pid}`;
+    await compactPairNumbers(torneoId, pareja.categoria_id);
 
     return NextResponse.json({ success: true });
   } catch (error) {
