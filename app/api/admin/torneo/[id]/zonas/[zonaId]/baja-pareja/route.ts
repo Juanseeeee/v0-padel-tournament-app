@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/db";
+import { compactPairNumbers } from "@/lib/pair-numbering";
 
 export async function POST(
   request: NextRequest,
@@ -26,6 +27,13 @@ export async function POST(
   }
 
   try {
+    const [pareja] = await sql`
+      SELECT categoria_id FROM parejas_torneo WHERE id = ${pareja_id}
+    `;
+    if (!pareja) {
+      return NextResponse.json({ error: "Pareja no encontrada" }, { status: 404 });
+    }
+
     const [zona] = await sql`
       SELECT * FROM zonas WHERE id = ${parseInt(zonaId)} AND fecha_torneo_id = ${parseInt(torneoId)}
     `;
@@ -222,6 +230,7 @@ export async function POST(
 
     // Eliminar del listado de inscriptas del torneo la pareja dada de baja
     await sql`DELETE FROM parejas_torneo WHERE id = ${pareja_id}`;
+    await compactPairNumbers(parseInt(torneoId), pareja.categoria_id);
 
     // Regenerate round-robin matches for origin zone if it still has 3+ and opcion not reestructurar
     if (opcion !== "reestructurar") {

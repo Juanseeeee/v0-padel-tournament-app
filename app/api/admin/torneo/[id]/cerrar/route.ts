@@ -1,5 +1,6 @@
 import { sql } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { rebuildCategoryPoints } from "@/lib/category-points";
 
 export async function POST(
   request: Request,
@@ -137,8 +138,22 @@ export async function POST(
       }
     }
 
+    // Hacemos el cierre idempotente para evitar duplicar puntos si se reejecuta.
+    await sql`
+      DELETE FROM participaciones
+      WHERE fecha_torneo_id = ${parseInt(torneoId)}
+        AND categoria_id = ${categoriaId}
+    `;
+
+    await sql`
+      DELETE FROM historial_puntos
+      WHERE fecha_torneo_id = ${parseInt(torneoId)}
+        AND categoria_id = ${categoriaId}
+    `;
+
     // Guardar participaciones y puntos
     let totalProcesados = 0;
+    const categoriasDestinoARecalcular = new Set<number>();
     for (const [jugadorIdStr, instancia] of Object.entries(jugadorInstancia)) {
       const jugadorId = parseInt(jugadorIdStr);
       const puntos = getPuntos(instancia);
@@ -149,23 +164,6 @@ export async function POST(
         VALUES (${jugadorId}, ${parseInt(torneoId)}, ${categoriaId}, ${instancia}, ${puntos})
         ON CONFLICT (jugador_id, fecha_torneo_id, categoria_id) 
         DO UPDATE SET instancia_alcanzada = ${instancia}, puntos_obtenidos = ${puntos}
-      `;
-
-      // Actualizar puntos acumulados por categoría
-      await sql`
-        INSERT INTO puntos_categoria (jugador_id, categoria_id, puntos_acumulados, torneos_jugados)
-        VALUES (${jugadorId}, ${categoriaId}, ${puntos}, 1)
-        ON CONFLICT (jugador_id, categoria_id) 
-        DO UPDATE SET 
-          puntos_acumulados = puntos_categoria.puntos_acumulados + ${puntos},
-          torneos_jugados = puntos_categoria.torneos_jugados + 1,
-          mejor_resultado = CASE 
-            WHEN puntos_categoria.mejor_resultado IS NULL THEN ${instancia}
-            WHEN ${instancia} = 'campeon' THEN 'campeon'
-            WHEN ${instancia} = 'finalista' AND puntos_categoria.mejor_resultado NOT IN ('campeon') THEN 'finalista'
-            ELSE puntos_categoria.mejor_resultado
-          END,
-          updated_at = NOW()
       `;
 
       // 3. Verificar si el jugador ya no pertenece a esta categoría (fue ascendido/movido antes de cerrar el torneo)
@@ -191,6 +189,8 @@ export async function POST(
           const puntosTransferir = Math.floor(puntos * 0.5);
 
           if (puntosTransferir > 0) {
+            categoriasDestinoARecalcular.add(Number(categoriaDestinoId));
+
             // Transferir 50% a la nueva categoría
             await sql`
               INSERT INTO puntos_categoria (jugador_id, categoria_id, puntos_acumulados)
@@ -203,8 +203,8 @@ export async function POST(
 
             // Registrar en historial
             await sql`
-              INSERT INTO historial_puntos (jugador_id, categoria_id, puntos_acumulados, motivo)
-              VALUES (${jugadorId}, ${categoriaDestinoId}, ${puntosTransferir}, ${`Transferencia 50% puntos torneo anterior (${instancia})`})
+              INSERT INTO historial_puntos (jugador_id, categoria_id, fecha_torneo_id, puntos_acumulados, motivo)
+              VALUES (${jugadorId}, ${categoriaDestinoId}, ${parseInt(torneoId)}, ${puntosTransferir}, ${`Transferencia 50% puntos torneo anterior (${instancia})`})
             `;
           }
         }
@@ -218,6 +218,11 @@ export async function POST(
       `;
 
       totalProcesados++;
+    }
+
+    await rebuildCategoryPoints(categoriaId);
+    for (const categoriaDestinoId of categoriasDestinoARecalcular) {
+      await rebuildCategoryPoints(categoriaDestinoId);
     }
 
     // Marcar torneo como finalizada
