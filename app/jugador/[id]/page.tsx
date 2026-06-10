@@ -126,7 +126,13 @@ function getInstanciaStyle(instancia: string | null) {
   return 'bg-muted text-muted-foreground'
 }
 
-export default async function JugadorPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function JugadorPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams?: Promise<{ from?: string; categoria_id?: string }>
+}) {
   const { id } = await params
   const [jugador, historial, participaciones, ascensos] = await Promise.all([
     getJugador(id),
@@ -140,6 +146,26 @@ export default async function JugadorPage({ params }: { params: Promise<{ id: st
   }
 
   const rankingPosicion = await getRankingPosicion(id, jugador.categoria_actual_id)
+  const resolvedSearchParams = searchParams ? await searchParams : undefined
+  const source = resolvedSearchParams?.from
+  const categoriaId = resolvedSearchParams?.categoria_id
+  const categoriaQuery = categoriaId ? `?categoria_id=${categoriaId}` : ""
+
+  const backConfig =
+    source === "admin-ranking"
+      ? {
+          href: `/admin/ranking${categoriaQuery}`,
+          label: "Volver a Ranking Admin",
+        }
+      : source === "portal-ranking"
+        ? {
+            href: `/portal?tab=ranking${categoriaId ? `&categoria_id=${categoriaId}` : ""}`,
+            label: "Volver al Portal",
+          }
+        : {
+            href: `/rankings${categoriaQuery}`,
+            label: "Volver a Rankings",
+          }
 
   // Calcular estadísticas
   const totalTorneos = participaciones.length
@@ -154,10 +180,10 @@ export default async function JugadorPage({ params }: { params: Promise<{ id: st
         {/* Hero */}
         <section className="border-b border-border bg-gradient-to-br from-card via-background to-card">
           <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
-            <Link href="/rankings">
+            <Link href={backConfig.href}>
               <Button variant="ghost" size="sm" className="mb-4 gap-1 text-muted-foreground hover:text-foreground">
                 <ArrowLeft className="h-4 w-4" />
-                Volver a Rankings
+                {backConfig.label}
               </Button>
             </Link>
 

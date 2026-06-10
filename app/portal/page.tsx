@@ -5,8 +5,6 @@ import useSWR from "swr";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -29,6 +27,7 @@ import {
   TrendingUp
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { DetailedRankingTable } from "@/components/detailed-ranking-table";
 import { parseDateOnly } from "@/lib/utils";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -118,11 +117,17 @@ function MonthCalendar({ monthStr, events }: { monthStr: string, events: any[] }
 export default function PortalPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryTab = searchParams.get("tab");
+  const queryCategoryId = searchParams.get("categoria_id");
   const { data: me } = useSWR("/api/auth/me", fetcher);
   const { data: categories } = useSWR("/api/public/categorias", fetcher);
   
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [activeTab, setActiveTab] = useState<PortalTab>("torneos");
+  const [selectedCategory, setSelectedCategory] = useState<string>(queryCategoryId || "all");
+  const [activeTab, setActiveTab] = useState<PortalTab>(
+    queryTab === "ranking" || queryTab === "torneos" || queryTab === "calendario" || queryTab === "inscripciones"
+      ? (queryTab as PortalTab)
+      : "torneos"
+  );
   const [page, setPage] = useState(1);
   const [calendarMonth, setCalendarMonth] = useState<string>(new Date().toISOString().slice(0, 7));
 
@@ -135,6 +140,15 @@ export default function PortalPage() {
       setSelectedCategory(String(me.categoria_id));
     }
   }, [me, activeTab, selectedCategory]);
+
+  useEffect(() => {
+    if (queryTab === "ranking" || queryTab === "torneos" || queryTab === "calendario" || queryTab === "inscripciones") {
+      setActiveTab(queryTab as PortalTab);
+    }
+    if (queryCategoryId) {
+      setSelectedCategory(queryCategoryId);
+    }
+  }, [queryTab, queryCategoryId]);
 
   // Reset page when category changes
   useEffect(() => {
@@ -672,112 +686,28 @@ export default function PortalPage() {
                  <div className="flex items-center justify-between px-2 pt-2">
                     <h3 className="text-lg font-bold text-foreground drop-shadow-sm">Ranking {selectedCategoryName || me.categoria_nombre}</h3>
                 </div>
-                 <Card className="border-none shadow-sm bg-card rounded-3xl overflow-hidden">
-                    <CardContent className="p-0 overflow-x-auto">
-                        {isLoadingRanking ? (
-                             <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-                        ) : rankingList.length === 0 ? (
-                            <div className="p-8 text-center text-muted-foreground">Ranking no disponible</div>
-                        ) : (
-                            <TooltipProvider delayDuration={0}>
-                              <Table>
-                                <TableHeader>
-                                  <TableRow className="hover:bg-transparent border-b border-border/40">
-                                    <TableHead className="w-12 text-center font-bold text-muted-foreground">#</TableHead>
-                                    <TableHead className="min-w-[200px] font-bold text-muted-foreground">Jugador</TableHead>
-                                    {rankingFechas.map((fecha: any) => (
-                                      <TableHead key={fecha.id} className="text-center min-w-[80px]">
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <div className="cursor-help flex flex-col items-center">
-                                              <span className="font-bold text-primary">Fecha {fecha.numero_fecha}</span>
-                                              <span className="text-[10px] font-normal text-muted-foreground hidden sm:block">
-                                                {new Date(fecha.fecha_calendario).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}
-                                              </span>
-                                            </div>
-                                          </TooltipTrigger>
-                                          <TooltipContent className="text-center p-2">
-                                            <p className="font-bold">Fecha {fecha.numero_fecha}</p>
-                                            <p className="text-xs">{new Date(fecha.fecha_calendario).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-                                            <p className="text-xs text-muted-foreground mt-1">{fecha.sede}</p>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </TableHead>
-                                    ))}
-                                    <TableHead className="text-right font-bold text-primary w-24">TOTAL</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {rankingList.map((player: any, index: number) => (
-                                    <TableRow key={player.id} className={`hover:bg-muted/30 border-b border-border/40 transition-colors ${player.id === me.id ? "bg-primary/5" : ""}`}>
-                                      <TableCell className="text-center font-medium">
-                                        <div className={`
-                                          w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs mx-auto
-                                          ${index === 0 ? "bg-yellow-100 text-yellow-700" : 
-                                            index === 1 ? "bg-gray-100 text-gray-700" : 
-                                            index === 2 ? "bg-orange-100 text-orange-700" : 
-                                            "text-muted-foreground"}
-                                        `}>
-                                          {index + 1}
-                                        </div>
-                                      </TableCell>
-                                      <TableCell>
-                                        <div className="flex flex-col">
-                                          <div className="flex items-center gap-2 flex-wrap">
-                                            <span className={`font-bold ${player.id === me.id ? "text-primary" : "text-foreground"}`}>
-                                              {player.nombre} {player.apellido} {player.id === me.id && "(Tú)"}
-                                            </span>
-                                            {rankingPuntosArrastre[player.id] ? (
-                                              <Badge variant="outline" className="text-[10px] h-5 px-1 bg-yellow-500/10 text-yellow-600 border-yellow-200">
-                                                +{rankingPuntosArrastre[player.id]} Arrastre
-                                              </Badge>
-                                            ) : null}
-                                          </div>
-                                          {player.localidad && (
-                                            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{player.localidad}</span>
-                                          )}
-                                        </div>
-                                      </TableCell>
-                                      {rankingFechas.map((fecha: any) => {
-                                        const puntosData = rankingPuntosMap[player.id]?.[fecha.id];
-                                        return (
-                                          <TableCell key={fecha.id} className="text-center p-2">
-                                            {puntosData ? (
-                                              <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                  <div className="inline-flex flex-col items-center cursor-help">
-                                                    <span className="font-bold text-foreground">{puntosData.puntos}</span>
-                                                    {puntosData.instancia && (
-                                                      <span className="text-[9px] text-muted-foreground uppercase max-w-[60px] truncate">
-                                                        {puntosData.instancia === 'campeon' ? '🏆' : 
-                                                         puntosData.instancia === 'finalista' ? '🥈' : 
-                                                         puntosData.instancia.substring(0, 3)}
-                                                      </span>
-                                                    )}
-                                                  </div>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                  <p className="font-bold">{puntosData.puntos} Puntos</p>
-                                                  <p className="text-xs capitalize">{puntosData.instancia?.replace('_', ' ') || 'Participación'}</p>
-                                                </TooltipContent>
-                                              </Tooltip>
-                                            ) : (
-                                              <span className="text-muted-foreground/30 text-xl">-</span>
-                                            )}
-                                          </TableCell>
-                                        )
-                                      })}
-                                      <TableCell className="text-right">
-                                        <span className="font-black text-lg text-primary">{player.puntos_totales}</span>
-                                      </TableCell>
-                                    </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
-                            </TooltipProvider>
-                        )}
-                    </CardContent>
-                 </Card>
+                 {isLoadingRanking ? (
+                    <Card className="border-none shadow-sm bg-card rounded-3xl overflow-hidden">
+                      <CardContent className="flex justify-center p-8">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      </CardContent>
+                    </Card>
+                 ) : rankingList.length === 0 ? (
+                    <Card className="border-none shadow-sm bg-card rounded-3xl overflow-hidden">
+                      <CardContent className="p-8 text-center text-muted-foreground">Ranking no disponible</CardContent>
+                    </Card>
+                 ) : (
+                    <DetailedRankingTable
+                      title={`Ranking - ${selectedCategoryName || me.categoria_nombre}`}
+                      jugadores={rankingList}
+                      fechas={rankingFechas}
+                      puntosMap={rankingPuntosMap}
+                      puntosArrastre={rankingPuntosArrastre}
+                      currentPlayerId={me?.jugador_id}
+                      getPlayerHref={(jugadorId) => `/jugador/${jugadorId}?from=portal-ranking&categoria_id=${selectedCategory}`}
+                      cardClassName="shadow-sm rounded-3xl"
+                    />
+                 )}
              </div>
         )}
 
