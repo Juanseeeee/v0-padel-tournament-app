@@ -109,15 +109,13 @@ export const BRACKET_CONFIGS: Record<number, TournamentConfig> = {
     // 2 zonas de 3 + 1 zona de 4: A(4), B(3), C(3) -> 7 clasificados
     zonas: [4, 3, 3],
     bracket: [
-      // Pre-4tos (3oA vs 2oC)
-      { ronda: '8vos', posicion: 1, p1: '3A', p2: '2C' },
       // 4tos
-      { ronda: '4tos', posicion: 1, p1: '1A', p2: '2B' },
+      { ronda: '4tos', posicion: 1, p1: '2B', p2: '2C' },
       { ronda: '4tos', posicion: 2, p1: '1C', p2: '2A' },
-      { ronda: '4tos', posicion: 3, p1: null, p2: '1B' },   // ganador(3A/2C) vs 1B
+      { ronda: '4tos', posicion: 3, p1: '3A', p2: '1B' },
       // Semis
-      { ronda: 'semis', posicion: 1, p1: null, p2: null },   // ganador 4tos-1 vs ganador 4tos-2
-      { ronda: 'semis', posicion: 2, p1: null, p2: null },   // ganador 4tos-3 (solo si hay 4to 4tos)
+      { ronda: 'semis', posicion: 1, p1: '1A', p2: null },   // 1A vs ganador(2B/2C)
+      { ronda: 'semis', posicion: 2, p1: null, p2: null },   // ganador(1C/2A) vs ganador(3A/1B)
       // Final
       { ronda: 'final', posicion: 1, p1: null, p2: null },
     ],
