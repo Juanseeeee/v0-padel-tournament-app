@@ -85,7 +85,7 @@ import type {
   PartidoZona,
   Llave,
 } from "@/lib/db";
-import { BRACKET_CONFIGS, RONDAS_ORDER } from "@/lib/bracket-config";
+import { BRACKET_CONFIGS, RONDAS_ORDER, getPreviewBracketMatches } from "@/lib/bracket-config";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -1904,6 +1904,7 @@ function PreviewLlavesDialog({
   totalParejas: number;
 }) {
   const config = BRACKET_CONFIGS[totalParejas];
+  const previewBracket = config ? getPreviewBracketMatches(totalParejas, config.bracket) : [];
 
   if (!isOpen) return null;
 
@@ -1930,7 +1931,7 @@ function PreviewLlavesDialog({
             <div className="flex gap-8 overflow-x-auto pb-4">
               {RONDAS_ORDER.map((ronda) => {
                 // @ts-ignore
-                const partidos = config.bracket.filter((m) => m.ronda === ronda);
+                const partidos = previewBracket.filter((m) => m.ronda === ronda);
                 if (partidos.length === 0) return null;
 
                 return (
