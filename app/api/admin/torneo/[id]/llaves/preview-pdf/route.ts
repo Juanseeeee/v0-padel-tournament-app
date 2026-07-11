@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 import { parseDateOnly } from "@/lib/utils";
-import { BRACKET_CONFIGS, RONDAS_ORDER } from "@/lib/bracket-config";
+import { BRACKET_CONFIGS, RONDAS_ORDER, getPreviewBracketMatches } from "@/lib/bracket-config";
 
 export async function GET(
   request: NextRequest,
@@ -32,6 +32,7 @@ export async function GET(
     if (!config) {
       return NextResponse.json({ error: "No hay configuración de llaves para esta cantidad de parejas" }, { status: 400 });
     }
+    const previewBracket = getPreviewBracketMatches(totalParejas, config.bracket);
 
     const getRondaLabel = (ronda: string) => {
       const labels: Record<string, string> = {
@@ -55,7 +56,7 @@ export async function GET(
 
     // Group by ronda based on RONDAS_ORDER
     const rondas = new Map<string, any[]>();
-    for (const match of config.bracket) {
+    for (const match of previewBracket) {
       const r = match.ronda;
       if (!rondas.has(r)) rondas.set(r, []);
       rondas.get(r)!.push(match);

@@ -25,6 +25,31 @@ export const RONDAS_ORDER = ['32avos', '16avos', '8vos', '4tos', 'semis', 'final
 
 export const ZONA_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
+export function getPreviewBracketMatches(totalParejas: number, bracket: BracketMatch[]): BracketMatch[] {
+  if (totalParejas !== 18) {
+    return bracket;
+  }
+
+  const octavos = bracket
+    .filter((match) => match.ronda === "8vos")
+    .sort((a, b) => a.posicion - b.posicion);
+
+  if (octavos.length < 2) {
+    return bracket;
+  }
+
+  const reorderedOctavos = [...octavos];
+  [reorderedOctavos[0], reorderedOctavos[1]] = [reorderedOctavos[1], reorderedOctavos[0]];
+
+  const octavosByPosicion = new Map(
+    reorderedOctavos.map((match, index) => [octavos[index].posicion, match])
+  );
+
+  return bracket.map((match) =>
+    match.ronda === "8vos" ? (octavosByPosicion.get(match.posicion) ?? match) : match
+  );
+}
+
 // Mapa de configuraciones por cantidad de parejas
 export const BRACKET_CONFIGS: Record<number, TournamentConfig> = {
   3: {
