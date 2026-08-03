@@ -72,6 +72,7 @@ import {
 } from "lucide-react";
 import { FlyerGenerator } from "@/components/flyer-generator";
 import { AdminWrapper } from "@/components/admin-wrapper";
+import { PlayerSearchSelect } from "@/components/player-search-select";
 import { toast } from "@/hooks/use-toast";
 import { Spinner } from "@/components/ui/spinner";
 import { getFriendlyError, parseDateTime } from "@/lib/utils";
@@ -1282,57 +1283,39 @@ export default function TorneoManagementPage() {
               </div>
               <div className="grid gap-2">
                 <Label>Jugador 1</Label>
-                <Select 
-                  value={jugador1Id} 
-                  onValueChange={setJugador1Id}
+                <PlayerSearchSelect
+                  value={jugador1Id}
+                  onChange={setJugador1Id}
                   disabled={!torneo?.categoria_id}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar jugador" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {jugadores
-                      ?.filter((j) => 
-                        j.estado === "activo" && 
-                        j.id.toString() !== jugador2Id &&
-                        (!jugadoresInscritos.has(j.id) || (editingParejaId && parejas?.find(p => p.id === editingParejaId)?.jugador1_id === j.id) || (editingParejaId && parejas?.find(p => p.id === editingParejaId)?.jugador2_id === j.id)) &&
-                        (showAllPlayers || j.categoria_actual_id === torneo?.categoria_id || 
-                         (j.categoria_ids && j.categoria_ids.split(',').map(Number).includes(torneo?.categoria_id)))
-                      )
-                      .map((j) => (
-                        <SelectItem key={j.id} value={j.id.toString()}>
-                          {j.nombre} {j.apellido} {j.localidad && `(${j.localidad})`}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Seleccionar jugador"
+                  jugadores={
+                    jugadores?.filter((j) =>
+                      j.estado === "activo" &&
+                      j.id.toString() !== jugador2Id &&
+                      (!jugadoresInscritos.has(j.id) || (editingParejaId && parejas?.find(p => p.id === editingParejaId)?.jugador1_id === j.id) || (editingParejaId && parejas?.find(p => p.id === editingParejaId)?.jugador2_id === j.id)) &&
+                      (showAllPlayers || j.categoria_actual_id === torneo?.categoria_id ||
+                       (j.categoria_ids && j.categoria_ids.split(',').map(Number).includes(torneo?.categoria_id)))
+                    ) ?? []
+                  }
+                />
               </div>
               <div className="grid gap-2">
                 <Label>Jugador 2</Label>
-                <Select 
-                  value={jugador2Id} 
-                  onValueChange={setJugador2Id}
+                <PlayerSearchSelect
+                  value={jugador2Id}
+                  onChange={setJugador2Id}
                   disabled={!torneo?.categoria_id}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar jugador" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {jugadores
-                      ?.filter((j) => 
-                        j.estado === "activo" && 
-                        j.id.toString() !== jugador1Id &&
-                        (!jugadoresInscritos.has(j.id) || (editingParejaId && parejas?.find(p => p.id === editingParejaId)?.jugador1_id === j.id) || (editingParejaId && parejas?.find(p => p.id === editingParejaId)?.jugador2_id === j.id)) &&
-                        (showAllPlayers || j.categoria_actual_id === torneo?.categoria_id || 
-                         (j.categoria_ids && j.categoria_ids.split(',').map(Number).includes(torneo?.categoria_id)))
-                      )
-                      .map((j) => (
-                        <SelectItem key={j.id} value={j.id.toString()}>
-                          {j.nombre} {j.apellido} {j.localidad && `(${j.localidad})`}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Seleccionar jugador"
+                  jugadores={
+                    jugadores?.filter((j) =>
+                      j.estado === "activo" &&
+                      j.id.toString() !== jugador1Id &&
+                      (!jugadoresInscritos.has(j.id) || (editingParejaId && parejas?.find(p => p.id === editingParejaId)?.jugador1_id === j.id) || (editingParejaId && parejas?.find(p => p.id === editingParejaId)?.jugador2_id === j.id)) &&
+                      (showAllPlayers || j.categoria_actual_id === torneo?.categoria_id ||
+                       (j.categoria_ids && j.categoria_ids.split(',').map(Number).includes(torneo?.categoria_id)))
+                    ) ?? []
+                  }
+                />
               </div>
               <div className="flex items-center gap-2">
                 <input
