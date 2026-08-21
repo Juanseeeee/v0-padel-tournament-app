@@ -6,7 +6,7 @@ import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Calendar, Trophy, Users, ArrowRight, MapPin, Clock, Activity, Newspaper } from "lucide-react"
+import { Calendar, Trophy, Users, ArrowRight, MapPin, Clock, Activity, Newspaper, Crown } from "lucide-react"
 
 async function getProximasFechas(): Promise<FechaTorneo[]> {
   try {
@@ -117,6 +117,12 @@ export default async function HomePage() {
                     Ver Rankings
                   </Button>
                 </Link>
+                <Link href="/masters" className="w-full sm:w-auto">
+                  <Button size="lg" variant="outline" className="w-full sm:w-auto gap-2 bg-white/5 border-white/20 text-white hover:bg-white/10 hover:text-white backdrop-blur-sm text-lg h-12 px-8 rounded-xl">
+                    <Crown className="h-5 w-5 text-primary" />
+                    Masters
+                  </Button>
+                </Link>
             </div>
           </div>
         </section>
@@ -159,6 +165,34 @@ export default async function HomePage() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Banner Masters */}
+            <Link href="/masters" className="block group">
+              <Card className="relative overflow-hidden border-none shadow-xl rounded-3xl ring-1 ring-primary/30 bg-gradient-to-r from-primary/15 via-primary/5 to-card transition-all group-hover:ring-primary/50 group-hover:shadow-2xl">
+                <div className="absolute -right-6 -top-8 opacity-10 pointer-events-none">
+                  <Crown className="h-40 w-40 text-primary" />
+                </div>
+                <CardContent className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 sm:p-8">
+                  <div className="flex items-center gap-4">
+                    <div className="h-14 w-14 rounded-2xl bg-primary/15 flex items-center justify-center text-primary shrink-0">
+                      <Crown className="h-7 w-7" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-2xl font-[var(--font-display)] font-bold text-foreground">Masters de fin de año</h2>
+                        <Badge className="bg-primary/15 text-primary hover:bg-primary/20 border-0">Diciembre</Badge>
+                      </div>
+                      <p className="mt-1 text-muted-foreground max-w-lg">
+                        Los 16 mejores de cada categoría se sortean en parejas y definen al campeón del año. Mirá las llaves.
+                      </p>
+                    </div>
+                  </div>
+                  <Button size="lg" className="gap-2 shrink-0 shadow-lg shadow-primary/20 rounded-xl">
+                    Ver Masters <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+                  </Button>
+                </CardContent>
+              </Card>
+            </Link>
 
             <div className="grid gap-8">
                 {/* Próximas Fechas */}

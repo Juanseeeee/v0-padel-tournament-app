@@ -5,11 +5,13 @@ import { usePathname } from "next/navigation"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Menu, X, Trophy, Calendar, Users, FileText, Shield, LogIn, UserPlus, TrendingUp } from "lucide-react"
+import { Menu, X, Trophy, Calendar, Users, FileText, Shield, LogIn, UserPlus, TrendingUp, Crown } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { LigaLogo } from "@/components/liga-logo"
 
 const navigation = [
   { name: "Inicio", href: "/", icon: Trophy },
+  { name: "Masters", href: "/masters", icon: Crown },
   { name: "Calendario", href: "/calendario", icon: Calendar },
   { name: "Rankings", href: "/rankings", icon: Users },
   { name: "Noticias", href: "/noticias", icon: FileText },
@@ -24,15 +26,7 @@ export function Header() {
     <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 lg:px-8 lg:py-4">
         <Link href="/" className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-            <Trophy className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <div className="flex flex-col min-w-0">
-            <span className="font-[var(--font-display)] text-lg sm:text-xl tracking-wide text-foreground leading-none truncate">
-              LIGA DE PADEL
-            </span>
-            <span className="hidden sm:block text-xs text-muted-foreground">Sistema de Gestión</span>
-          </div>
+          <LigaLogo size={38} />
         </Link>
 
         {/* Desktop Navigation */}
