@@ -3,21 +3,22 @@ import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { AdminWrapper } from "@/components/admin-wrapper"
-import { 
+import {
   Users, Calendar, Trophy, FileText, Settings,
   UserPlus, CalendarPlus, Medal, ArrowRight, TrendingUp,
-  Building2, Layers, Upload, Activity
+  Building2, Layers, Upload, Activity, Crown
 } from "lucide-react"
 
 async function getEstadisticas() {
-  const [jugadores, fechas, participaciones, informes, categorias, sedes, ascensos] = await Promise.all([
+  const [jugadores, fechas, participaciones, informes, categorias, sedes, ascensos, masters] = await Promise.all([
     sql`SELECT COUNT(*) as count FROM jugadores WHERE estado = 'activo'`,
     sql`SELECT COUNT(*) as count FROM fechas_torneo`,
     sql`SELECT COUNT(*) as count FROM participaciones`,
     sql`SELECT COUNT(*) as count FROM informes`,
     sql`SELECT COUNT(*) as count FROM categorias`,
     sql`SELECT COUNT(*) as count FROM sedes WHERE activa = true`,
-    sql`SELECT COUNT(*) as count FROM ascensos`
+    sql`SELECT COUNT(*) as count FROM ascensos`,
+    sql`SELECT COUNT(*) as count FROM masters`.catch(() => [{ count: 0 }]),
   ])
 
   return {
@@ -28,6 +29,7 @@ async function getEstadisticas() {
     categorias: Number(categorias[0]?.count) || 0,
     sedes: Number(sedes[0]?.count) || 0,
     ascensos: Number(ascensos[0]?.count) || 0,
+    masters: Number(masters[0]?.count) || 0,
   }
 }
 
@@ -81,6 +83,18 @@ export default async function AdminPage() {
       stats: stats.fechas,
       actions: [
         { label: "Ver Fechas", href: "/admin/fechas", icon: Calendar },
+      ]
+    },
+    {
+      title: "Masters",
+      description: "Master de fin de año por categoría (top 16)",
+      icon: Crown,
+      href: "/admin/masters",
+      color: "text-yellow-500",
+      bgColor: "bg-yellow-500/10",
+      stats: stats.masters,
+      actions: [
+        { label: "Gestionar Masters", href: "/admin/masters", icon: Crown },
       ]
     },
     {

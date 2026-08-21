@@ -242,3 +242,66 @@ export type ConfigTorneo = {
   estado: string;
   created_at: string;
 };
+
+// ===== Masters (evento de fin de año por categoría) =====
+
+export type MasterEstado = "borrador" | "sorteado" | "publicado" | "finalizado";
+
+export type Master = {
+  id: number;
+  categoria_id: number;
+  temporada: number;
+  nombre: string;
+  estado: MasterEstado;
+  fecha_evento: string | null;
+  dias_juego: string | null;
+  hora_inicio: string | null;
+  publicado: boolean;
+  created_at: string;
+  updated_at: string;
+  // joined-only
+  categoria_nombre?: string;
+  orden_nivel?: number;
+};
+
+export type MasterParticipante = {
+  id: number;
+  master_id: number;
+  jugador_id: number;
+  seed: number; // slot 1..16
+  puntos: number;
+  pareja_numero: number | null; // 1..8, se completa en el sorteo
+  es_reemplazo: boolean;
+  reemplaza_a_jugador_id: number | null;
+  created_at: string;
+  // joined-only
+  nombre?: string;
+  apellido?: string;
+  localidad?: string | null;
+};
+
+export type MasterRonda = "cuartos" | "semis" | "final";
+
+export type MasterLlave = {
+  id: number;
+  master_id: number;
+  ronda: MasterRonda;
+  posicion: number;
+  equipo1_numero: number | null; // 1..8 -> pareja_numero
+  equipo2_numero: number | null;
+  set1_e1: number | null;
+  set1_e2: number | null;
+  set2_e1: number | null;
+  set2_e2: number | null;
+  set3_e1: number | null;
+  set3_e2: number | null;
+  ganador_numero: number | null;
+  estado: "pendiente" | "finalizado";
+  siguiente_llave_id: number | null;
+  siguiente_llave_slot: number | null;
+  fecha_hora_programada: string | null;
+  cancha_numero: number | null;
+  orden: number | null;
+  created_at: string;
+  updated_at: string;
+};
