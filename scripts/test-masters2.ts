@@ -4,7 +4,7 @@ const TEMPORADA = 9998;
 
 async function main() {
   const { sql } = await import("@/lib/db");
-  const { getTop16, getCategoriaAptitud, reconcileParticipantes, getMasterDetail } = await import("@/lib/masters");
+  const { getTop8, getCategoriaAptitud, reconcileParticipantes, getMasterDetail } = await import("@/lib/masters");
 
   const cat = (await sql`
     SELECT c.id, c.nombre, COUNT(*) AS n FROM categorias c
@@ -15,7 +15,7 @@ async function main() {
 
   await sql`DELETE FROM masters WHERE temporada=${TEMPORADA}`;
   const m = (await sql`INSERT INTO masters (categoria_id,temporada,nombre,estado) VALUES (${cat.id},${TEMPORADA},'T2','borrador') RETURNING id`)[0] as any;
-  const top = await getTop16(cat.id);
+  const top = await getTop8(cat.id);
   for (let i=0;i<top.length;i++) await sql`INSERT INTO master_participantes (master_id,jugador_id,seed,puntos) VALUES (${m.id},${(top[i] as any).id},${i+1},${Number((top[i] as any).puntos)||0})`;
 
   // 1) Aptitud
@@ -30,8 +30,8 @@ async function main() {
   console.log(`participantes con fechas_jugadas: ${det!.participantes.every((p:any)=>p.fechas_jugadas!=null) ? "SÍ ✓" : "NO ✗"} (ej: ${det!.participantes[0].nombre} = ${det!.participantes[0].fechas_jugadas} fechas)`);
 
   // 3) Reemplazo + reconcile preserva
-  const sale = det!.participantes[15]; // último clasificado
-  const entra = apt.find(a => !det!.participantes.some((p:any)=>p.jugador_id===a.id))!; // primero fuera del top16
+  const sale = det!.participantes[det!.participantes.length - 1]; // último clasificado
+  const entra = apt.find(a => !det!.participantes.some((p:any)=>p.jugador_id===a.id))!; // primero fuera del top8
   await sql`UPDATE master_participantes SET jugador_id=${entra.id}, es_reemplazo=true, reemplaza_a_jugador_id=${sale.jugador_id} WHERE id=${sale.id}`;
   console.log(`Reemplazo: sale ${sale.nombre} ${sale.apellido}, entra ${entra.nombre} ${entra.apellido}`);
   await reconcileParticipantes(m.id);

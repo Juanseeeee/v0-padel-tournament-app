@@ -280,7 +280,7 @@ export type MasterParticipante = {
   localidad?: string | null;
 };
 
-export type MasterRonda = "cuartos" | "semis" | "final";
+export type MasterRonda = "semis" | "final";
 
 export type MasterLlave = {
   id: number;

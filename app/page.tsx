@@ -183,7 +183,7 @@ export default async function HomePage() {
                         <Badge className="bg-primary/15 text-primary hover:bg-primary/20 border-0">Diciembre</Badge>
                       </div>
                       <p className="mt-1 text-muted-foreground max-w-lg">
-                        Los 16 mejores de cada categoría se sortean en parejas y definen al campeón del año. Mirá las llaves.
+                        Los 8 mejores de cada categoría se sortean en 4 parejas y definen al campeón del año. Mirá las llaves.
                       </p>
                     </div>
                   </div>

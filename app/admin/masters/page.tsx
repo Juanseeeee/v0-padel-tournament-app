@@ -53,7 +53,7 @@ export default function AdminMastersPage() {
   }
 
   return (
-    <AdminWrapper title="Masters" description="Master de fin de año por categoría (clasifican los 16 mejores del ranking).">
+    <AdminWrapper title="Masters" description="Master de fin de año por categoría (clasifican los 8 mejores del ranking).">
       <div className="flex flex-wrap items-end gap-3 mb-6">
         <div className="grid gap-1.5">
           <label className="text-xs font-medium text-muted-foreground">Temporada</label>

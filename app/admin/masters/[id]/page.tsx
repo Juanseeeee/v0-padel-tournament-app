@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
-const RONDA_LABEL: Record<string, string> = { cuartos: "Cuartos", semis: "Semifinales", final: "Final" };
+const RONDA_LABEL: Record<string, string> = { semis: "Semifinales", final: "Final" };
 
 export default function AdminMasterDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -341,14 +341,14 @@ function ReemplazarDialog({ masterId, sale, onClose, onDone }: { masterId: numbe
 function BracketEditor({
   masterId, llaves, parejaLabel, onSaved,
 }: { masterId: number; llaves: any[]; parejaLabel: (n: number | null) => string | null; onSaved: () => void }) {
-  const rondas = ["cuartos", "semis", "final"];
+  const rondas = ["semis", "final"];
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base"><Trophy className="h-4 w-4 text-primary" /> Llave del Master</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2">
           {rondas.map((ronda) => {
             const matches = llaves.filter((l) => l.ronda === ronda);
             if (matches.length === 0) return null;

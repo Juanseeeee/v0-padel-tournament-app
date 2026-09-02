@@ -1,33 +1,29 @@
 import { randomInt } from "crypto";
 import { sql } from "@/lib/db";
 
-export const RONDAS_MASTER = ["cuartos", "semis", "final"] as const;
+export const RONDAS_MASTER = ["semis", "final"] as const;
 
-// Estructura fija de una llave de 8 equipos (seeds 1..8), con reparto de byes
-// estándar: los seeds altos que no existan quedan null y su rival avanza directo.
-//   cuartos: 1v8, 4v5, 3v6, 2v7  → semis → final
-const BRACKET_8 = [
-  { ronda: "cuartos", posicion: 1, e1: 1, e2: 8 },
-  { ronda: "cuartos", posicion: 2, e1: 4, e2: 5 },
-  { ronda: "cuartos", posicion: 3, e1: 3, e2: 6 },
-  { ronda: "cuartos", posicion: 4, e1: 2, e2: 7 },
-  { ronda: "semis", posicion: 1, e1: null, e2: null },
-  { ronda: "semis", posicion: 2, e1: null, e2: null },
+// Cantidad de clasificados (jugadores) y de parejas que salen del sorteo.
+export const MASTER_CLASIFICADOS = 8;
+export const MASTER_PAREJAS = 4;
+
+// Estructura fija de una llave de 4 equipos (seeds 1..4), con reparto de byes:
+// los seeds que no existan quedan null y su rival avanza directo.
+//   semis: 1v4, 2v3  → final
+const BRACKET_4 = [
+  { ronda: "semis", posicion: 1, e1: 1, e2: 4 },
+  { ronda: "semis", posicion: 2, e1: 2, e2: 3 },
   { ronda: "final", posicion: 1, e1: null, e2: null },
 ] as const;
 
 // Cableado: [rondaOrigen, posOrigen] -> [rondaDestino, posDestino, slot]
 const WIRING: Array<[string, number, string, number, number]> = [
-  ["cuartos", 1, "semis", 1, 1],
-  ["cuartos", 2, "semis", 1, 2],
-  ["cuartos", 3, "semis", 2, 1],
-  ["cuartos", 4, "semis", 2, 2],
   ["semis", 1, "final", 1, 1],
   ["semis", 2, "final", 1, 2],
 ];
 
-/** Top-16 de una categoría, mismo criterio que el ranking público. */
-export async function getTop16(categoriaId: number) {
+/** Top-8 de una categoría, mismo criterio que el ranking público. */
+export async function getTop8(categoriaId: number) {
   return await sql`
     SELECT j.id, j.nombre, j.apellido, j.localidad,
            COALESCE(pc.puntos_acumulados, 0) AS puntos
@@ -39,7 +35,7 @@ export async function getTop16(categoriaId: number) {
       AND j.estado = 'activo'
       AND COALESCE(pc.puntos_acumulados, 0) > 0
     ORDER BY COALESCE(pc.puntos_acumulados, 0) DESC, j.nombre ASC
-    LIMIT 16
+    LIMIT 8
   `;
 }
 
@@ -93,7 +89,7 @@ export async function getCategoriaAptitud(categoriaId: number) {
 }
 
 /**
- * Resincroniza los clasificados con el top-16 vigente del ranking (para que la
+ * Resincroniza los clasificados con el top-8 vigente del ranking (para que la
  * lista se actualice con los resultados hasta diciembre). Sólo actúa en estado
  * 'borrador' y PRESERVA los reemplazos manuales. No hace nada una vez sorteado.
  */
@@ -108,9 +104,9 @@ export async function reconcileParticipantes(masterId: number) {
   const excluidos = new Set(reemplazos.map((r: any) => r.reemplaza_a_jugador_id).filter(Boolean));
   const forzados = new Set(reemplazos.map((r: any) => r.jugador_id));
 
-  // Base: ranking (sin excluidos ni forzados), rellenando hasta 16 - #reemplazos
+  // Base: ranking (sin excluidos ni forzados), rellenando hasta MASTER_CLASIFICADOS - #reemplazos
   const pool = ranking.filter((p) => !excluidos.has(p.id) && !forzados.has(p.id));
-  const base = pool.slice(0, Math.max(0, 16 - reemplazos.length));
+  const base = pool.slice(0, Math.max(0, MASTER_CLASIFICADOS - reemplazos.length));
 
   const finalSet = [
     ...base.map((p) => ({ jugador_id: p.id, puntos: p.puntos, es_reemplazo: false, reemplaza_a: null as number | null })),
@@ -150,14 +146,14 @@ function shuffle<T>(arr: T[]): T[] {
 
 /**
  * Sorteo: baraja los participantes, forma parejas al azar (pareja_numero = seed
- * 1..8), crea la llave de 8 equipos con byes y cablea las conexiones. Idempotente.
+ * 1..4), crea la llave de 4 equipos con byes y cablea las conexiones. Idempotente.
  */
 export async function sortearMaster(masterId: number) {
   const participantes = await sql`
     SELECT id FROM master_participantes WHERE master_id = ${masterId} ORDER BY seed
   `;
   const ids = shuffle(participantes.map((p: any) => p.id as number));
-  const numPairs = Math.min(8, Math.floor(ids.length / 2));
+  const numPairs = Math.min(MASTER_PAREJAS, Math.floor(ids.length / 2));
 
   // Reset de parejas y bracket anterior
   await sql`UPDATE master_participantes SET pareja_numero = NULL WHERE master_id = ${masterId}`;
@@ -174,7 +170,7 @@ export async function sortearMaster(masterId: number) {
 
   // Insertar partidos; team number > numPairs => null (no existe esa pareja)
   const idByKey: Record<string, number> = {};
-  for (const m of BRACKET_8) {
+  for (const m of BRACKET_4) {
     const e1 = m.e1 && m.e1 <= numPairs ? m.e1 : null;
     const e2 = m.e2 && m.e2 <= numPairs ? m.e2 : null;
     const rows = await sql`
@@ -195,9 +191,9 @@ export async function sortearMaster(masterId: number) {
     `;
   }
 
-  // Resolver byes en cuartos (un lado null y el otro presente => avanza directo)
-  for (let pos = 1; pos <= 4; pos++) {
-    const id = idByKey[`cuartos-${pos}`];
+  // Resolver byes en semis (un lado null y el otro presente => avanza directo)
+  for (let pos = 1; pos <= 2; pos++) {
+    const id = idByKey[`semis-${pos}`];
     const row = (await sql`SELECT * FROM master_llaves WHERE id = ${id}`)[0];
     const e1 = row.equipo1_numero;
     const e2 = row.equipo2_numero;
@@ -275,7 +271,7 @@ export async function getMasterDetail(masterId: number) {
   const llaves = await sql`
     SELECT * FROM master_llaves
     WHERE master_id = ${masterId}
-    ORDER BY CASE ronda WHEN 'cuartos' THEN 1 WHEN 'semis' THEN 2 WHEN 'final' THEN 3 ELSE 9 END,
+    ORDER BY CASE ronda WHEN 'semis' THEN 1 WHEN 'final' THEN 2 ELSE 9 END,
              COALESCE(orden, posicion), posicion
   `;
 
