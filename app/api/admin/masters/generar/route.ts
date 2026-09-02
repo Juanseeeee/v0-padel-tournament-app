@@ -1,10 +1,10 @@
 import { sql } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
-import { getTop16 } from "@/lib/masters";
+import { getTop8 } from "@/lib/masters";
 import { NextResponse } from "next/server";
 
 // POST /api/admin/masters/generar  { temporada, categoria_id? }
-// Crea el/los master(s) y toma el snapshot del top-16 de cada categoría.
+// Crea el/los master(s) y toma el snapshot del top-8 de cada categoría.
 // Idempotente: no duplica masters existentes ni pisa un sorteo ya hecho.
 export async function POST(request: Request) {
   const session = await requireAuth("admin");
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     `;
     const masterId = inserted[0].id;
 
-    const top = await getTop16(cat.id);
+    const top = await getTop8(cat.id);
     for (let i = 0; i < top.length; i++) {
       const j = top[i];
       await sql`

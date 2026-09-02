@@ -7,7 +7,7 @@ const TEMPORADA = 9999; // temporada de prueba, se borra al final
 
 async function main() {
   const { sql } = await import("@/lib/db");
-  const { getTop16, sortearMaster, getMasterDetail, computeGanadorNumero, propagarGanador } = await import("@/lib/masters");
+  const { getTop8, sortearMaster, getMasterDetail, computeGanadorNumero, propagarGanador } = await import("@/lib/masters");
 
   // Elegir una categoría con suficientes jugadores con puntos
   const cat = (await sql`
@@ -23,13 +23,13 @@ async function main() {
   // Limpiar cualquier master de prueba previo
   await sql`DELETE FROM masters WHERE temporada = ${TEMPORADA}`;
 
-  // Crear master + snapshot top16
+  // Crear master + snapshot top8
   const m = (await sql`
     INSERT INTO masters (categoria_id, temporada, nombre, estado)
     VALUES (${cat.id}, ${TEMPORADA}, ${'TEST Master'}, 'borrador') RETURNING id
   `)[0] as any;
   const masterId = m.id;
-  const top = await getTop16(cat.id);
+  const top = await getTop8(cat.id);
   for (let i = 0; i < top.length; i++) {
     await sql`INSERT INTO master_participantes (master_id, jugador_id, seed, puntos) VALUES (${masterId}, ${(top[i] as any).id}, ${i + 1}, ${Number((top[i] as any).puntos) || 0})`;
   }
@@ -54,17 +54,17 @@ async function main() {
     console.log(`  ${l.ronda}#${l.posicion}  e1=${l.equipo1_numero} e2=${l.equipo2_numero}  estado=${l.estado} ganador=${l.ganador_numero}  -> sig=${l.siguiente_llave_id}(slot ${l.siguiente_llave_slot})`);
   }
 
-  // Simular un resultado en un cuartos pendiente con ambos equipos
-  const cuarto = llaves.find((l) => l.ronda === "cuartos" && l.equipo1_numero != null && l.equipo2_numero != null && l.estado === "pendiente");
-  if (cuarto) {
-    await sql`UPDATE master_llaves SET set1_e1=6, set1_e2=3, set2_e1=6, set2_e2=4 WHERE id=${cuarto.id}`;
-    const row = (await sql`SELECT * FROM master_llaves WHERE id=${cuarto.id}`)[0] as any;
+  // Simular un resultado en una semi pendiente con ambos equipos
+  const semi = llaves.find((l) => l.ronda === "semis" && l.equipo1_numero != null && l.equipo2_numero != null && l.estado === "pendiente");
+  if (semi) {
+    await sql`UPDATE master_llaves SET set1_e1=6, set1_e2=3, set2_e1=6, set2_e2=4 WHERE id=${semi.id}`;
+    const row = (await sql`SELECT * FROM master_llaves WHERE id=${semi.id}`)[0] as any;
     const g = computeGanadorNumero(row);
-    await sql`UPDATE master_llaves SET ganador_numero=${g}, estado='finalizado' WHERE id=${cuarto.id}`;
-    await propagarGanador(cuarto.id);
-    const sig = (await sql`SELECT * FROM master_llaves WHERE id=${cuarto.id}`)[0] as any;
+    await sql`UPDATE master_llaves SET ganador_numero=${g}, estado='finalizado' WHERE id=${semi.id}`;
+    await propagarGanador(semi.id);
+    const sig = (await sql`SELECT * FROM master_llaves WHERE id=${semi.id}`)[0] as any;
     const next = (await sql`SELECT * FROM master_llaves WHERE id=${sig.siguiente_llave_id}`)[0] as any;
-    console.log(`\nCargué cuartos#${cuarto.posicion}: ganó equipo ${g}. Semi destino ahora: e1=${next.equipo1_numero} e2=${next.equipo2_numero}`);
+    console.log(`\nCargué semis#${semi.posicion}: ganó equipo ${g}. Final destino ahora: e1=${next.equipo1_numero} e2=${next.equipo2_numero}`);
     console.log(`Propagación correcta: ${next.equipo1_numero === g || next.equipo2_numero === g ? "SÍ ✓" : "NO ✗"}`);
   }
 

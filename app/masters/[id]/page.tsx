@@ -14,22 +14,18 @@ import { Crown, Download, ArrowLeft, CalendarDays, Loader2, Users } from "lucide
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-// Geometría fija de la llave de 8 equipos (coordenadas calculadas, export-friendly)
+// Geometría fija de la llave de 4 equipos (coordenadas calculadas, export-friendly)
 const CARD_W = 210;
 const CARD_H = 58;
 const MIDY = CARD_H / 2;
 const POS: Record<string, { x: number; y: number }> = {
-  "cuartos-1": { x: 0, y: 0 },
-  "cuartos-2": { x: 0, y: 110 },
-  "cuartos-3": { x: 0, y: 220 },
-  "cuartos-4": { x: 0, y: 330 },
-  "semis-1": { x: 300, y: 55 },
-  "semis-2": { x: 300, y: 275 },
-  "final-1": { x: 600, y: 165 },
+  "semis-1": { x: 0, y: 0 },
+  "semis-2": { x: 0, y: 160 },
+  "final-1": { x: 300, y: 80 },
 };
-const CHAMP = { x: 900, y: 165 };
+const CHAMP = { x: 600, y: 80 };
 const CANVAS_W = CHAMP.x + CARD_W;
-const CANVAS_H = 330 + CARD_H;
+const CANVAS_H = 160 + CARD_H;
 
 export default function MasterBracketPage() {
   const { id } = useParams<{ id: string }>();
@@ -160,14 +156,12 @@ function Bracket({ llaves, teamName, campeon }: { llaves: any[]; teamName: (n: n
     const midX = (x1 + x2) / 2;
     connectors.push(`M ${x1} ${y1} H ${midX} V ${y2} H ${x2}`);
   };
-  link("cuartos-1", "semis-1"); link("cuartos-2", "semis-1");
-  link("cuartos-3", "semis-2"); link("cuartos-4", "semis-2");
   link("semis-1", "final-1"); link("semis-2", "final-1");
   // final -> campeón (línea recta)
   const fEnd = POS["final-1"];
   connectors.push(`M ${fEnd.x + CARD_W} ${fEnd.y + MIDY} H ${CHAMP.x}`);
 
-  const columnDelay: Record<string, number> = { cuartos: 0, semis: 120, final: 240 };
+  const columnDelay: Record<string, number> = { semis: 0, final: 120 };
 
   return (
     <div className="relative mx-auto" style={{ width: CANVAS_W, height: CANVAS_H }}>
@@ -197,7 +191,7 @@ function Bracket({ llaves, teamName, campeon }: { llaves: any[]; teamName: (n: n
       {/* Campeón */}
       <div
         className="absolute animate-in fade-in zoom-in-95 duration-500 motion-reduce:animate-none"
-        style={{ left: CHAMP.x, top: CHAMP.y, width: CARD_W, animationDelay: "360ms", animationFillMode: "backwards" }}
+        style={{ left: CHAMP.x, top: CHAMP.y, width: CARD_W, animationDelay: "240ms", animationFillMode: "backwards" }}
       >
         <div className={`rounded-xl border-2 p-3 text-center shadow-lg ${campeon ? "border-primary bg-primary/10 ring-2 ring-primary/30" : "border-dashed border-muted-foreground/30"}`} style={{ minHeight: CARD_H }}>
           <div className="flex items-center justify-center gap-1.5 text-primary">

@@ -31,8 +31,8 @@ export default function MastersPage() {
             <LigaLogo size={40} tagline="Master" />
             <h1 className="mt-3 text-3xl font-[var(--font-display)] font-bold text-foreground">Masters de fin de año</h1>
             <p className="max-w-xl text-muted-foreground">
-              Los <span className="font-semibold text-foreground">16 mejores del ranking</span> de cada categoría se sortean en parejas
-              y definen al campeón del año en una llave de eliminación directa.
+              Los <span className="font-semibold text-foreground">8 mejores del ranking</span> de cada categoría se sortean en 4 parejas
+              y definen al campeón del año en una llave de eliminación directa desde semifinales.
             </p>
           </div>
         </div>

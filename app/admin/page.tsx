@@ -87,7 +87,7 @@ export default async function AdminPage() {
     },
     {
       title: "Masters",
-      description: "Master de fin de año por categoría (top 16)",
+      description: "Master de fin de año por categoría (top 8)",
       icon: Crown,
       href: "/admin/masters",
       color: "text-yellow-500",
