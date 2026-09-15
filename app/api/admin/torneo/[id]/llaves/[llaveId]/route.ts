@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 import { BRACKET_CONFIGS, RONDAS_ORDER } from "@/lib/bracket-config";
+import { recalcularPuntosTorneo } from "@/lib/torneo-points";
 
 export async function PUT(
   request: NextRequest,
@@ -251,7 +252,22 @@ export async function PUT(
       }
     }
 
-    return NextResponse.json({ success: true });
+    // Si el torneo YA está cerrado, editar un resultado debe actualizar los
+    // puntos del ranking automáticamente (evita que queden desincronizados).
+    let puntosRecalculados = false;
+    try {
+      const [ft] = await sql`SELECT estado FROM fechas_torneo WHERE id = ${l.fecha_torneo_id}`;
+      if (ft?.estado === "finalizada") {
+        await recalcularPuntosTorneo(l.fecha_torneo_id);
+        puntosRecalculados = true;
+      }
+    } catch (e) {
+      // El resultado ya quedó guardado; sólo falló el recálculo. Se loguea y
+      // el admin puede reintentar (re-guardar o volver a cerrar el torneo).
+      console.error("Error recalculando puntos tras editar llave:", e);
+    }
+
+    return NextResponse.json({ success: true, puntosRecalculados });
   } catch (error) {
     console.error("Error updating llave:", error);
     return NextResponse.json({ error: "Error al actualizar llave" }, { status: 500 });
