@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
         ON pc.jugador_id = j.id AND pc.categoria_id = ${categoriaId}
       WHERE jc.categoria_id = ${categoriaId}
         AND j.estado = 'activo'
-      ORDER BY COALESCE(pc.puntos_acumulados, 0) DESC, j.nombre ASC
+      ORDER BY COALESCE(pc.puntos_acumulados, 0) DESC, COALESCE(pc.desempate, 0) DESC, j.nombre ASC
     `;
 
     // Get points per fecha for each jugador
