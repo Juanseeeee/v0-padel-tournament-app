@@ -65,6 +65,9 @@ async function run() {
   await sql`CREATE INDEX IF NOT EXISTS idx_master_participantes_master ON master_participantes(master_id)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_master_llaves_master ON master_llaves(master_id)`;
 
+  // Columnas agregadas luego (idempotente)
+  await sql`ALTER TABLE masters ADD COLUMN IF NOT EXISTS sede TEXT`;
+
   console.log('OK. Tablas: masters, master_participantes, master_llaves.');
 }
 

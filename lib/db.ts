@@ -256,6 +256,7 @@ export type Master = {
   fecha_evento: string | null;
   dias_juego: string | null;
   hora_inicio: string | null;
+  sede: string | null;
   publicado: boolean;
   created_at: string;
   updated_at: string;

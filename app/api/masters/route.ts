@@ -8,13 +8,15 @@ export async function GET(request: Request) {
 
   const masters = temporada
     ? await sql`
-        SELECT m.id, m.nombre, m.temporada, m.estado, m.fecha_evento, m.dias_juego, m.hora_inicio,
+        SELECT m.id, m.nombre, m.temporada, m.estado,
+               to_char(m.fecha_evento, 'YYYY-MM-DD') AS fecha_evento, m.dias_juego, m.hora_inicio, m.sede,
                m.categoria_id, c.nombre AS categoria_nombre, c.orden_nivel
         FROM masters m JOIN categorias c ON c.id = m.categoria_id
         WHERE m.publicado = true AND m.temporada = ${Number(temporada)}
         ORDER BY c.orden_nivel ASC`
     : await sql`
-        SELECT m.id, m.nombre, m.temporada, m.estado, m.fecha_evento, m.dias_juego, m.hora_inicio,
+        SELECT m.id, m.nombre, m.temporada, m.estado,
+               to_char(m.fecha_evento, 'YYYY-MM-DD') AS fecha_evento, m.dias_juego, m.hora_inicio, m.sede,
                m.categoria_id, c.nombre AS categoria_nombre, c.orden_nivel
         FROM masters m JOIN categorias c ON c.id = m.categoria_id
         WHERE m.publicado = true

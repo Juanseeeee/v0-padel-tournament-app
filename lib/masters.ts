@@ -34,7 +34,7 @@ export async function getTop8(categoriaId: number) {
     WHERE jc.categoria_id = ${categoriaId}
       AND j.estado = 'activo'
       AND COALESCE(pc.puntos_acumulados, 0) > 0
-    ORDER BY COALESCE(pc.puntos_acumulados, 0) DESC, j.nombre ASC
+    ORDER BY COALESCE(pc.puntos_acumulados, 0) DESC, COALESCE(pc.desempate, 0) DESC, j.nombre ASC
     LIMIT 8
   `;
 }
@@ -67,7 +67,7 @@ export async function getCategoriaAptitud(categoriaId: number) {
     LEFT JOIN puntos_categoria pc ON pc.jugador_id = j.id AND pc.categoria_id = ${categoriaId}
     LEFT JOIN part p ON p.jugador_id = j.id
     WHERE jc.categoria_id = ${categoriaId} AND j.estado = 'activo'
-    ORDER BY COALESCE(pc.puntos_acumulados, 0) DESC, j.nombre ASC
+    ORDER BY COALESCE(pc.puntos_acumulados, 0) DESC, COALESCE(pc.desempate, 0) DESC, j.nombre ASC
   `;
   return rows.map((r: any) => {
     const total = Number(r.fechas_totales) || 0;
@@ -207,6 +207,68 @@ export async function sortearMaster(masterId: number) {
   await sql`UPDATE masters SET estado = 'sorteado', updated_at = NOW() WHERE id = ${masterId} AND estado <> 'finalizado'`;
 }
 
+// Estructura para el sorteo EN VIVO: 4 cajas fijas (1..4) ya ubicadas en la llave.
+//   SF1: caja1 vs caja2 · SF2: caja3 vs caja4 → final
+// El admin va colocando los jugadores en cada caja (pareja_numero 1..4) a mano.
+const BRACKET_MANUAL = [
+  { ronda: "semis", posicion: 1, e1: 1, e2: 2 },
+  { ronda: "semis", posicion: 2, e1: 3, e2: 4 },
+  { ronda: "final", posicion: 1, e1: null, e2: null },
+] as const;
+
+/**
+ * Prepara un sorteo EN VIVO: deja la llave armada con 4 cajas vacías (sin
+ * jugadores asignados) para proyectarla e ir colocando las parejas a mano.
+ */
+export async function iniciarSorteoManual(masterId: number) {
+  const master = (await sql`SELECT estado FROM masters WHERE id = ${masterId}`)[0] as any;
+  if (!master) throw new Error("Master no encontrado");
+  if (master.estado === "finalizado") throw new Error("El Master está finalizado");
+
+  await sql`UPDATE master_participantes SET pareja_numero = NULL WHERE master_id = ${masterId}`;
+  await sql`DELETE FROM master_llaves WHERE master_id = ${masterId}`;
+
+  const idByKey: Record<string, number> = {};
+  for (const m of BRACKET_MANUAL) {
+    const rows = await sql`
+      INSERT INTO master_llaves (master_id, ronda, posicion, equipo1_numero, equipo2_numero, estado, orden)
+      VALUES (${masterId}, ${m.ronda}, ${m.posicion}, ${m.e1}, ${m.e2}, 'pendiente', ${m.posicion})
+      RETURNING id
+    `;
+    idByKey[`${m.ronda}-${m.posicion}`] = rows[0].id;
+  }
+  for (const [ro, po, rd, pd, slot] of WIRING) {
+    await sql`
+      UPDATE master_llaves SET siguiente_llave_id = ${idByKey[`${rd}-${pd}`]}, siguiente_llave_slot = ${slot}
+      WHERE id = ${idByKey[`${ro}-${po}`]}
+    `;
+  }
+
+  await sql`UPDATE masters SET estado = 'sorteado', updated_at = NOW() WHERE id = ${masterId} AND estado <> 'finalizado'`;
+}
+
+/**
+ * Asigna (o quita) un jugador a una pareja/caja (1..4) durante el sorteo en vivo.
+ * Máximo 2 jugadores por caja. pareja_numero = null para quitarlo.
+ */
+export async function asignarJugadorPareja(masterId: number, jugadorId: number, parejaNumero: number | null) {
+  const part = (await sql`
+    SELECT id FROM master_participantes WHERE master_id = ${masterId} AND jugador_id = ${jugadorId}
+  `)[0] as any;
+  if (!part) throw new Error("El jugador no es un clasificado de este Master");
+
+  if (parejaNumero != null) {
+    if (![1, 2, 3, 4].includes(parejaNumero)) throw new Error("Pareja inválida (1 a 4)");
+    const ocupantes = (await sql`
+      SELECT COUNT(*)::int AS n FROM master_participantes
+      WHERE master_id = ${masterId} AND pareja_numero = ${parejaNumero} AND jugador_id <> ${jugadorId}
+    `)[0] as any;
+    if ((ocupantes?.n || 0) >= 2) throw new Error(`La pareja ${parejaNumero} ya tiene 2 jugadores`);
+  }
+
+  await sql`UPDATE master_participantes SET pareja_numero = ${parejaNumero} WHERE id = ${part.id}`;
+}
+
 /** Calcula el ganador (número de equipo) a partir de los sets cargados. */
 export function computeGanadorNumero(row: {
   equipo1_numero: number | null;
@@ -250,7 +312,8 @@ export async function propagarGanador(llaveId: number) {
 /** Detalle completo (para admin y público). */
 export async function getMasterDetail(masterId: number) {
   const masterRows = await sql`
-    SELECT m.*, c.nombre AS categoria_nombre, c.orden_nivel
+    SELECT m.*, c.nombre AS categoria_nombre, c.orden_nivel,
+           to_char(m.fecha_evento, 'YYYY-MM-DD') AS fecha_evento
     FROM masters m JOIN categorias c ON c.id = m.categoria_id
     WHERE m.id = ${masterId}
   `;

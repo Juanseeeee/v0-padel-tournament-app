@@ -98,6 +98,12 @@ export async function rebuildCategoryPoints(categoriaId: number) {
     WHERE (puntos_torneo + puntos_arrastre + puntos_transferidos_torneo) > 0
   `;
 
+  // Preservar desempates manuales (no se recalculan: son ajustes de admin).
+  const desempates = await sql`
+    SELECT jugador_id, desempate FROM puntos_categoria
+    WHERE categoria_id = ${categoriaId} AND COALESCE(desempate, 0) <> 0
+  `;
+
   await sql`DELETE FROM puntos_categoria WHERE categoria_id = ${categoriaId}`;
 
   for (const row of rows) {
@@ -110,6 +116,14 @@ export async function rebuildCategoryPoints(categoriaId: number) {
         ${Number(row.torneos_jugados || 0)},
         ${row.mejor_rank === null ? null : RESULT_RANK_TO_NAME[Number(row.mejor_rank)] || "zona"}
       )
+    `;
+  }
+
+  // Reaplicar los desempates manuales que existían antes del recálculo.
+  for (const d of desempates) {
+    await sql`
+      UPDATE puntos_categoria SET desempate = ${Number(d.desempate)}
+      WHERE jugador_id = ${d.jugador_id} AND categoria_id = ${categoriaId}
     `;
   }
 
