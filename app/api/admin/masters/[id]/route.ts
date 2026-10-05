@@ -63,6 +63,7 @@ export async function PUT(
       fecha_evento = ${pick("fecha_evento", body.fecha_evento)},
       dias_juego = ${pick("dias_juego", body.dias_juego)},
       hora_inicio = ${pick("hora_inicio", body.hora_inicio)},
+      sede = ${pick("sede", body.sede)},
       estado = ${pick("estado", body.estado)},
       publicado = ${pick("publicado", body.publicado)},
       updated_at = NOW()

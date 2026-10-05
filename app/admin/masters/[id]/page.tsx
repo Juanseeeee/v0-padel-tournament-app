@@ -17,6 +17,7 @@ import { toast } from "@/hooks/use-toast";
 import {
   Crown, Shuffle, Loader2, Eye, EyeOff, Repeat, CalendarDays, Clock,
   MapPin, Save, ExternalLink, CheckCircle2, Trophy, ListOrdered, Star,
+  X, MonitorPlay, Dices,
 } from "lucide-react";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -82,6 +83,14 @@ export default function AdminMasterDetailPage() {
           />
         </div>
         {yaSorteado && (
+          <SorteoEnVivoCard
+            masterId={master.id}
+            participantes={participantes}
+            publicado={master.publicado}
+            onChanged={mutate}
+          />
+        )}
+        {yaSorteado && (
           <BracketEditor masterId={master.id} llaves={llaves} parejaLabel={parejaLabel} onSaved={mutate} />
         )}
       </div>
@@ -144,6 +153,7 @@ function ConfigCard({ master, onSaved }: { master: any; onSaved: () => void }) {
   const [fecha, setFecha] = useState(master.fecha_evento?.slice(0, 10) ?? "");
   const [dias, setDias] = useState(master.dias_juego ?? "");
   const [hora, setHora] = useState(master.hora_inicio ?? "");
+  const [sede, setSede] = useState(master.sede ?? "");
   const [saving, setSaving] = useState(false);
 
   async function save(extra: Record<string, any> = {}) {
@@ -156,6 +166,7 @@ function ConfigCard({ master, onSaved }: { master: any; onSaved: () => void }) {
           fecha_evento: fecha || null,
           dias_juego: dias || null,
           hora_inicio: hora || null,
+          sede: sede || null,
           ...extra,
         }),
       });
@@ -196,6 +207,10 @@ function ConfigCard({ master, onSaved }: { master: any; onSaved: () => void }) {
           <Label className="text-xs flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> Hora de inicio</Label>
           <Input placeholder="ej. 14:00" value={hora} onChange={(e) => setHora(e.target.value)} />
         </div>
+        <div className="grid gap-1.5 sm:col-span-3">
+          <Label className="text-xs flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> Sede</Label>
+          <Input placeholder="ej. EL CANDIL PADEL (ARRIBEÑOS)" value={sede} onChange={(e) => setSede(e.target.value)} />
+        </div>
         <div className="sm:col-span-3">
           <Button onClick={() => save()} disabled={saving} size="sm" className="gap-2">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Guardar
@@ -210,31 +225,45 @@ function ConfigCard({ master, onSaved }: { master: any; onSaved: () => void }) {
 function ClasificadosCard({
   masterId, participantes, yaSorteado, onChanged,
 }: { masterId: number; participantes: any[]; yaSorteado: boolean; onChanged: () => void }) {
-  const [sorteando, setSorteando] = useState(false);
+  const [sorteando, setSorteando] = useState<"azar" | "vivo" | null>(null);
   const [reemplazar, setReemplazar] = useState<any | null>(null);
 
-  async function sortear() {
-    setSorteando(true);
+  async function run(tipo: "azar" | "vivo") {
+    setSorteando(tipo);
     try {
-      const res = await fetch(`/api/admin/masters/${masterId}/sortear`, { method: "POST" });
+      const url = tipo === "azar"
+        ? `/api/admin/masters/${masterId}/sortear`
+        : `/api/admin/masters/${masterId}/sorteo-manual`;
+      const res = await fetch(url, { method: "POST" });
       if (!res.ok) throw new Error((await res.json()).error || "Error");
-      toast({ title: "Sorteo realizado", description: "Se armaron las parejas y la llave." });
+      toast({
+        title: tipo === "azar" ? "Sorteo al azar realizado" : "Sorteo en vivo listo",
+        description: tipo === "azar"
+          ? "Se armaron las parejas y la llave."
+          : "Llave vacía lista: colocá las parejas abajo mientras proyectás.",
+      });
       onChanged();
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
-      setSorteando(false);
+      setSorteando(null);
     }
   }
 
   return (
     <Card>
-      <CardHeader className="flex-row items-center justify-between space-y-0">
+      <CardHeader className="flex-col items-start gap-2 space-y-0 sm:flex-row sm:items-center sm:justify-between">
         <CardTitle className="flex items-center gap-2 text-base"><Crown className="h-4 w-4 text-primary" /> Clasificados ({participantes.length})</CardTitle>
-        <Button onClick={sortear} disabled={sorteando || participantes.length < 2} className="gap-2">
-          {sorteando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shuffle className="h-4 w-4" />}
-          {yaSorteado ? "Re-sortear parejas" : "Sortear parejas"}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => run("vivo")} disabled={sorteando !== null || participantes.length < 2} className="gap-2">
+            {sorteando === "vivo" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
+            Sorteo en vivo
+          </Button>
+          <Button onClick={() => run("azar")} disabled={sorteando !== null || participantes.length < 2} className="gap-2">
+            {sorteando === "azar" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shuffle className="h-4 w-4" />}
+            {yaSorteado ? "Re-sortear al azar" : "Sortear al azar"}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {participantes.length === 0 ? (
@@ -334,6 +363,122 @@ function ReemplazarDialog({ masterId, sale, onClose, onDone }: { masterId: numbe
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/* ---------- Sorteo en vivo (colocar parejas en las cajas, proyectable) ---------- */
+function SorteoEnVivoCard({
+  masterId, participantes, publicado, onChanged,
+}: { masterId: number; participantes: any[]; publicado: boolean; onChanged: () => void }) {
+  const [busy, setBusy] = useState(false);
+
+  const boxes: Record<number, any[]> = { 1: [], 2: [], 3: [], 4: [] };
+  const sinAsignar: any[] = [];
+  for (const p of participantes) {
+    if (p.pareja_numero >= 1 && p.pareja_numero <= 4) boxes[p.pareja_numero].push(p);
+    else sinAsignar.push(p);
+  }
+
+  async function asignar(jugadorId: number, parejaNumero: number | null) {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/admin/masters/${masterId}/asignar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jugador_id: jugadorId, pareja_numero: parejaNumero }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Error");
+      onChanged();
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const Box = ({ num }: { num: number }) => {
+    const js = boxes[num];
+    return (
+      <div className="rounded-xl border-2 bg-card p-3">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-base font-bold text-primary-foreground">{num}</span>
+          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pareja {num}</span>
+        </div>
+        <div className="space-y-1.5">
+          {js.map((j) => (
+            <div key={j.id} className="flex items-center justify-between gap-2 rounded-lg bg-primary/10 px-2.5 py-2">
+              <span className="truncate text-base font-semibold">{j.nombre} {j.apellido}</span>
+              <button type="button" onClick={() => asignar(j.jugador_id, null)} disabled={busy} className="shrink-0 text-muted-foreground hover:text-destructive" aria-label="Quitar">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+          {js.length < 2 && (
+            <select
+              disabled={busy || sinAsignar.length === 0}
+              value=""
+              onChange={(e) => e.target.value && asignar(Number(e.target.value), num)}
+              className="w-full rounded-lg border border-dashed bg-background px-2.5 py-2 text-sm text-muted-foreground disabled:opacity-50"
+            >
+              <option value="">{sinAsignar.length ? "+ Colocar jugador…" : "(sin jugadores libres)"}</option>
+              {sinAsignar.map((p) => (
+                <option key={p.id} value={p.jugador_id}>{p.nombre} {p.apellido}</option>
+              ))}
+            </select>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const Semi = ({ title, a, b }: { title: string; a: number; b: number }) => (
+    <div className="space-y-2">
+      <h4 className="text-center text-sm font-bold uppercase tracking-wider text-muted-foreground">{title}</h4>
+      <Box num={a} />
+      <div className="text-center text-xs font-bold text-muted-foreground">VS</div>
+      <Box num={b} />
+    </div>
+  );
+
+  return (
+    <Card>
+      <CardHeader className="flex-col items-start gap-2 space-y-0 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <CardTitle className="flex items-center gap-2 text-base"><MonitorPlay className="h-4 w-4 text-primary" /> Sorteo en vivo</CardTitle>
+          <p className="mt-1 text-xs text-muted-foreground">Sacá los papeles y colocá cada jugador en su caja. Se arman las parejas y los cruces.</p>
+        </div>
+        {publicado ? (
+          <Link href={`/masters/${masterId}`} target="_blank">
+            <Button variant="outline" size="sm" className="gap-2"><MonitorPlay className="h-4 w-4" /> Proyectar llave</Button>
+          </Link>
+        ) : (
+          <span className="text-[11px] text-muted-foreground">Publicá el Master para proyectar la llave pública en vivo</span>
+        )}
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Semi title="Semifinal 1" a={1} b={2} />
+          <Semi title="Semifinal 2" a={3} b={4} />
+        </div>
+        <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed py-2 text-xs text-muted-foreground">
+          <Trophy className="h-3.5 w-3.5 text-primary" /> Ganador SF1 y Ganador SF2 juegan la Final
+        </div>
+        <div className="rounded-lg bg-muted/40 p-3">
+          <div className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            <Dices className="h-3.5 w-3.5" /> Jugadores sin asignar ({sinAsignar.length})
+          </div>
+          {sinAsignar.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Todos los jugadores están colocados.</p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {sinAsignar.map((p) => (
+                <Badge key={p.id} variant="secondary" className="text-xs">{p.nombre} {p.apellido}</Badge>
+              ))}
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

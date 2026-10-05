@@ -10,7 +10,8 @@ import { LigaLogo } from "@/components/liga-logo";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { Crown, Download, ArrowLeft, CalendarDays, Loader2, Users } from "lucide-react";
+import { Crown, Download, ArrowLeft, CalendarDays, Loader2, Users, MapPin } from "lucide-react";
+import { parseDateOnly } from "@/lib/utils";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -29,7 +30,8 @@ const CANVAS_H = 160 + CARD_H;
 
 export default function MasterBracketPage() {
   const { id } = useParams<{ id: string }>();
-  const { data, isLoading, error } = useSWR<any>(`/api/masters/${id}`, fetcher);
+  // refreshInterval: la llave se actualiza sola para proyectarla en vivo durante el sorteo.
+  const { data, isLoading, error } = useSWR<any>(`/api/masters/${id}`, fetcher, { refreshInterval: 5000 });
   const captureRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
 
@@ -111,8 +113,13 @@ export default function MasterBracketPage() {
                 {(master.fecha_evento || master.dias_juego || master.hora_inicio) && (
                   <p className="mt-1 flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
                     <CalendarDays className="h-4 w-4" />
-                    {master.fecha_evento ? new Date(master.fecha_evento).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" }) : master.dias_juego}
+                    {master.fecha_evento ? parseDateOnly(master.fecha_evento).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" }) : master.dias_juego}
                     {master.hora_inicio ? ` · ${master.hora_inicio} hs` : ""}
+                  </p>
+                )}
+                {master.sede && (
+                  <p className="mt-1 flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
+                    <MapPin className="h-4 w-4" /> {master.sede}
                   </p>
                 )}
               </div>

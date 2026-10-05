@@ -7,7 +7,8 @@ import { Footer } from "@/components/footer";
 import { LigaLogo } from "@/components/liga-logo";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Crown, ChevronRight, CalendarDays, Loader2 } from "lucide-react";
+import { Crown, ChevronRight, CalendarDays, Loader2, MapPin } from "lucide-react";
+import { parseDateOnly } from "@/lib/utils";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -70,11 +71,19 @@ export default function MastersPage() {
                           </div>
                           <ChevronRight className="h-5 w-5 text-muted-foreground/50 group-hover:text-primary transition-colors shrink-0" />
                         </div>
-                        {(m.fecha_evento || m.dias_juego) && (
-                          <div className="mt-4">
-                            <Badge variant="secondary" className="text-xs">
-                              {m.fecha_evento ? new Date(m.fecha_evento).toLocaleDateString("es-AR", { day: "numeric", month: "long" }) : m.dias_juego}
-                            </Badge>
+                        {(m.fecha_evento || m.dias_juego || m.sede) && (
+                          <div className="mt-4 flex flex-wrap gap-1.5">
+                            {(m.fecha_evento || m.dias_juego) && (
+                              <Badge variant="secondary" className="text-xs gap-1">
+                                <CalendarDays className="h-3 w-3" />
+                                {m.fecha_evento ? parseDateOnly(m.fecha_evento).toLocaleDateString("es-AR", { day: "numeric", month: "long" }) : m.dias_juego}
+                              </Badge>
+                            )}
+                            {m.sede && (
+                              <Badge variant="outline" className="text-xs gap-1">
+                                <MapPin className="h-3 w-3" /> {m.sede}
+                              </Badge>
+                            )}
                           </div>
                         )}
                       </CardContent>
